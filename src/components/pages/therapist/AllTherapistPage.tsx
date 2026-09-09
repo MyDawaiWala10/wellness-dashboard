@@ -28,12 +28,13 @@ interface ColumnDataType<TData extends TherapistformType> {
 export default function AllTherapistPage({
   columns,
 }: ColumnDataType<TherapistformType>) {
-  const { data: DoctorsDetail, isLoading, isError, error } = useGetAllTherapist();
+  const { data: DoctorsDetail, isLoading, isError, error, refetch } = useGetAllTherapist();
   const { data: sessionCounts = [] } = useGetTherapistSessionCounts();
   const [selected, setSelected] = useState<TherapistformType | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
   const { user } = useAuthStore();
   const isTherapist = user?.role === "THERAPIST";
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   // Generate columns with session counts
   const tableColumns = useMemo(
@@ -55,7 +56,7 @@ export default function AllTherapistPage({
     : "Manage all your Therapist.";
 
   return (
-    <QueryWrapper isLoading={isLoading} isError={isError} error={error}>
+    <QueryWrapper isLoading={isLoading} isError={isError} error={error} onRetry={refetch}>
       <Card>
         <CardHeader className="flex flex-row flex-wrap justify-start items-center gap-2">
           <div className="flex flex-col gap-2">
@@ -103,7 +104,7 @@ export default function AllTherapistPage({
       <TherapistDetailDrawer
         therapist={selected}
         onClose={() => setSelected(null)}
-        hideDelete={isTherapist}
+        hideDelete={!isSuperAdmin}
         hideStatus={isTherapist}
       />
     </QueryWrapper>

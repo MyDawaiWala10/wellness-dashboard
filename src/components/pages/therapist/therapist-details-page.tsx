@@ -225,6 +225,7 @@ export default function TherapistDetailsPage({
             <form
               onSubmit={form.handleSubmit(onSubmit)}
               className="px-5 sm:px-6 py-5 space-y-6"
+              data-therapist-form
             >
               {/* Basic info */}
               <section className="space-y-3">
@@ -561,8 +562,7 @@ export default function TherapistDetailsPage({
           )}
           {activeTab === "profile" && (
             <Button
-              type="submit"
-              form="therapist-profile-form"
+              type="button"
               disabled={isUpdating || isDeleting}
               className="h-11 sm:h-10"
               onClick={() => {

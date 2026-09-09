@@ -1,7 +1,7 @@
 "use client"; // Error components must be Client Components
 
-import { useEffect } from "react";
-import { CloudOff, RefreshCw, ArrowLeft } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { CloudOff, RefreshCw, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
@@ -20,6 +20,31 @@ export default function Error({
   reset?: () => void;
 }) {
   const router = useRouter();
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [retriesLeft, setRetriesLeft] = useState(3);
+
+  const isNetworkError =
+    error.message?.toLowerCase().includes("fetch failed") ||
+    error.message?.toLowerCase().includes("econnrefused") ||
+    error.message?.toLowerCase().includes("network");
+
+  const doRetry = useCallback(() => {
+    setIsRetrying(true);
+    setRetriesLeft((prev) => prev - 1);
+    setTimeout(() => {
+      reset?.();
+    }, 1500);
+  }, [reset]);
+
+  // Auto-retry on network errors
+  useEffect(() => {
+    if (isNetworkError && retriesLeft > 0 && !isRetrying) {
+      const timer = setTimeout(() => {
+        doRetry();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isNetworkError, retriesLeft, isRetrying, doRetry]);
 
   useEffect(() => {
     // Surface to dev tools so engineers can debug;
@@ -38,28 +63,38 @@ export default function Error({
 
       <div className="max-w-md space-y-2">
         <h1 className="text-2xl font-semibold text-foreground">
-          We hit a small hiccup
+          {isNetworkError ? "Connection issue" : "We hit a small hiccup"}
         </h1>
         <p className="text-sm text-muted-foreground">
-          The page couldn&rsquo;t load this time. Usually a refresh fixes it.
-          If it keeps happening, let your developer know.
+          {isNetworkError
+            ? retriesLeft > 0
+              ? `Unable to reach the server. Retrying in a moment... (${retriesLeft} attempts left)`
+              : "Unable to reach the server. Please check your connection and try again."
+            : "The page couldn't load this time. Usually a refresh fixes it. If it keeps happening, let your developer know."}
         </p>
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <Button
-          variant="default"
-          onClick={() => {
-            if (reset) {
-              reset();
-            } else {
-              window.location.reload();
-            }
-          }}
-        >
-          <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
-          Try again
-        </Button>
+        {isRetrying ? (
+          <Button variant="default" disabled>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+            Reconnecting...
+          </Button>
+        ) : (
+          <Button
+            variant="default"
+            onClick={() => {
+              if (reset) {
+                reset();
+              } else {
+                window.location.reload();
+              }
+            }}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
+            Try again
+          </Button>
+        )}
         <Button variant="outline" onClick={() => router.push("/dashboard")}>
           <ArrowLeft className="mr-2 h-4 w-4" aria-hidden />
           Back to dashboard
