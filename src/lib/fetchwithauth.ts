@@ -1,6 +1,6 @@
 "use server";
 import { cookies } from "next/headers";
-import { base_url } from "@/constant";
+import { base_url, SERVER_ACTION_REFRESH_TIMEOUT_MS } from "@/constant";
 import { AuthRefreshFailedError } from "./auth-errors";
 
 type CookieStore = Awaited<ReturnType<typeof cookies>>;
@@ -19,11 +19,44 @@ function buildCookieHeader(
   return parts.length ? parts.join("; ") : undefined;
 }
 
+// Abort timeout for the refresh-token call.  Use the shared constant so
+// middleware and server actions stay in sync (but note: the middleware uses
+// the shorter MIDDLEWARE_REFRESH_TIMEOUT_MS — see constant/index.ts).
+// If the backend doesn't respond within this window, the fetch aborts and
+// doRefresh returns null, triggering the AuthRefreshFailedError path.
+const REFRESH_TIMEOUT_MS = SERVER_ACTION_REFRESH_TIMEOUT_MS;
+
+// Deduplicate concurrent refresh attempts. When 4-5 server actions fire
+// simultaneously on page load and all get 401, they each call
+// refreshAccessToken with the same refresh token. Without deduplication:
+//   - 4-5 parallel refresh requests hit the backend
+//   - If the backend uses single-use/rotated refresh tokens, only the first
+//     succeeds; the rest get rejected -> cascading AuthRefreshFailedError
+// With deduplication, all callers share one in-flight promise.
+const inflightRefreshes = new Map<string, Promise<string | null>>();
+
 // Exchange the (long-lived) refresh token for a fresh access token via the
 // backend's existing endpoint, and best-effort persist it as the accessToken
 // cookie. Returns the new access token so the caller can retry immediately,
 // even in contexts where cookie mutation isn't allowed.
 async function refreshAccessToken(
+  cookieStore: CookieStore,
+  refreshToken: string,
+): Promise<string | null> {
+  // If a refresh for this token is already in flight, reuse it.
+  const existing = inflightRefreshes.get(refreshToken);
+  if (existing) return existing;
+
+  const promise = doRefresh(cookieStore, refreshToken);
+  inflightRefreshes.set(refreshToken, promise);
+  try {
+    return await promise;
+  } finally {
+    inflightRefreshes.delete(refreshToken);
+  }
+}
+
+async function doRefresh(
   cookieStore: CookieStore,
   refreshToken: string,
 ): Promise<string | null> {
@@ -35,6 +68,7 @@ async function refreshAccessToken(
         Cookie: `refreshToken=${refreshToken}`,
       },
       cache: "no-store",
+      signal: AbortSignal.timeout(REFRESH_TIMEOUT_MS),
     });
     if (!res.ok) return null;
 

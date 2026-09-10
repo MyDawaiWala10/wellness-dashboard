@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtDecode } from "jwt-decode";
-import { base_url } from "./constant";
+import { base_url, MIDDLEWARE_REFRESH_TIMEOUT_MS } from "./constant";
 
 function isTokenExpired(token: string): boolean {
   try {
@@ -67,7 +67,7 @@ export async function middleware(request: NextRequest) {
   // fetchWithAuth's own 401-retry) recover once the backend is warm. The
   // timeout rejects the fetch, taking the same graceful path as any other
   // failure below.
-  const REFRESH_TIMEOUT_MS = 3000;
+  const REFRESH_TIMEOUT_MS = MIDDLEWARE_REFRESH_TIMEOUT_MS;
   let refreshRes: Response;
   try {
     refreshRes = await fetch(`${base_url}/api/users/refresh-token`, {

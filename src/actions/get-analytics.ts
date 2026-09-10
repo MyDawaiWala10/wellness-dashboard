@@ -2,10 +2,11 @@
 
 import { base_url } from "@/constant";
 import { fetchWithAuth } from "@/lib/fetchwithauth";
-import { ApiResponse } from "@/type/api";
+import { withAuthErrorHandling } from "@/lib/server-action-error";
+import type { ApiResponse } from "@/type/api";
 
 export default async function getAnalyticsData(): Promise<ApiResponse<any>> {
-  try {
+  return withAuthErrorHandling(async () => {
     const response = await fetchWithAuth(`${base_url}/api/metrics`, {
       method: "GET",
       headers: { accept: "application/json" },
@@ -25,8 +26,5 @@ export default async function getAnalyticsData(): Promise<ApiResponse<any>> {
       message: result.message || "Data fetched successfully",
       data: result.data,
     };
-  } catch (error) {
-    console.error("[getAnalyticsData]", error);
-    return { success: false, message: "Network error, please try again" };
-  }
+  });
 }

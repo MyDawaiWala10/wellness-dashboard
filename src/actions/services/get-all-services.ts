@@ -2,11 +2,12 @@
 
 import { base_url } from "@/constant";
 import { fetchWithAuth } from "@/lib/fetchwithauth";
-import { ApiResponse } from "@/type/api";
-import { ServiceType } from "@/type/schema";
+import { withAuthErrorHandling } from "@/lib/server-action-error";
+import type { ApiResponse } from "@/type/api";
+import type { ServiceType } from "@/type/schema";
 
 export async function getAllServices(): Promise<ApiResponse<ServiceType[]>> {
-  try {
+  return withAuthErrorHandling(async () => {
     const response = await fetchWithAuth(`${base_url}/api/services`, {
       method: "GET",
       cache: "no-cache",
@@ -26,8 +27,5 @@ export async function getAllServices(): Promise<ApiResponse<ServiceType[]>> {
       message: "Services fetched successfully",
       data: result.data,
     };
-  } catch (error) {
-    console.error("[getAllServices]", error);
-    return { success: false, message: "Network error, please try again" };
-  }
+  });
 }

@@ -2,9 +2,11 @@
 
 import { base_url } from "@/constant";
 import { fetchWithAuth } from "@/lib/fetchwithauth";
+import { withAuthErrorHandling } from "@/lib/server-action-error";
+import type { ApiResponse } from "@/type/api";
 
-export async function getAllTherapist() {
-  try {
+export async function getAllTherapist(): Promise<ApiResponse<any>> {
+  return withAuthErrorHandling(async () => {
     const response = await fetchWithAuth(`${base_url}/api/therapist`, {
       method: "GET",
       cache: "no-cache",
@@ -26,11 +28,5 @@ export async function getAllTherapist() {
       message: "Therapist fetched successfully",
       data: result.data,
     };
-  } catch (error) {
-    console.error("[getAllTherapist]", error);
-    return {
-      success: false,
-      message: "Network error, please try again",
-    };
-  }
+  });
 }

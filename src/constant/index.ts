@@ -71,3 +71,25 @@ function resolveBackendBaseUrl(): string {
 }
 
 export const base_url = resolveBackendBaseUrl();
+
+// ── Refresh-token timeout constants ──────────────────────────────────────────
+// Both middleware and fetchWithAuth call /api/users/refresh-token when the
+// access token expires. Each has its own timeout tuned to its context.
+//
+// Why two values?  The middleware runs on EVERY navigation and blocks the
+// entire page load — it must fail fast (3 s) so the user isn't stuck waiting.
+// If the backend is cold, the middleware lets the request through with stale
+// cookies; the data layer (fetchWithAuth) recovers once the backend is warm.
+//
+// fetchWithAuth runs inside server actions AFTER the page has loaded.  The
+// page is already visible, so we can afford to wait a bit longer (5 s) for
+// the backend to respond.  Still short enough to finish well within Next.js
+// server-action time budgets.
+//
+// Render free-tier cold starts take 10-30 s.  Neither timeout can survive a
+// full cold start — that's intentional.  The first request (middleware or
+// server action) pings the Render instance and wakes it up; subsequent
+// requests within the same ~60 s window succeed.  The hard-refresh flow
+// (user sees session expired dialog → clicks Refresh) completes the warm-up.
+export const MIDDLEWARE_REFRESH_TIMEOUT_MS = 3_000;
+export const SERVER_ACTION_REFRESH_TIMEOUT_MS = 5_000;
