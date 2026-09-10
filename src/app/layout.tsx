@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "Dashboard for doctors",
+  title: "Wellness Dashboard MDW",
+  description: "Wellness Dashboard MyDawaiwala",
 };
 
 export default async function RootLayout({

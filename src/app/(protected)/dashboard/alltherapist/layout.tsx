@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Doctors Page",
-  description: "View all your doctors",
+  title: "Wellness Dashboard MDW",
+  description: "View all metrics and manage your wellness dashboard with ease.",
 };
 
 export default async function DistributorLayout({
