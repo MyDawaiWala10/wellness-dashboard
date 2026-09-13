@@ -120,6 +120,7 @@ export function useUpdateTherapist() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["therapists"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
     },
     onSuccess: () => {
       toast.success("Therapist updated successfully");

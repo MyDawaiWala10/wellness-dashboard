@@ -293,6 +293,8 @@ export type Certificate = z.infer<typeof certificateSchema>;
 
 export const TherapistformSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
   // Auto-allocated server-side (THR-####) when left blank.
   doctorId: z.string().optional(),
   // Link to the login account (User._id). Set server-side when creating.

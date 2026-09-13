@@ -88,6 +88,8 @@ export default function TherapistDetailsPage({
     resolver: zodResolver(TherapistformSchema),
     defaultValues: {
       name: data.name,
+      firstName: data.firstName ?? "",
+      lastName: data.lastName ?? "",
       doctorId: data.doctorId,
       phonenumber: data.phonenumber != null ? String(data.phonenumber) : "",
       email: data.email,
@@ -155,7 +157,12 @@ export default function TherapistDetailsPage({
   }
 
   function onSubmit(values: z.infer<typeof TherapistformSchema>) {
-    updateMutate(values, {
+    // Combine firstName + lastName into name for backend
+    const submissionValues = {
+      ...values,
+      name: `${values.firstName || ""} ${values.lastName || ""}`.trim(),
+    };
+    updateMutate(submissionValues, {
       onSuccess: () => onClose(),
     });
   }
@@ -233,15 +240,36 @@ export default function TherapistDetailsPage({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="name"
+                    name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Name</FormLabel>
+                        <FormLabel>First Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Name" {...field} />
+                          <Input placeholder="First name" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Last name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {/* Hidden name field for form submission */}
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <input type="hidden" {...field} />
                     )}
                   />
                   <FormField

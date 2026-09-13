@@ -12,7 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { CirclePlus, X, Loader2, Plus } from "lucide-react";
+import { CirclePlus, X, Loader2, Plus, Eye, EyeOff } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -61,6 +61,7 @@ export default function AddDoctorForm() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const mutation = useAddTherapist();
   const {
@@ -158,6 +159,7 @@ export default function AddDoctorForm() {
       form.reset();
       setSearchValue("");
       setIsDropdownOpen(false);
+      setShowPassword(false);
     }
   }
 
@@ -251,12 +253,26 @@ export default function AddDoctorForm() {
                       <FormItem>
                         <FormLabel>Temporary password</FormLabel>
                         <FormControl>
-                          <Input
-                            type="password"
-                            placeholder="Min 6 chars (therapist can change later)"
-                            {...field}
-                            value={field.value ?? ""}
-                          />
+                          <div className="relative">
+                            <Input
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Min 6 chars (therapist can change later)"
+                              {...field}
+                              value={field.value ?? ""}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword((prev) => !prev)}
+                              className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                              tabIndex={-1}
+                            >
+                              {showPassword ? (
+                                <EyeOff className="w-4 h-4" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
