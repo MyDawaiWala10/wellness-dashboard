@@ -65,59 +65,17 @@ if (updatedUser.role === "THERAPIST") {
 ### 2. Super Admin Edit User Does Not Update Doctor Roster
 
 **Severity:** Medium  
-**Status:** Open  
+**Status:** Fixed (confirmed 2026-09-17)  
 **Affected Pages:** Settings (`/dashboard/settings`)
 
 #### Description
-When a super admin edits a therapist's info via the Settings page "Admin Members" table, it calls `PATCH /api/users/admin/update-user`. This endpoint only updates the `User` model, NOT the linked `Doctor` model.
+When a super admin edits a therapist's info via the Settings page "Admin Members" table, it calls `PATCH /api/users/admin/update-user`. This entry claimed the endpoint only updated the `User` model, not the linked `Doctor`.
 
-#### Steps to Reproduce
-1. Login as SUPER_ADMIN
-2. Go to `/dashboard/settings`
-3. In "Admin Members" table, find a therapist (role: THERAPIST)
-4. Click "Edit user" and change their name/email/phone
-5. Save changes
-6. Go to `/dashboard/alltherapist`
-7. Observe: The therapist's info is still the OLD values
+#### Verified against current code
+`adminEditUserProfile` (`controllers/userController.ts:374-402`) already syncs `firstName`, `lastName`, `name`, `email`, `phonenumber`, and `isActive` to the linked `Doctor` document whenever the edited user's role is `THERAPIST`, with the sync failure caught and logged (not fatal to the request). This entry was still marked Open when it had already been fixed. It also has test coverage: `controllers/userController.test.ts`, describe block `adminEditUserProfile — Doctor sync`.
 
-#### Root Cause
-The `adminEditUserProfile` endpoint only updates the `User` model:
-
-```typescript
-// Backend: userController.ts - adminEditUserProfile
-if (userfName !== undefined) user.userfName = userfName;
-if (userlName !== undefined) user.userlName = userlName;
-if (userEmail !== undefined) user.userEmail = userEmail;
-if (userPhone !== undefined) user.userPhone = userPhone;
-if (role !== undefined) user.role = role;
-await user.save();
-// ^^^ Only saves User, NOT Doctor
-```
-
-#### Expected Behavior
-When an admin updates a therapist's info, the changes should propagate to both `User` and `Doctor` models.
-
-#### Suggested Fix
-After saving the User, check if the user has role `THERAPIST` and update the linked Doctor:
-
-```typescript
-await user.save();
-
-// If this is a therapist, sync to Doctor model
-if (user.role === "THERAPIST") {
-    await Doctor.findOneAndUpdate(
-        { userId: user._id.toString() },
-        { 
-            name: `${user.userfName} ${user.userlName}`.trim(),
-            email: user.userEmail,
-            phonenumber: user.userPhone,
-        }
-    );
-}
-```
-
-#### Affected Code
-- **Backend:** `C:\workspace\WellnessBackend\controllers\userController.ts` - `adminEditUserProfile` function (line 292-386)
+#### Left over from the fix (minor, not the original bug)
+Two `console.log`/`console.error` debug lines are still in the sync block (lines 390, 397, 400) and should be cleaned up next time this function is touched, but they're not a functional issue.
 
 ---
 
@@ -238,14 +196,14 @@ The current code doesn't handle these edge cases, which could leave data in an i
 ### 8. Unguarded Admin Endpoints
 
 **Severity:** Critical  
-**Status:** Open  
-**Affected Routes:** `DELETE /api/users/admin/delete-user`, `POST /api/users/admin/register-user`
+**Status:** Fixed (confirmed 2026-09-17)  
+**Affected Routes:** `DELETE /api/users/admin/delete-user`, `POST /api/users/admin/register-user`, `PATCH /api/users/admin/update-user`
 
 #### Description
-Both endpoints require only `userAuth` — any authenticated user can call them regardless of role. A logged-in `THERAPIST` could delete a `SUPER_ADMIN` or create a new `SUPER_ADMIN` account.
+Originally, these endpoints required only `userAuth`, so any authenticated user could call them regardless of role. As of `routes/userRoute.ts`, all three now have `requireRole("SUPER_ADMIN", "ADMIN")` wired in. This entry was still marked Open when it had already been fixed; verified directly against the current route file rather than trusting the doc.
 
 #### Suggested Fix
-Wire `requireRole("SUPER_ADMIN", "ADMIN")` middleware on these routes.
+~~Wire `requireRole("SUPER_ADMIN", "ADMIN")` middleware on these routes.~~ Done.
 
 ---
 
@@ -306,22 +264,28 @@ The middleware is fully implemented but no route uses it. Every router file moun
 ### 12. Invalid-Role Fallback Bug in adminRegisterUser
 
 **Severity:** Medium  
-**Status:** Open  
-**Affected Code:** `controllers/userController.ts` lines 164-167
+**Status:** Fixed (confirmed 2026-09-17)  
+**Affected Code:** `controllers/userController.ts:251-264`
 
 #### Description
-If the caller passes an invalid role, the code falls back to `"CUSTOMER"`. But the User schema's role enum doesn't include `"CUSTOMER"` — the `save()` will throw a Mongoose validation error returned as a generic 500.
+This entry claimed an invalid role silently fell back to `"CUSTOMER"` (not a valid enum value), crashing `save()` with a generic 500.
+
+#### Verified against current code
+`adminRegisterUser` now validates the role against an explicit `validRoles` list and returns a clean 400 ("Invalid role. Must be one of: ...") before ever reaching `save()`. The comment in the code even references this exact bug. This entry was still marked Open when it had already been fixed. Added a regression test: `controllers/userController.test.ts`, describe block `adminRegisterUser — role validation`.
 
 ---
 
 ### 13. addDoctor Error-Message String Can Crash
 
 **Severity:** Medium  
-**Status:** Open  
-**Affected Code:** `controllers/DoctorController.ts` line 26
+**Status:** Fixed (confirmed 2026-09-17)  
+**Affected Code:** `controllers/DoctorController.ts:13-30`
 
 #### Description
-The code calls `.filter()` on `req.body` (an object, not an array), which throws `TypeError` and returns a generic 500 instead of "missing fields".
+This entry claimed the code called `.filter()` on `req.body` (an object, not an array), throwing a `TypeError` and returning a generic 500 instead of "missing fields".
+
+#### Verified against current code
+`addDoctor` has been rewritten since this was logged: no `.filter()` call exists anywhere in the function. It validates `name`/`email`/`phonenumber` and password length up front with clean 400 responses. This entry was still marked Open when it had already been fixed. Added a regression test: `controllers/DoctorController.test.ts`.
 
 ---
 
@@ -347,22 +311,83 @@ The code calls `.filter()` on `req.body` (an object, not an array), which throws
 
 ---
 
+## Backend Bugs
+
+### 16. Therapist Revenue-Split Save Always Fails
+
+**Severity:** Medium
+**Status:** Fixed (2026-09-17, branch `fix/known-issues-cleanup`)
+**Affected Pages:** Settings (`/dashboard/settings`, "Therapist Split" card)
+
+#### Description
+`updateClinicSettings` only ever read `req.body.bookingGapMinutes`. The Settings page's therapist-split card sends `{ therapistSplitPercent }` alone, so the controller always computed `Number(undefined)`, failed its `Number.isFinite` guard, and returned 400. The save button could never succeed.
+
+#### Fix
+The controller now validates and `$set`s whichever of `bookingGapMinutes` / `therapistSplitPercent` is present in the request body, independently, matching the frontend's `Partial<ClinicSettings>` contract.
+
+#### Affected Code
+- `controllers/clinicSettingsController.ts` (`updateClinicSettings`)
+- New test: `controllers/clinicSettingsController.test.ts`
+
+---
+
+### 17. Per-Therapist Leave Lookup Returns Everyone's Leaves
+
+**Severity:** Medium
+**Status:** Fixed (2026-09-17, branch `fix/known-issues-cleanup`)
+**Affected Pages:** Therapist List (per-therapist availability tab)
+
+#### Description
+`getLeaves` only read `req.query.doctorId`, never `req.params.doctorId`. The route `GET /api/therapist-leaves/:doctorId` (used to fetch one therapist's leave records) therefore ignored the path param and returned every therapist's leaves.
+
+#### Fix
+`getLeaves` now falls back to `req.params.doctorId` when no query param is given, so both call shapes (`GET /:doctorId` and `GET /?doctorId=`) filter correctly.
+
+#### Affected Code
+- `controllers/therapistLeaveController.ts` (`getLeaves`)
+- New test: `controllers/therapistLeaveController.test.ts`
+
+---
+
+## UI/UX Issues
+
+### 18. Account Menu Didn't Show Who You're Logged In As
+
+**Severity:** Low
+**Status:** Fixed (2026-09-17)
+**Category:** UI/UX
+**Affected Pages:** All dashboard pages (top-right account menu, `SlimSidebar.tsx`)
+
+#### Description
+Clicking the avatar in the top-right corner opened a menu that just said "My Account," with no name, email, or role shown, even though that information was already sitting in the client-side auth store. Standard account-menu UX shows who you're logged in as; this one didn't.
+
+#### Fix
+The dropdown now shows the user's full name, email, and role (title-cased, e.g. "Customer Care" instead of the raw `CUSTOMER_CARE`), pulled from the existing `useAuthStore` user object. No new data fetching needed, nothing added to the backend.
+
+#### Affected Code
+- `src/components/SlimSidebar.tsx` (`DropdownMenuLabel`, new `formatRole` helper)
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
 |---|-------|----------|--------|
 | 1 | Therapist self-update doesn't sync to Doctor | High | Open |
-| 2 | Admin edit user doesn't sync to Doctor | Medium | Open |
+| 2 | Admin edit user doesn't sync to Doctor | Medium | Fixed |
 | 3 | User table filter column ID mismatch | Low | Open |
 | 4 | Optimistic update key mismatch | Low | Open |
 | 5 | Gender enum mismatch between models | Low | Open |
 | 6 | Missing validation on complete-profile | Low | Open |
 | 7 | No error handling for Doctor sync failure | Low | Open |
-| 8 | Unguarded admin endpoints | Critical | Open |
+| 8 | Unguarded admin endpoints | Critical | Fixed |
 | 9 | JWT secret fallbacks | Critical | Open |
 | 10 | ROLES grants every role every permission | High | Open |
 | 11 | checkPermissions middleware never wired | High | Open |
-| 12 | Invalid-role fallback bug | Medium | Open |
-| 13 | addDoctor error-message crash | Medium | Open |
+| 12 | Invalid-role fallback bug | Medium | Fixed |
+| 13 | addDoctor error-message crash | Medium | Fixed |
 | 14 | updateAppointment returns stale data | Low | Open |
 | 15 | Doctor.gender typo `requied` | Low | Open |
+| 16 | Therapist revenue-split save always fails | Medium | Fixed |
+| 17 | Per-therapist leave lookup returns everyone's leaves | Medium | Fixed |
+| 18 | Account menu didn't show name/email/role | Low | Fixed |
