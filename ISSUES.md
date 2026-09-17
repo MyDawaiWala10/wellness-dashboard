@@ -210,30 +210,36 @@ Originally, these endpoints required only `userAuth`, so any authenticated user 
 ### 9. JWT Secret Fallbacks
 
 **Severity:** Critical  
-**Status:** Open  
-**Affected Code:** `controllers/userController.ts` lines 10, 17
+**Status:** Fixed (2026-09-18, branch `fix/known-issues-cleanup`)  
+**Affected Code:** `lib/env.ts` (new), `controllers/userController.ts`, `middlewares/userAuth.ts`, `middlewares/superAdminAuth.ts`, `server.ts`
 
 #### Description
-If `JWT_SECRET` / `JWT_REFRESH_SECRET` are missing in production, the code silently signs tokens with `"vivo123"` / `"vivo123refresh"`. Anyone who knows these defaults can forge valid JWTs for any user ID.
+If `JWT_SECRET` / `JWT_REFRESH_SECRET` were missing, the code silently signed tokens with `"vivo123"` / `"vivo123refresh"` - strings that are in this repo's git history, so anyone who read the repo could forge a valid token for any user id.
 
 ```typescript
 jwt.sign({ id: userId }, process.env.JWT_SECRET || "vivo123", ...)
 jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET || "vivo123refresh", ...)
 ```
 
-#### Suggested Fix
-Crash on startup if these env vars are unset. Remove the fallback strings.
+#### Fix
+There were five raw reads of these vars across three files (two signing, three verifying). All now route through a single `lib/env.ts` whose getters throw instead of falling back, and `server.ts` calls `assertJwtSecrets()` right after `dotenv.config()` so a misconfigured deploy fails at boot rather than serving forgeable tokens. Tests: `lib/env.test.ts`.
+
+#### Deploy note, read before shipping this
+`JWT_SECRET` is provably already set in production: `userAuth` verified with `process.env.JWT_SECRET!` and no fallback, so if it were missing every authenticated request would already 401 and the dashboard would be unusable. `JWT_REFRESH_SECRET` is different - it had the same fallback on *both* the sign and verify side, so production may have been quietly running on `"vivo123refresh"` all along and still working. Two consequences:
+
+1. Confirm `JWT_REFRESH_SECRET` exists on the Render service *before* deploying this, or the service will refuse to boot (which is the correct behaviour, but it's downtime).
+2. If it was previously unset (or you change its value), every existing refresh token becomes invalid and everyone gets logged out once. Expect that, it's a one-off.
 
 ---
 
 ### 10. ROLES Grants Every Role Every Permission
 
 **Severity:** High  
-**Status:** Open  
+**Status:** Open, blocked on a product decision (re-confirmed 2026-09-18)  
 **Affected Code:** `lib/index.ts` lines 23-29
 
 #### Description
-Every role gets every permission. Even if `checkPermissions` middleware is wired, it won't differentiate between roles.
+Every role gets every permission, so even wiring the guard (#11) wouldn't differentiate anyone.
 
 ```typescript
 export const ROLES = {
@@ -245,19 +251,36 @@ export const ROLES = {
 };
 ```
 
-#### Suggested Fix
-Define real per-role permission grants.
+#### Why this isn't just a code fix
+Filling this table in requires deciding what each role may actually do, and that's a business call, not a refactor. Today all four back-office roles (SUPER_ADMIN, ADMIN, STAFF, CUSTOMER_CARE) have effectively identical access and staff use those screens daily; guessing a tighter matrix locks real people out of their job. See the per-role capability table in [docs/team/owner-guide.md](docs/team/owner-guide.md) for what's actually enforced today versus what's only a menu choice.
+
+The one boundary that *is* already well-defined and worth enforcing server-side is THERAPIST, since the frontend already assumes it (nav filtering plus a client-side redirect) and two places already enforce it server-side (`getAllAppointments` scopes to own records, every `invoiceController` handler 403s non-back-office roles).
+
+#### Landmine found while scoping this (2026-09-18)
+Do **not** gate `GET /api/services` behind a back-office-only permission. Therapists' own Appointments page calls `useGetServices()` in five components including the visit/recommendation flow (`visit-tab.tsx`, `visit-sections.tsx`), so therapists legitimately read the service catalogue mid-visit. Same care needed for the appointment mutation routes therapists really do use: `PUT /:id`, `POST /:id/complete-session`, `/:id/recommendations*`, `/:id/visit-otp/*`.
 
 ---
 
 ### 11. checkPermissions Middleware Is Never Wired
 
 **Severity:** High  
-**Status:** Open  
+**Status:** Open, tied to #10 (re-confirmed 2026-09-18)  
 **Affected Code:** `middlewares/checkPermissions.ts`
 
 #### Description
-The middleware is fully implemented but no route uses it. Every router file mounts only `userAuth`. This means any authenticated user can access any endpoint regardless of their role.
+The middleware is fully implemented (it merges `ROLES[user.role]` with `user.customPermissions` and 403s on a missing permission) but has **zero imports anywhere in the backend** - confirmed by grep, it's dead code.
+
+#### Correction to a common restatement of this issue
+It's often summarised as "only one endpoint in the whole codebase is role-gated." That's not accurate. Actual enforcement points today:
+
+| Where | What it enforces |
+|---|---|
+| `routes/userRoute.ts` | `requireRole("SUPER_ADMIN","ADMIN")` on the 3 `/admin/*` user routes |
+| `routes/DoctorsRoute.ts` | `superAdminAuth` on `super-update/:id` and `super-delete/:id` (SUPER_ADMIN only) |
+| `controllers/appointmentController.ts` | `getAllAppointments` scopes results by role, 403s unknown roles |
+| `controllers/invoiceController.ts` | all 8 handlers 403 anyone outside the back-office roles |
+
+What *is* true is that the rest of the mutations (services, session-rates, specializations, clinic-settings, therapist-leaves, appointment create/update/delete) accept any authenticated request regardless of role. Wiring this guard is worth doing, but it's blocked on #10 because with the current `ROLES` table the guard would pass for everyone, which is security theatre.
 
 ---
 
@@ -381,9 +404,9 @@ The dropdown now shows the user's full name, email, and role (title-cased, e.g. 
 | 6 | Missing validation on complete-profile | Low | Open |
 | 7 | No error handling for Doctor sync failure | Low | Open |
 | 8 | Unguarded admin endpoints | Critical | Fixed |
-| 9 | JWT secret fallbacks | Critical | Open |
-| 10 | ROLES grants every role every permission | High | Open |
-| 11 | checkPermissions middleware never wired | High | Open |
+| 9 | JWT secret fallbacks | Critical | Fixed |
+| 10 | ROLES grants every role every permission | High | Open (needs a role-scope decision) |
+| 11 | checkPermissions middleware never wired | High | Open (blocked on #10) |
 | 12 | Invalid-role fallback bug | Medium | Fixed |
 | 13 | addDoctor error-message crash | Medium | Fixed |
 | 14 | updateAppointment returns stale data | Low | Open |
