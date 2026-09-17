@@ -1,4 +1,4 @@
-# MDW Wellness — Admin Dashboard
+# MDW Wellness: Admin Dashboard
 
 The back-office dashboard for the MDW Wellness therapy/booking platform. Staff use it to
 manage inbound enquiries through a sales funnel, book and track appointments, maintain the
@@ -60,10 +60,10 @@ Open [http://localhost:3000](http://localhost:3000).
 Create a `.env.local` in the project root:
 
 ```bash
-# REST API base (WellnessBackend) — used by all server actions
+# REST API base (WellnessBackend), used by all server actions
 BACKEND_BASE_URL=https://your-backend.onrender.com
 
-# Shared MongoDB — read directly by customer/analytics views
+# Shared MongoDB, read directly by customer/analytics views
 MONGODB_URI=mongodb+srv://...
 
 # App URL (used for absolute links / OAuth callbacks)
@@ -88,13 +88,13 @@ UPLOADTHING_TOKEN=...
 src/
 ├── app/
 │   ├── (protected)/dashboard/   # authenticated app shell + routes
-│   │   ├── page.tsx             #   /dashboard            — analytics home
-│   │   ├── enquiries/           #   /dashboard/enquiries  — lead funnel
+│   │   ├── page.tsx             #   /dashboard            : analytics home
+│   │   ├── enquiries/           #   /dashboard/enquiries  : lead funnel
 │   │   ├── appointments/        #   /dashboard/appointments
 │   │   ├── customers/           #   /dashboard/customers
 │   │   ├── alltherapist/        #   /dashboard/alltherapist
-│   │   ├── services/            #   /dashboard/services   — service catalogue
-│   │   └── settings/            #   /dashboard/settings   — users & profile
+│   │   ├── services/            #   /dashboard/services   : service catalogue
+│   │   └── settings/            #   /dashboard/settings   : users & profile
 │   └── auth/login/              # /auth/login
 ├── actions/                     # Next.js server actions (call the backend)
 │   ├── enquiries/  appointments/  therapist/  services/  user/  admin/
@@ -111,8 +111,8 @@ src/
 ## Core features
 
 ### Enquiries (lead funnel)
-The heart of the app. Inbound leads — whether created here manually (**New Enquiry**) or
-submitted from the public patient site — move through a funnel:
+The heart of the app. Inbound leads, whether created here manually (**New Enquiry**) or
+submitted from the public patient site, move through a funnel:
 
 ```
 Enquiry → Reached out → Consult booked → Consult done →
@@ -154,15 +154,24 @@ Routes under `app/(protected)` require authentication. Roles are defined in
 `SUPER_ADMIN`, `ADMIN`, `THERAPIST`, `STAFF`, `CUSTOMER_CARE`
 
 Permissions are checked via `hasPermission(role, permission)`. The role/permission map
-currently grants full access to all roles — tighten `ROLE_PERMISSIONS` when finer-grained
+currently grants full access to all roles; tighten `ROLE_PERMISSIONS` when finer-grained
 control is needed.
+
+---
+
+## More docs
+
+- [docs/api-reference.md](docs/api-reference.md): every server action, the backend endpoint it calls, and known quirks
+- [docs/data-model.md](docs/data-model.md): the Mongoose models field by field
+- [docs/team/owner-guide.md](docs/team/owner-guide.md): plain-English tour for non-technical staff
+- [docs/dashboard-flowchart.md](docs/dashboard-flowchart.md): flowcharts of the main user journeys
 
 ---
 
 ## Related services
 
-- **WellnessBackend** — the REST API this dashboard calls (`BACKEND_BASE_URL`).
-- **mdw-wellness** — the public patient-facing booking site; its bookings land here
+- **WellnessBackend**: the REST API this dashboard calls (`BACKEND_BASE_URL`).
+- **mdw-wellness**: the public patient-facing booking site; its bookings land here
   as enquiries via the backend's public endpoint.
 
 ---
