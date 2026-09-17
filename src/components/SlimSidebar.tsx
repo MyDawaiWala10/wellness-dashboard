@@ -272,16 +272,16 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel className="flex flex-col gap-0.5">
-                <span className="font-medium">
+              <DropdownMenuLabel className="flex flex-col gap-0.5 max-w-56">
+                <span className="font-medium truncate min-w-0">
                   {user ? `${user.userfName} ${user.userlName}` : "My Account"}
                 </span>
                 {user && (
                   <>
-                    <span className="text-xs font-normal text-muted-foreground">
+                    <span className="text-xs font-normal text-muted-foreground truncate min-w-0">
                       {user.userEmail}
                     </span>
-                    <span className="text-xs font-normal text-muted-foreground">
+                    <span className="text-xs font-normal text-muted-foreground truncate min-w-0">
                       {formatRole(user.role)}
                     </span>
                   </>
