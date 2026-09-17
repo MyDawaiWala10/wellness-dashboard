@@ -161,6 +161,7 @@ control is needed.
 
 ## More docs
 
+- [docs/onboarding.md](docs/onboarding.md): start here if you're new, getting access, running it locally, the production-database trap
 - [docs/api-reference.md](docs/api-reference.md): every server action, the backend endpoint it calls, and known quirks
 - [docs/data-model.md](docs/data-model.md): the Mongoose models field by field
 - [docs/team/owner-guide.md](docs/team/owner-guide.md): plain-English tour for non-technical staff
