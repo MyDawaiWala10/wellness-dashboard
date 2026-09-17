@@ -100,6 +100,14 @@ const navLinks = [
   },
 ];
 
+function formatRole(role: string) {
+  return role
+    .toLowerCase()
+    .split("_")
+    .map((w) => w[0]?.toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const {user} = useAuthStore();
@@ -264,7 +272,21 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuLabel className="flex flex-col gap-0.5">
+                <span className="font-medium">
+                  {user ? `${user.userfName} ${user.userlName}` : "My Account"}
+                </span>
+                {user && (
+                  <>
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {user.userEmail}
+                    </span>
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {formatRole(user.role)}
+                    </span>
+                  </>
+                )}
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
                 <Link href="/dashboard/settings">
               <DropdownMenuItem className=' cursor-pointer'>
