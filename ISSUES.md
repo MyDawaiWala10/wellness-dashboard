@@ -1,5 +1,53 @@
 # Known Issues & Bugs
 
+## BEFORE_DEPLOYMENT
+
+**Read this section before pushing `WellnessBackend` to main.** Render
+auto-deploys on commit to main, so pushing *is* deploying. Two of these will
+take the API down or mislead staff if they're skipped.
+
+---
+
+### BD-1. Confirm `JWT_REFRESH_SECRET` exists on Render
+
+**Importance:** Blocker. Skipping this takes the whole API down.  
+**Applies to:** the #9 fix on branch `fix/known-issues-cleanup`  
+**Owner:** whoever holds the Render dashboard
+
+The #9 fix makes the backend refuse to boot when a JWT secret is missing, instead of silently signing tokens with a string that's in the git history. That's the correct behaviour, but it means a missing env var is now a hard startup failure rather than a quiet vulnerability.
+
+- `JWT_SECRET` is **provably already set**. `userAuth` verified with `process.env.JWT_SECRET!` and no fallback, so if it were missing, every authenticated request would already be failing and the dashboard would be unusable. It isn't, so it's set.
+- `JWT_REFRESH_SECRET` is **not proven**. It had the same fallback on *both* the sign and the verify side, so production may have been quietly running on `"vivo123refresh"` this whole time and still working fine.
+
+Do this, in order:
+
+1. Check the Render service env vars for `JWT_REFRESH_SECRET`. If it's absent, add one (`openssl rand -hex 32`) **before** pushing, or the service will boot-loop.
+2. Expect a **one-off logout for everyone** if that variable is newly added or its value changes. Existing refresh tokens are signed with the old secret and become invalid. Warn staff, or do it outside business hours.
+
+---
+
+### BD-2. Update the owner guide the moment this deploys
+
+**Importance:** Important. It's a factual claim staff will read and act on.  
+**Applies to:** [docs/team/owner-guide.md](docs/team/owner-guide.md), Settings section and the "Things to watch out for" table
+
+The guide currently tells the owner that the **therapist revenue-split save is broken** and to use per-therapist overrides instead. That's true of what's live right now, and stops being true the second the #16 fix deploys. Two spots to edit, both say the same thing.
+
+This is the exact failure mode the 2026-09-17 documentation pass was cleaning up (entries sitting at "Open" long after the code was fixed), so it's worth doing in the same sitting as the deploy rather than "later".
+
+---
+
+### BD-3. Decide on #19 before trusting the new permission wiring
+
+**Importance:** Worth a decision, not strictly a blocker.  
+**Applies to:** [#19](#19-therapist-edit-is-not-ownership-scoped), pre-existing
+
+#10/#11 wired real role enforcement, which makes it tempting to assume therapist-facing routes are now locked down. `PUT /api/therapist/:id` is the exception: therapists legitimately need it for their own "My Profile", but the controller never checks the `:id` is theirs, so a therapist could edit another therapist's record.
+
+This is pre-existing and not made worse by deploying, so it doesn't block. Just decide consciously whether it ships as-is rather than discovering the gap later and assuming the permission work covered it.
+
+---
+
 ## Critical
 
 ### 1. Therapist Profile Update Does Not Sync to Doctor Roster
