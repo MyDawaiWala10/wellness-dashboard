@@ -235,52 +235,86 @@ There were five raw reads of these vars across three files (two signing, three v
 ### 10. ROLES Grants Every Role Every Permission
 
 **Severity:** High  
-**Status:** Open, blocked on a product decision (re-confirmed 2026-09-18)  
-**Affected Code:** `lib/index.ts` lines 23-29
+**Status:** Fixed (2026-09-18, branch `fix/known-issues-cleanup`)  
+**Affected Code:** `lib/index.ts`
 
 #### Description
-Every role gets every permission, so even wiring the guard (#11) wouldn't differentiate anyone.
+Every role got every permission, so even wiring the guard (#11) couldn't differentiate anyone.
 
 ```typescript
 export const ROLES = {
   SUPER_ADMIN: Object.values(PERMISSIONS),
   ADMIN: Object.values(PERMISSIONS),
-  THERAPIST: Object.values(PERMISSIONS),
+  THERAPIST: Object.values(PERMISSIONS),   // <-- same as super admin
   STAFF: Object.values(PERMISSIONS),
   CUSTOMER_CARE: Object.values(PERMISSIONS),
 };
 ```
 
-#### Why this isn't just a code fix
-Filling this table in requires deciding what each role may actually do, and that's a business call, not a refactor. Today all four back-office roles (SUPER_ADMIN, ADMIN, STAFF, CUSTOMER_CARE) have effectively identical access and staff use those screens daily; guessing a tighter matrix locks real people out of their job. See the per-role capability table in [docs/team/owner-guide.md](docs/team/owner-guide.md) for what's actually enforced today versus what's only a menu choice.
+#### Fix: therapist gets a real scope, back-office deliberately unchanged
+`THERAPIST` now holds 7 of 17 permissions (dashboard view, appointment view/create/edit, therapist view/edit, export). The four back-office roles keep all 17, **on purpose**: they're identical in the product today and staff use those screens daily, so tightening them is a business decision, not a refactor (see the capability table in [docs/team/owner-guide.md](docs/team/owner-guide.md)). Differentiating STAFF from CUSTOMER_CARE remains unbuilt and undecided.
 
-The one boundary that *is* already well-defined and worth enforcing server-side is THERAPIST, since the frontend already assumes it (nav filtering plus a client-side redirect) and two places already enforce it server-side (`getAllAppointments` scopes to own records, every `invoiceController` handler 403s non-back-office roles).
+Two new permissions were added for domains that had no vocabulary at all: `SERVICE_MANAGE` (catalogue + session-rate pricing) and `SETTINGS_MANAGE` (clinic-wide numbers).
 
-#### Landmine found while scoping this (2026-09-18)
-Do **not** gate `GET /api/services` behind a back-office-only permission. Therapists' own Appointments page calls `useGetServices()` in five components including the visit/recommendation flow (`visit-tab.tsx`, `visit-sections.tsx`), so therapists legitimately read the service catalogue mid-visit. Same care needed for the appointment mutation routes therapists really do use: `PUT /:id`, `POST /:id/complete-session`, `/:id/recommendations*`, `/:id/visit-otp/*`.
+#### What the therapist grant was derived from
+Not from what sounds tidy, from what their reachable screens actually call. Deliberately granted:
+
+- `APPOINTMENT_EDIT` / `APPOINTMENT_CREATE`: completing sessions, visit OTPs, add-on recommendations, booking a recommended follow-up
+- `THERAPIST_VIEW`: the roster read behind their home KPIs and earnings split
+- `THERAPIST_EDIT`: their own "My Profile" record. `therapist-details-page.tsx` has **no role gate**, so denying this would break a therapist editing their own details
+
+Endpoints deliberately left open to any authenticated user because therapists genuinely hit them:
+
+| Endpoint | Why |
+|---|---|
+| `GET /api/services` | read mid-visit when recommending an add-on (`visit-tab.tsx`, 5 call sites) |
+| `GET /api/clinic-settings` | earnings page reads `therapistSplitPercent` to show their own cut |
+| `GET /api/customers` | the appointment history tab calls `getCustomerByPhone` |
+| `GET /api/session-rates` | pricing is quoted from several screens |
+| `POST /api/specializations` | reachable from their own profile edit |
+
+Verified no UI regression: `login` returns a computed `permissions` array, but the frontend never reads it (it has its own map), so a therapist's shorter list changes nothing on screen.
 
 ---
 
 ### 11. checkPermissions Middleware Is Never Wired
 
 **Severity:** High  
-**Status:** Open, tied to #10 (re-confirmed 2026-09-18)  
-**Affected Code:** `middlewares/checkPermissions.ts`
+**Status:** Fixed (2026-09-18, branch `fix/known-issues-cleanup`)  
+**Affected Code:** `middlewares/checkPermissions.ts`, `routes/serviceRoutes.ts`, `routes/sessionRateRoutes.ts`, `routes/clinicSettingsRoutes.ts`, `routes/DoctorsRoute.ts`, `routes/appointmentBookingRoutes.ts`
 
 #### Description
-The middleware is fully implemented (it merges `ROLES[user.role]` with `user.customPermissions` and 403s on a missing permission) but has **zero imports anywhere in the backend** - confirmed by grep, it's dead code.
+The middleware was fully implemented (merges `ROLES[user.role]` with `user.customPermissions`, 403s on a missing permission) but had **zero imports anywhere in the backend**. Dead code.
+
+#### Fix
+Wired onto the six write routes that a therapist provably never calls, each checked against frontend usage first:
+
+| Route | Guard |
+|---|---|
+| `POST/PUT/DELETE /api/services` | `SERVICE_MANAGE` |
+| `PUT /api/session-rates` | `SERVICE_MANAGE` |
+| `PUT /api/clinic-settings` | `SETTINGS_MANAGE` |
+| `POST /api/therapist` | `THERAPIST_CREATE` |
+| `DELETE /api/therapist/:id` | `THERAPIST_DELETE` |
+| `DELETE /api/appointments/:id` | `APPOINTMENT_DELETE` |
+
+Tests: `middlewares/checkPermissions.test.ts` asserts the boundary both ways (all four back-office roles still pass every gated permission; therapists are 403'd on each, allowed on their own job), plus 401 on no user and 403 on an unknown role. Also verified live against a real Express app: 10/10 route-level cases behaved as expected.
 
 #### Correction to a common restatement of this issue
-It's often summarised as "only one endpoint in the whole codebase is role-gated." That's not accurate. Actual enforcement points today:
+It's often summarised as "only one endpoint in the whole codebase is role-gated." That was never accurate. Before this fix there were already four enforcement sites: `requireRole` on the 3 `/admin/*` user routes, `superAdminAuth` on the 2 therapist super-routes, role-scoping inside `getAllAppointments`, and back-office checks in all 8 `invoiceController` handlers.
 
-| Where | What it enforces |
-|---|---|
-| `routes/userRoute.ts` | `requireRole("SUPER_ADMIN","ADMIN")` on the 3 `/admin/*` user routes |
-| `routes/DoctorsRoute.ts` | `superAdminAuth` on `super-update/:id` and `super-delete/:id` (SUPER_ADMIN only) |
-| `controllers/appointmentController.ts` | `getAllAppointments` scopes results by role, 403s unknown roles |
-| `controllers/invoiceController.ts` | all 8 handlers 403 anyone outside the back-office roles |
+---
 
-What *is* true is that the rest of the mutations (services, session-rates, specializations, clinic-settings, therapist-leaves, appointment create/update/delete) accept any authenticated request regardless of role. Wiring this guard is worth doing, but it's blocked on #10 because with the current `ROLES` table the guard would pass for everyone, which is security theatre.
+### 19. Therapist Edit Is Not Ownership-Scoped
+
+**Severity:** Medium  
+**Status:** Open (found 2026-09-18 while wiring #11)  
+**Affected Code:** `controllers/DoctorController.ts` - `updateDoctorDetails`
+
+#### Description
+`PUT /api/therapist/:id` is correctly available to therapists (they edit their own "My Profile"), but the controller never checks that `:id` is *the caller's own* record. A therapist could edit another therapist's profile by sending a different `doctorId`.
+
+This can't be fixed with a role permission, since it's the same permission for self and other; it needs an ownership check in the controller (resolve the caller's `Doctor` via `req.user`, compare to `:id`, 403 on mismatch). The UI never does this, so there's no evidence of it happening, but the endpoint allows it.
 
 ---
 
@@ -405,8 +439,8 @@ The dropdown now shows the user's full name, email, and role (title-cased, e.g. 
 | 7 | No error handling for Doctor sync failure | Low | Open |
 | 8 | Unguarded admin endpoints | Critical | Fixed |
 | 9 | JWT secret fallbacks | Critical | Fixed |
-| 10 | ROLES grants every role every permission | High | Open (needs a role-scope decision) |
-| 11 | checkPermissions middleware never wired | High | Open (blocked on #10) |
+| 10 | ROLES grants every role every permission | High | Fixed (therapist scoped; back-office equal by decision) |
+| 11 | checkPermissions middleware never wired | High | Fixed |
 | 12 | Invalid-role fallback bug | Medium | Fixed |
 | 13 | addDoctor error-message crash | Medium | Fixed |
 | 14 | updateAppointment returns stale data | Low | Open |
@@ -414,3 +448,4 @@ The dropdown now shows the user's full name, email, and role (title-cased, e.g. 
 | 16 | Therapist revenue-split save always fails | Medium | Fixed |
 | 17 | Per-therapist leave lookup returns everyone's leaves | Medium | Fixed |
 | 18 | Account menu didn't show name/email/role | Low | Fixed |
+| 19 | Therapist edit is not ownership-scoped | Medium | Open |
