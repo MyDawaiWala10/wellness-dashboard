@@ -13,9 +13,10 @@ import { slotBookingZodType } from "@/type/schema";
 import AppointmentDetailsPage from "./appointments-details-page";
 import { AppointmentSummaryStrip } from "./appointment-summary-strip";
 import { VisitTab } from "./visit-tab";
-import { MoneyTab } from "./money-tab";
+import { BillingTab } from "./billing-tab";
 import { HistoryTab } from "./history-tab";
 import { RecordIds } from "./record-ids";
+import { BookingSourceEditor } from "@/components/booking-source-editor";
 import { useGetServices } from "@/data/service/service";
 import { useGetAllTherapist } from "@/data/therapist/therapist";
 import { getPackageProgressForAppointment } from "@/lib/package-progress";
@@ -74,7 +75,7 @@ const AppointmentDetailDrawer = ({
                   Visit
                 </TabsTrigger>
                 <TabsTrigger value="money" className="flex-1">
-                  Money
+                  Billing
                   {due > 0 && (
                     <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-amber-500" />
                   )}
@@ -92,7 +93,7 @@ const AppointmentDetailDrawer = ({
               </TabsContent>
 
               <TabsContent value="money" className="mt-3">
-                <MoneyTab appointment={live} />
+                <BillingTab appointment={live} />
               </TabsContent>
 
               <TabsContent value="history" className="mt-3 space-y-4">
@@ -110,6 +111,7 @@ const AppointmentDetailDrawer = ({
                       : undefined
                   }
                 />
+                <BookingSourceEditor key={live._id} record={live} />
                 {/* Booking details and the customer record - rarely touched
                     mid-visit, so they sit behind the History tab. */}
                 <AppointmentDetailsPage

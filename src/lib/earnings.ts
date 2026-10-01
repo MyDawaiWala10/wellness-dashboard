@@ -3,6 +3,9 @@ import type { slotBookingZodType } from "@/type/schema";
 export type EarningRow = {
   appointmentId: string;
   enquiryId: string;
+  /** Carried through so the row's booking-ID pill can be coloured. */
+  source?: string;
+  referredByName?: string | null;
   date: string;
   customerName: string;
   therapistName: string;
@@ -17,7 +20,8 @@ export type EarningRow = {
   paymentReceived: boolean;
   therapistCut: number;
   companyCut: number;
-  splitPercent: number;
+  /** null: no therapist, or their split isn't set yet (cut shows as "-"). */
+  splitPercent: number | null;
   therapistPaid: boolean;
   /** Booking status for display: completed, ongoing, scheduled, etc. */
   status: string;
@@ -37,14 +41,46 @@ export type EarningsSummary = {
   therapistUnpaidPayout: number;
 };
 
+/** Only Admin / Super Admin see or set split percentages. */
+export function canManageSplit(role: string | undefined): boolean {
+  return role === "SUPER_ADMIN" || role === "ADMIN";
+}
+
+/** doctorId -> that therapist's split %. */
+export type TherapistSplits = Map<string, number | null | undefined>;
+
+export function therapistSplits(
+  therapists: { doctorId?: string; splitPercent?: number | null }[],
+): TherapistSplits {
+  return new Map(
+    therapists.filter((t) => t.doctorId).map((t) => [t.doctorId!, t.splitPercent]),
+  );
+}
+
 /**
- * Derive earnings rows from completed (or paid) appointments.
- * therapistSplitMap: doctorId -> override split% (null = use global)
+ * The split % a booking pays its therapist: the one locked in when it
+ * completed (so changing a therapist's % never rewrites past earnings), else
+ * the therapist's current %. null when there's no therapist or no split.
  */
+export function splitFor(
+  booking: { therapistSplitPercent?: number | null; doctorId?: string | null },
+  splits: TherapistSplits,
+): number | null {
+  if (booking.therapistSplitPercent != null) return booking.therapistSplitPercent;
+  if (!booking.doctorId) return null;
+  return splits.get(booking.doctorId) ?? null;
+}
+
+/** Therapist and company share of `revenue` at `split`%. */
+export function splitRevenue(revenue: number, split: number | null) {
+  const therapistCut = split == null ? 0 : Math.round((revenue * split) / 100);
+  return { therapistCut, companyCut: revenue - therapistCut };
+}
+
+/** Derive earnings rows from every non-cancelled appointment. */
 export function buildEarningRows(
   appointments: slotBookingZodType[],
-  globalSplit: number,
-  therapistSplitMap: Map<string, number | null>,
+  splits: TherapistSplits,
 ): EarningRow[] {
   const rows: EarningRow[] = [];
 
@@ -52,14 +88,8 @@ export function buildEarningRows(
     if (a.status === "cancelled") continue;
 
     const revenue = a.paymentAmount ?? a.quotedPrice ?? 0;
-
-    const overrideSplit = a.doctorId
-      ? (therapistSplitMap.get(a.doctorId) ?? null)
-      : null;
-    const split = overrideSplit != null ? overrideSplit : globalSplit;
-
-    const therapistCut = Math.round((revenue * split) / 100);
-    const companyCut = revenue - therapistCut;
+    const split = splitFor(a, splits);
+    const { therapistCut, companyCut } = splitRevenue(revenue, split);
 
     // Discount tracking: originalPrice is the list price before discount.
     // If not set, fall back to quotedPrice (which is the final price).
@@ -77,6 +107,8 @@ export function buildEarningRows(
     rows.push({
       appointmentId: a._id ?? "",
       enquiryId: a.enquiryId ?? "",
+      source: a.source,
+      referredByName: a.referredByName,
       date,
       customerName: a.name ?? "Unknown",
       therapistName: a.doctor ?? "Unassigned",

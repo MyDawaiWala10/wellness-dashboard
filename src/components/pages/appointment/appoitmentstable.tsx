@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { getConfirmedAddonNames } from "@/lib/package-progress";
 import { bookingKindOf, bookingLabel } from "@/components/pages/enquiries/booking";
 import { AppointmentStatusBadge } from "@/components/status-badge";
+import { BookingIdBadge } from "@/components/booking-id-badge";
 import { format } from "date-fns";
 
 /**
@@ -60,14 +61,7 @@ export function makeAppointmentColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Booking ID" />
       ),
-      cell: ({ row }) => {
-        const id = row.original.enquiryId;
-        return id ? (
-          <span className="font-mono text-xs text-muted-foreground">{id}</span>
-        ) : (
-          <span className="text-muted-foreground/40">-</span>
-        );
-      },
+      cell: ({ row }) => <BookingIdBadge record={row.original} />,
     },
     {
       accessorKey: "name",

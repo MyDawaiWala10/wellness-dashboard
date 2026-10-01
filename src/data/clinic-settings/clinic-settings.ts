@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import getClinicSettings, { type ClinicSettings } from "@/actions/clinic-settings/get-clinic-settings";
 import updateClinicSettings from "@/actions/clinic-settings/update-clinic-settings";
 
-const DEFAULT: ClinicSettings = { bookingGapMinutes: 60, therapistSplitPercent: 60 };
+const DEFAULT: ClinicSettings = { bookingGapMinutes: 60 };
 
 export function useGetClinicSettings() {
   return useQuery({

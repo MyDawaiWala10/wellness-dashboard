@@ -49,6 +49,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn, tidyActivityText } from "@/lib/utils";
 import { RecordIds } from "@/components/pages/appointment/record-ids";
+import { BookingIdBadge } from "@/components/booking-id-badge";
+import { BookingSourceEditor } from "@/components/booking-source-editor";
 import { formatTimeRange } from "./time-range";
 
 import {
@@ -714,11 +716,7 @@ export function EnquiryDetailDrawer({
       <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            {draft.enquiryId && (
-              <span className="text-xs font-mono text-muted-foreground">
-                {draft.enquiryId}
-              </span>
-            )}
+            {draft.enquiryId && <BookingIdBadge record={draft} />}
             {draft.name || "Unnamed"} <EnquiryStatusBadge record={draft} />
           </SheetTitle>
           <SheetDescription>
@@ -744,6 +742,15 @@ export function EnquiryDetailDrawer({
 
         <div className="p-4 space-y-6">
           <RecordIds appointment={draft} />
+
+          {/* Through this drawer's own save(), so the draft it autosaves stays
+              in step and the owner lock still applies. */}
+          <BookingSourceEditor
+            key={draft._id}
+            record={draft}
+            saving={isUpdating}
+            onSave={(patch) => save(patch)}
+          />
 
           {/* ── Progress overview ── */}
           <EnquiryProgressStepper record={draft} />

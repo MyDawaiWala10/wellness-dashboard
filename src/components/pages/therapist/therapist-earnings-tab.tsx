@@ -1,30 +1,47 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useGetPersonalAppointments } from "@/data/therapist/therapist";
-import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
-import { buildEarningRows, computeEarningsSummary } from "@/lib/earnings";
-import type { slotBookingZodType } from "@/type/schema";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  useGetAllTherapist,
+  useGetPersonalAppointments,
+  useUpdateTherapist,
+} from "@/data/therapist/therapist";
+import { useAuthStore } from "@/providers/permission-provider";
+import {
+  buildEarningRows,
+  canManageSplit,
+  computeEarningsSummary,
+  therapistSplits,
+} from "@/lib/earnings";
+import type { slotBookingZodType, TherapistformType } from "@/type/schema";
 
 interface TherapistEarningsTabProps {
   doctorId: string;
 }
 
 export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
+  const { user } = useAuthStore();
+  // Therapists never see split percentages, only their earnings.
+  const showSplit = canManageSplit(user?.role);
   const { data: appointments = [], isLoading } =
     useGetPersonalAppointments(doctorId);
-  const { data: settings } = useGetClinicSettings();
-
-  const globalSplit = settings?.therapistSplitPercent ?? 60;
+  // Read from the live list (not the drawer's snapshot) so a saved split
+  // shows up straight away.
+  const { data: therapists = [] } = useGetAllTherapist();
+  const therapist = (therapists as TherapistformType[]).find(
+    (t) => t.doctorId === doctorId,
+  );
 
   const rows = useMemo(() => {
     const list: slotBookingZodType[] = Array.isArray(appointments)
       ? appointments
       : [];
-    return buildEarningRows(list, globalSplit, new Map());
-  }, [appointments, globalSplit]);
+    return buildEarningRows(list, therapistSplits(therapists as TherapistformType[]));
+  }, [appointments, therapists]);
 
   const summary = useMemo(() => computeEarningsSummary(rows), [rows]);
 
@@ -37,16 +54,22 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
     );
   }
 
+  const splitEditor = showSplit && therapist && <SplitEditor therapist={therapist} />;
+
   if (rows.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground text-sm">
-        No completed sessions yet.
+      <div className="space-y-4">
+        {splitEditor}
+        <div className="text-center py-12 text-muted-foreground text-sm">
+          No completed sessions yet.
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {splitEditor}
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Total sessions" value={String(summary.completedSessions)} />
@@ -138,7 +161,7 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
                   <p className={`text-sm font-semibold ${row.revenue > 0 ? "" : "text-muted-foreground"}`}>
                     {row.revenue > 0 ? `₹${row.revenue.toLocaleString()}` : "—"}
                   </p>
-                  {row.revenue > 0 && (
+                  {showSplit && row.revenue > 0 && row.splitPercent != null && (
                     <p className="text-xs text-muted-foreground">
                       {row.splitPercent}% split
                     </p>
@@ -149,6 +172,48 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Admin / Super Admin only: this therapist's share of collected revenue.
+ * Applies to sessions completed from now on; each completed booking keeps the
+ * split it was completed at.
+ */
+function SplitEditor({ therapist }: { therapist: TherapistformType }) {
+  const { mutate, isPending } = useUpdateTherapist();
+  const saved = therapist.splitPercent ?? null;
+  const [value, setValue] = useState(saved == null ? "" : String(saved));
+  useEffect(() => {
+    setValue(saved == null ? "" : String(saved));
+  }, [saved]);
+
+  const split = Number(value);
+  const valid = value !== "" && split >= 0 && split <= 100;
+
+  return (
+    <div className="flex items-center gap-2">
+      <label htmlFor="split-percent" className="text-sm font-medium whitespace-nowrap">
+        Earnings split %
+      </label>
+      <Input
+        id="split-percent"
+        type="number"
+        min={0}
+        max={100}
+        placeholder="Not set"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="h-9 w-24"
+      />
+      <Button
+        size="sm"
+        disabled={isPending || !valid || split === saved}
+        onClick={() => mutate({ ...therapist, splitPercent: split })}
+      >
+        {isPending ? "Saving…" : "Save"}
+      </Button>
     </div>
   );
 }

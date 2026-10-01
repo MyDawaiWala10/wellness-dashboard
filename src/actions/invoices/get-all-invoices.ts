@@ -9,12 +9,15 @@ export async function getAllInvoices(args?: {
   q?: string;
   type?: InvoiceType;
   paymentStatus?: InvoicePaymentStatus;
+  /** Mongo _id of a booking, to fetch just that booking's invoice. */
+  appointmentId?: string;
 }): Promise<ApiResponse<PersistedInvoice[]>> {
   try {
     const params = new URLSearchParams();
     if (args?.q) params.set("q", args.q);
     if (args?.type) params.set("type", args.type);
     if (args?.paymentStatus) params.set("paymentStatus", args.paymentStatus);
+    if (args?.appointmentId) params.set("appointment_id", args.appointmentId);
 
     const qs = params.toString();
     const url = `${base_url}/api/invoices${qs ? `?${qs}` : ""}`;

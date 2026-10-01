@@ -7,6 +7,7 @@ import type { ServiceType, slotBookingZodType } from "@/type/schema";
 import { getPackageProgressForAppointment } from "@/lib/package-progress";
 import { bookingLabel } from "@/components/pages/enquiries/booking";
 import { bookingLedger } from "@/lib/booking-money";
+import { BookingIdBadge } from "@/components/booking-id-badge";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { whatsAppLink, toWhatsAppNumber } from "@/lib/whatsapp";
 
@@ -91,11 +92,7 @@ export function AppointmentSummaryStrip({
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        {appointment.enquiryId && (
-          <span className="rounded border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
-            {appointment.enquiryId}
-          </span>
-        )}
+        {appointment.enquiryId && <BookingIdBadge record={appointment} />}
         <Badge variant="secondary" className="text-[11px]">
           {bookingLabel(appointment)}
         </Badge>

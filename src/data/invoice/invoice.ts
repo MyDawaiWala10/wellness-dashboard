@@ -26,6 +26,33 @@ export function useGetInvoices() {
   });
 }
 
+/**
+ * The one invoice belonging to a booking, or null when it hasn't been raised
+ * yet. Therapists are 403'd from every invoice route, so callers must not
+ * mount this for them - `enabled` is the guard.
+ */
+export function useInvoiceForAppointment(
+  appointmentId: string | undefined,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: ["invoices", "by-appointment", appointmentId],
+    enabled: Boolean(appointmentId) && options?.enabled !== false,
+    queryFn: async (): Promise<PersistedInvoice | null> => {
+      const result = await getAllInvoices({ appointmentId });
+      if (!result.success) throw new Error(result.message);
+      // Never trust the server to have filtered. An older backend ignores the
+      // unknown appointment_id param and hands back the 100 most recent
+      // invoices, and taking [0] there would pin a stranger's invoice to this
+      // booking. Matching locally degrades to "no invoice" instead.
+      return (
+        (result.data ?? []).find((i) => i.appointment_id === appointmentId) ?? null
+      );
+    },
+    refetchOnWindowFocus: false,
+  });
+}
+
 export function useUpdateInvoice() {
   const queryClient = useQueryClient();
 

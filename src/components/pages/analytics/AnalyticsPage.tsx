@@ -21,6 +21,8 @@ import { QueryWrapper } from "@/components/query-wrapper";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { useAuthStore } from "@/providers/permission-provider";
 import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
+import { useGetAllTherapist } from "@/data/therapist/therapist";
+import { therapistSplits } from "@/lib/earnings";
 import type { EnquiryType } from "@/type/schema";
 
 import { deriveAnalytics, deriveMoM } from "./analytics-metrics";
@@ -113,7 +115,11 @@ const AnalyticsPage = () => {
     () => (enq.data ?? []) as EnquiryType[],
     [enq.data],
   );
-  const a = React.useMemo(() => deriveAnalytics(records), [records]);
+  const { data: therapists = [] } = useGetAllTherapist();
+  const a = React.useMemo(
+    () => deriveAnalytics(records, therapistSplits(therapists as any[])),
+    [records, therapists],
+  );
   const mom = React.useMemo(() => deriveMoM(records), [records]);
 
   // Analytics is a back-office view; therapists get their own dashboard.

@@ -51,7 +51,6 @@ import { SettingsSchema } from "@/type/schema";
 import { userColumns as columns } from "./user-column";
 import { DOBPicker } from "@/components/DOB-picker";
 import { useGetClinicSettings, useUpdateClinicSettings } from "@/data/clinic-settings/clinic-settings";
-import ChangePasswordCard from "./change-password-card";
 
 function BookingGapCard() {
   const { data } = useGetClinicSettings();
@@ -86,55 +85,6 @@ function BookingGapCard() {
         >
           {isPending ? "Saving…" : "Save"}
         </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-function TherapistSplitCard() {
-  const { data } = useGetClinicSettings();
-  const { mutate, isPending } = useUpdateClinicSettings();
-  const [value, setValue] = useState<string>("");
-  useEffect(() => {
-    if (data) setValue(String(data.therapistSplitPercent ?? 60));
-  }, [data]);
-
-  const split = Number(value);
-  const company = isNaN(split) ? "" : (100 - split).toFixed(0);
-
-  return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Therapist earnings split</CardTitle>
-        <CardDescription>
-          Default percentage of collected revenue paid to the therapist.
-          Individual therapists can override this on their profile.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <label className="text-xs text-muted-foreground">Therapist %</label>
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-            />
-          </div>
-          <Button
-            disabled={isPending || value === "" || split < 0 || split > 100}
-            onClick={() => mutate({ therapistSplitPercent: split })}
-          >
-            {isPending ? "Saving…" : "Save"}
-          </Button>
-        </div>
-        {value !== "" && !isNaN(split) && (
-          <p className="text-xs text-muted-foreground">
-            Therapist keeps <strong>{split}%</strong> · Company keeps <strong>{company}%</strong>
-          </p>
-        )}
       </CardContent>
     </Card>
   );
@@ -346,14 +296,10 @@ const SettingsPageComponents = () => {
               </Dialog>
             </CardContent>
           </Card>
-          <div className="lg:col-span-4">
-            <ChangePasswordCard />
-          </div>
           {isAdmin && (
             <>
-              <div className="lg:col-span-5 flex flex-col gap-6">
+              <div className="lg:col-span-9 flex flex-col gap-6">
                 <BookingGapCard />
-                <TherapistSplitCard />
               </div>
               <Card className="lg:col-span-12">
                 <CardHeader className="flex flex-row justify-start items-center gap-2">

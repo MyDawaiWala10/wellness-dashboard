@@ -31,7 +31,9 @@ Do this, in order:
 **Importance:** Important. It's a factual claim staff will read and act on.  
 **Applies to:** [docs/team/owner-guide.md](docs/team/owner-guide.md), Settings section and the "Things to watch out for" table
 
-The guide currently tells the owner that the **therapist revenue-split save is broken** and to use per-therapist overrides instead. That's true of what's live right now, and stops being true the second the #16 fix deploys. Two spots to edit, both say the same thing.
+The guide currently tells the owner that the **therapist revenue-split save is broken** and to use per-therapist overrides instead. That's true of what's live right now, and stops being true the second this deploys. Two spots to edit, both say the same thing.
+
+Since then the global split has been **removed entirely** (see BD-5). The guide should now say: each therapist's split is set by an Admin or Super Admin in the therapist drawer's Earnings tab, applies to sessions completed from then on, and therapists never see it.
 
 This is the exact failure mode the 2026-09-17 documentation pass was cleaning up (entries sitting at "Open" long after the code was fixed), so it's worth doing in the same sitting as the deploy rather than "later".
 
@@ -45,6 +47,34 @@ This is the exact failure mode the 2026-09-17 documentation pass was cleaning up
 #10/#11 wired real role enforcement, which makes it tempting to assume therapist-facing routes are now locked down. `PUT /api/therapist/:id` is the exception: therapists legitimately need it for their own "My Profile", but the controller never checks the `:id` is theirs, so a therapist could edit another therapist's record.
 
 This is pre-existing and not made worse by deploying, so it doesn't block. Just decide consciously whether it ships as-is rather than discovering the gap later and assuming the permission work covered it.
+
+---
+
+### BD-4. Booking source colours: deploy the backend first
+
+**Importance:** Important. Getting the order wrong silently loses data.  
+**Applies to:** the booking-source feature (colour-coded booking IDs), both repos
+
+The frontend now makes staff pick how each booking reached us (Online / WhatsApp / Walk-in / Via Therapist), and Via Therapist also records which therapist referred it.
+
+- **Backend first is safe.** The new backend treats a missing source as WhatsApp, so the frontend that's currently live (which sends no source) keeps creating bookings normally.
+- **Frontend first loses the referring therapist.** The chosen source would still save, since `source` was free text before. But the old backend's strict schema doesn't know `referredByDoctorId` / `referredByName`, so Mongoose silently drops them, and every Via Therapist booking made in that window loses its therapist for good.
+
+---
+
+### BD-5. Per-therapist earnings split: deploy backend, run the backfill, then frontend
+
+**Importance:** Important. Skipping the backfill shows every existing therapist's cut as "-".  
+**Applies to:** the per-therapist split feature, both repos
+
+The global "Therapist earnings split" setting is gone. Each therapist now has their own split, set by Admin / Super Admin in the drawer's Earnings tab, and each booking locks in its therapist's split when it completes.
+
+1. Deploy the backend.
+2. Dry run, and check the counts look right: `npx tsx scripts/backfill-therapist-split.ts`
+3. Apply: `npx tsx scripts/backfill-therapist-split.ts --apply`. This sets every therapist without a split to 60% (today's global value) and locks 60% onto every already-completed or already-paid-out booking, so no past number changes.
+4. Deploy the frontend.
+
+The script is safe to re-run; it only touches therapists and bookings that still have no split. Run against the local `.env` database on 2026-09-29, the dry run found 19 therapists and 0 completed bookings; production counts will differ.
 
 ---
 

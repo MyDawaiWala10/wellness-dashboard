@@ -15,9 +15,13 @@ const at = (iso: string) => ({ createdAt: iso }) as Partial<EnquiryType>;
 
 const NOW = new Date("2026-07-28T10:00:00.000Z");
 
+// No therapists needed for the revenue / funnel checks below.
+const analytics = (records: EnquiryType[], now: Date) =>
+  deriveAnalytics(records, new Map(), now);
+
 describe("deriveAnalytics", () => {
   it("splits collected vs pending, and prices pending from quotedPrice", () => {
-    const a = deriveAnalytics(
+    const a = analytics(
       [
         rec({ typeOfappointment: "appointment", paymentReceived: true, paymentAmount: 700 }),
         rec({ typeOfappointment: "consultation", paymentReceived: false, quotedPrice: 500 }),
@@ -32,7 +36,7 @@ describe("deriveAnalytics", () => {
   });
 
   it("builds the enquiry→booking→paid funnel", () => {
-    const a = deriveAnalytics(
+    const a = analytics(
       [
         rec({ status: "enquiry" }), // enquiry only
         rec({ typeOfappointment: "appointment" }), // booked, unpaid
@@ -45,7 +49,7 @@ describe("deriveAnalytics", () => {
   });
 
   it("counts only untouched leads as needing first contact", () => {
-    const a = deriveAnalytics(
+    const a = analytics(
       [
         rec({ status: "enquiry" }), // needs contact
         rec({ status: "enquiry", executiveReachedOut: true }), // reached
@@ -57,7 +61,7 @@ describe("deriveAnalytics", () => {
   });
 
   it("reports an honest empty state with no records", () => {
-    const a = deriveAnalytics([], NOW);
+    const a = analytics([], NOW);
     expect(a.hasData).toBe(false);
     expect(a.collectedPct).toBe(0);
     expect(a.revenueTrend).toHaveLength(6);
@@ -109,5 +113,22 @@ describe("deriveDailyPacing", () => {
     expect(d3.current).toBe(700);
     expect(d3.previous).toBe(400);
     expect(days).toHaveLength(31); // July
+  });
+});
+
+describe("deriveAnalytics - therapist payouts", () => {
+  it("uses each booking's locked-in split, else its therapist's split", () => {
+    const a = deriveAnalytics(
+      [
+        // Locked in at 60% when it completed; the therapist is now at 70%.
+        rec({ doctor: "Asha", doctorId: "THR-1", paymentReceived: true, paymentAmount: 1000, therapistSplitPercent: 60 }),
+        // Not completed yet: follows the therapist's current 70%.
+        rec({ doctor: "Asha", doctorId: "THR-1", paymentReceived: true, paymentAmount: 1000 }),
+      ],
+      new Map([["THR-1", 70]]),
+      NOW,
+    );
+    expect(a.therapistPayoutTotal).toBe(600 + 700);
+    expect(a.companyEarningsTotal).toBe(400 + 300);
   });
 });
