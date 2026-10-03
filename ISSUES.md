@@ -78,6 +78,46 @@ The script is safe to re-run; it only touches therapists and bookings that still
 
 ---
 
+### BD-6. Customer accounts (`/api/customer-app`): set the Render env vars, then deploy
+
+**Importance:** Important. Without the env vars the new customer endpoints answer 503 (the dashboard and the public endpoints keep working). The deploy also changes two things on the existing public form and pay page.  
+**Applies to:** the customer-accounts work in `WellnessBackend` (built and tested 2026-10-02, not committed yet), backend only  
+**Owner:** whoever holds the Render dashboard
+
+Phone OTP sign-in (MSG91), profile, profile photo, "my bookings" and booking while signed in, for Anjishnu's Customers' App. The patient website is not changed. Reference: `WellnessBackend/docs/api.md` (Customers' App section); the private notes are in `customer-app-docs/customer-app-api-uncensored.md`.
+
+**Set on Render before (or with) the deploy:**
+
+1. `CUSTOMER_JWT_SECRET`: a new random value, at least 32 characters, **not** equal to `JWT_SECRET` (`openssl rand -hex 32`). Without it, or if it's too short or reused, every `/api/customer-app` route answers 503 `Customer accounts aren't available right now.` and the boot log warns; the dashboard keeps working. Changing it later signs every customer out.
+2. `MSG91_AUTH_TOKEN` and `MSG91_TEMPLATE_ID`: the same MSG91 account as the patient website. The template must be DLT-approved (without the template ID MSG91 accepts the send but never delivers it), and it should use a 6-digit OTP: the backend asks for 6 digits valid 10 minutes, and only accepts 6-digit codes. Without both, sign-in answers 503 `Phone sign-in isn't available right now.`
+3. `CUSTOMER_APP_URL`: the exact browser origins of the Customers' App, comma-separated, scheme + host (+ port), no trailing slash, e.g. `https://app.example.com`. Only needed for a web app (native apps send no `Origin`). Anything unlisted gets 403 `Origin not allowed`.
+4. `TRUST_PROXY`: the number of proxies in front of the app. **Check first:** look at `X-Forwarded-For` on a real request reaching Render and count the hops Render adds. Without it, the per-IP limits key on the first `X-Forwarded-For` entry, which a client can spoof; set too low, every customer shares one proxy IP and one budget. Per-phone, per-account and global limits don't depend on it. This one can only be checked after the deploy, so set it then (Render restarts on an env change).
+5. `IDENTITY_DB`: leave unset (default `mdw`) unless the patient website's `MONGODB_DB` is something else; the two must match.
+6. **Never** set `MSG91_DEMO_PHONE` / `MSG91_DEMO_OTP` on Render. They sign that phone in with a fixed code and no SMS, for local tests only.
+
+**Indexes.** The deploy builds `customers.accountId` (unique, sparse) and `appointmentbookings.phonenumber`. Both already exist on production since 2026-10-02 (a local run built them before the local `.env` was switched to the Docker copy; no data was written), so there's nothing to wait for. The first app sign-in also asks for the `mdw.users` indexes (`phoneE164` unique, `email` unique sparse), which the patient website already created.
+
+**Optional backfill.** Accounts get `products: ["wellness"]` on their first app sign-in; website-only accounts stay unlabelled. To label every existing account once:
+
+1. Dry run, check the count: `npx tsx scripts/backfill-account-products.ts`
+2. Apply: `npx tsx scripts/backfill-account-products.ts --apply`
+
+Your local `.env` now points at the Docker copy (`wellness-dev-mongo`), so these only touch production if `DATABASE_URL` is pointed at production for that run.
+
+**Behaviour changes on existing endpoints, from this deploy:**
+
+- Public booking form (`POST /api/appointments/public`): a repeat is merged only into an open lead with status `enquiry`, the same phone, the same name and the same service. Before, it merged into any open `enquiry`/`scheduled`/`ongoing` lead on that phone + name. Staff may see more separate enquiries from one person.
+- Public pay page (`GET /api/appointments/pay/:token`): a course follow-up row only shows its own confirmed add-ons as due, not its per-session share of the course price. A link on a follow-up with no add-ons now shows nothing due.
+- An unknown browser origin gets 403 `Origin not allowed` instead of 500, and other 4xx errors from body parsing (bad JSON, oversized body) keep their status instead of becoming 500.
+
+**After the deploy:** check the boot log has no `CUSTOMER_JWT_SECRET is unset...` or `MSG91 is not configured...` warning, then sign in once with your own phone. A live SMS was never part of the tests (they use the demo OTP).
+
+**Evidence:** `node scripts/e2e-customer-app.ts` from `C:\workspace\WellnessBackend` (needs Docker; starts a throwaway `mongo:7` on port 27099, refuses any non-localhost database, cleans up) passed 55/55 on 2026-10-02. Unit tests: 285 passing. Typecheck: 5 errors, all pre-existing.
+
+**Read [#20](#20-production-customersphone-has-a-unique-index) before announcing the app.** Production's unique index on `customers.phone` makes app profile saves and bookings fail for some existing customers.
+
+---
+
 ## Critical
 
 ### 1. Therapist Profile Update Does Not Sync to Doctor Roster
@@ -157,6 +197,43 @@ Two `console.log`/`console.error` debug lines are still in the sync block (lines
 
 ---
 
+### 20. Production `customers.phone` Has a Unique Index
+
+**Severity:** High  
+**Status:** Open (found on production 2026-10-02; pre-existing, not caused by the customer-accounts work; the fix is the owner's call)  
+**Affected:** production database, `customers` collection, index `phone_1`
+
+#### Description
+The code treats one phone number as shared by several patients (a household): a customer is phone + name, and `models/customerModel.ts` declares `phone` indexed but **not** unique. Production still has an older **unique** index on `phone` (`phone_1`), which Mongoose never drops by itself. So a second patient with a different name on a phone that already has a customer can't be saved: duplicate key error.
+
+#### Impact
+- **Public form or dashboard booking** for a second person on a shared phone: the booking row is saved, then creating its customer fails, so the caller gets a 500 and the booking has no `customer_id` (and no invoice). A retry of the public form folds into that row.
+- **Staff "Add customer"** with a new name on an existing phone: 500 with the raw Mongo error.
+- **Customers' App (after BD-6):** anyone whose account name differs from the name staff used on the existing record for their phone. Sign-in works, but every `PATCH /me`, photo upload and booking answers 500.
+
+The end-to-end harness runs on a fresh database, so it couldn't catch this.
+
+#### Suggested Fix
+Drop the index on production (`db.customers.dropIndex("phone_1")`), then restart the backend so Mongoose builds the non-unique `phone` index the schema declares. Nothing to clean up first: the unique index is why no duplicate phones exist yet. Every code path already handles several customers per phone (`Customer.find({ phone })` then match by name).
+
+---
+
+### 22. Patient Website OTP: 4-Digit Codes, No Verify Rate Limit
+
+**Severity:** High (patient website, `C:\workspace\mdw`)  
+**Status:** Open (noted 2026-10-02; the website was deliberately left unchanged in the customer-accounts work)  
+**Affected Code:** the website's MSG91 OTP routes (`src/app/api/auth/otp`)
+
+#### Description
+The website and the new Customers' App backend share one MSG91 account and one set of customer accounts (`mdw.users`). The website still sends MSG91's default code length (4 digits) and has no rate limit on verify, so its 10,000 possible codes have no brake except whatever MSG91 applies itself (not checked). Taking over an account through the website takes over the same person's app account.
+
+The backend side is fine: it asks MSG91 for 6-digit codes and only accepts exactly 6 digits, so a website code can't be guessed through the app, and its verify is limited (10 an hour and 30 a day per phone, 30 an hour per IP).
+
+#### Suggested Fix
+On the website: send `otp_length: 6` (and the same 10-minute expiry), accept only 6 digits, and rate-limit verify per phone and per IP like the backend does. Related, same file area: the website overwrites the account `name` and doesn't lowercase `email`, while the backend only fills an empty name and lowercases email, so the two writers disagree.
+
+---
+
 ## Medium
 
 ### 3. User Table Filter Uses Wrong Column ID
@@ -219,6 +296,17 @@ If `newValues.doctorId` is undefined, no row gets updated optimistically (though
 
 #### Impact
 Minor UX issue - the table might briefly show stale data until the query refetches on settle.
+
+---
+
+### 21. Staff Dashboard Can't See the New Customer Fields
+
+**Severity:** Medium  
+**Status:** Open (2026-10-02; dashboard UI was out of scope for the customer-accounts work)  
+**Affected Pages:** Customers (`/dashboard/customers`) and the booking drawers
+
+#### Description
+The Customers' App saves `gender`, `dob`, `city`, `pincode`, `emergencyContact` and `profilePhotoUrl` on the clinic's customer record, and `accountId` when the customer has an app login. No dashboard screen shows any of them, so staff calling a patient can't see their emergency contact or photo, or tell whether they use the app. `GET /api/customers/:customerId` already returns the whole record; the list (`GET /api/customers`) selects only the old fields (`customerController.ts`, `getCustomers`). So: widen that `.select` where the list needs them, plus the UI.
 
 ---
 
@@ -527,3 +615,6 @@ The dropdown now shows the user's full name, email, and role (title-cased, e.g. 
 | 17 | Per-therapist leave lookup returns everyone's leaves | Medium | Fixed |
 | 18 | Account menu didn't show name/email/role | Low | Fixed |
 | 19 | Therapist edit is not ownership-scoped | Medium | Open |
+| 20 | Production `customers.phone` has a unique index (second patient on a shared phone fails) | High | Open (owner's call to drop it) |
+| 21 | Staff dashboard can't see the new customer fields | Medium | Open |
+| 22 | Patient website OTP: 4-digit codes, no verify rate limit | High | Open (website) |
