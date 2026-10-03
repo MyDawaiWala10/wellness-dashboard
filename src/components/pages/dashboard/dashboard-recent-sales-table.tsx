@@ -7,6 +7,7 @@ import { useGetAllAppointments } from "@/data/appointment/appointment";
 import { useAuthStore } from "@/providers/permission-provider";
 import { QueryWrapper } from "@/components/query-wrapper";
 import { AppointmentStatusBadge } from "@/components/status-badge";
+import { BookingIdBadge } from "@/components/booking-id-badge";
 import { readCreatedISO } from "@/lib/metrics";
 
 const ITEMS_PER_PAGE = 10;
@@ -93,8 +94,8 @@ const DashboardTable = () => {
                   <TableBody>
                     {paginatedAppointments.map((appt) => (
                       <TableRow key={appt._id}>
-                        <TableCell className="font-mono text-xs">
-                          {appt.enquiryId ?? "-"}
+                        <TableCell>
+                          <BookingIdBadge record={appt} />
                         </TableCell>
                         <TableCell>{appt.doctor}</TableCell>
                         <TableCell>{appt.name}</TableCell>

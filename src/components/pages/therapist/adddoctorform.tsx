@@ -48,6 +48,8 @@ import {
 import { TherapistformSchema, TherapistformType } from "@/type/schema";
 import { ProfilePicUploader } from "./profile-pic-uploader";
 import { CertificatesSection } from "./certificates-section";
+import { useAuthStore } from "@/providers/permission-provider";
+import { canManageSplit } from "@/lib/earnings";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -62,6 +64,8 @@ export default function AddDoctorForm() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const { user } = useAuthStore();
+  const showSplit = canManageSplit(user?.role);
 
   const mutation = useAddTherapist();
   const {
@@ -84,6 +88,7 @@ export default function AddDoctorForm() {
       bio: "",
       profileImage: "",
       certificates: [],
+      splitPercent: null,
     },
   });
 
@@ -142,6 +147,10 @@ export default function AddDoctorForm() {
   function onSubmit(values: TherapistformType) {
     if (!values.password || values.password.length < 6) {
       toast.error("Set a temporary password (min 6 characters)");
+      return;
+    }
+    if (showSplit && values.splitPercent == null) {
+      form.setError("splitPercent", { message: "Set the earnings split (0-100)" });
       return;
     }
     mutation.mutate(values, {
@@ -304,6 +313,30 @@ export default function AddDoctorForm() {
                       </FormItem>
                     )}
                   />
+                  {showSplit && <FormField
+                    control={form.control}
+                    name="splitPercent"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Earnings split %</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            placeholder="Therapist's share, e.g. 60"
+                            value={field.value ?? ""}
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value === "" ? null : Number(e.target.value),
+                              )
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />}
                   <FormField
                     control={form.control}
                     name="gender"

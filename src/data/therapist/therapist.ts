@@ -95,6 +95,17 @@ export function useUpdateTherapist() {
         ? await updateTherapistSuperAdmin(values)
         : await updateTherapist(values);
       if (!result.success) throw new Error(result.message);
+      // A backend that doesn't know splitPercent (an old deploy, or a stale
+      // local server) drops it but still says "updated". Catch that instead
+      // of showing a success that didn't happen.
+      if (
+        values.splitPercent != null &&
+        result.data?.splitPercent !== values.splitPercent
+      ) {
+        throw new Error(
+          "The earnings split wasn't saved. The server may be running an old version.",
+        );
+      }
       return result;
     },
     onMutate: async (newValues) => {

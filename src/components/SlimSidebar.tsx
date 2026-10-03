@@ -34,7 +34,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   Tooltip,
   TooltipContent,
@@ -146,7 +146,7 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
   return (
     <>
       <InboundBookingNotifier />
-      <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 h-screen flex-col border-r bg-background sm:flex">
+      <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 h-dvh flex-col border-r bg-background sm:flex">
         <nav className="flex flex-col items-center gap-4 px-2 sm:py-4 mt-10 ">
           <TooltipProvider>
             {visibleLinks.map((navItems, index) => (
@@ -193,7 +193,7 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
           </TooltipProvider>
         </nav>
       </aside>
-      <div className="h-screen flex flex-col sm:gap-4 sm:py-4 sm:pl-14 overflow-hidden">
+      <div className="h-dvh flex flex-col sm:gap-4 sm:py-4 sm:pl-14 overflow-hidden">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
@@ -203,6 +203,7 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="sm:max-w-xs">
+              <SheetTitle className="sr-only">Navigation menu</SheetTitle>
               <nav className="grid gap-6 text-lg font-medium mt-12 ">
                 {visibleLinks.map((navItems, index) => (
                   <Link

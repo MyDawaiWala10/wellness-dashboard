@@ -36,6 +36,7 @@ import { tidyActivityText } from "@/lib/utils";
 import { useAuthStore } from "@/providers/permission-provider";
 import { addCustomerNote, editCustomerNote } from "@/actions/customers/update-customer-notes";
 import { toast } from "sonner";
+import { BookingIdBadge } from "@/components/booking-id-badge";
 
 interface CustomerDetailDrawerProps {
   customer: Customer | null;
@@ -347,9 +348,13 @@ function BookingRow({ booking, index }: { booking: EnquiryType; index: number })
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-xs text-muted-foreground">
-              {booking.enquiryId ?? `#${index + 1}`}
-            </span>
+            {booking.enquiryId ? (
+              <BookingIdBadge record={booking} />
+            ) : (
+              <span className="font-mono text-xs text-muted-foreground">
+                #{index + 1}
+              </span>
+            )}
             <AppointmentStatusBadge status={status} />
             {serviceFromNote && (
               <span className="text-xs text-muted-foreground">

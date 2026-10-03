@@ -209,6 +209,15 @@ export const enquirySchema = z.object({
   enquiryId: z.string().optional(),
   customer_id: z.string().optional(),
 
+  // ── How the booking reached us (colours the ID pill). Loose on read so older
+  // values ("dashboard", "public_booking_form") still parse; the forms enforce
+  // the four real choices. See src/lib/booking-source.ts.
+  source: z.string().optional(),
+  referredByDoctorId: z.string().optional().nullable(),
+  referredByName: z.string().optional().nullable(),
+  // Therapist's split %, locked in by the server when the booking completes.
+  therapistSplitPercent: z.number().optional().nullable(),
+
   // ── Back-office assignee (who is handling this lead) ──
   // userId is the assignee's User._id; name is denormalized for display.
   assignedTo: z
@@ -312,6 +321,9 @@ export const TherapistformSchema = z.object({
   certificates: z.array(certificateSchema).optional(),
   // Weekly off-days (0=Sun, 6=Sat). Empty = available every day.
   weekOffDays: z.array(z.number().min(0).max(6)).default([]).optional(),
+  // Share of collected revenue paid to this therapist. Admin-only; required
+  // when adding a therapist (the add form enforces it).
+  splitPercent: z.number().min(0, "0-100").max(100, "0-100").optional().nullable(),
 });
 export type TherapistformType = z.infer<typeof TherapistformSchema>
 

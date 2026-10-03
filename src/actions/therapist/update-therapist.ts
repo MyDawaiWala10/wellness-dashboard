@@ -31,6 +31,8 @@ export default async function updateTherapist(
     return {
       success: true,
       message: result.message || "Therapist updated successfully",
+      // The record as saved, so callers can confirm a field actually stuck.
+      data: result.updatedDoctor,
     };
   } catch (err) {
     console.error("[updateTherapist]", err);

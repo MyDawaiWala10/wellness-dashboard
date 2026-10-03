@@ -26,12 +26,41 @@ import {
 import createPaymentLink from "@/actions/appointments/create-payment-link";
 import { BookingTermsSection } from "./booking-terms-section";
 import { AddonsVisitSection } from "./visit-sections";
+import { InvoiceSection } from "./invoice-section";
 
 const DOT: Record<string, string> = {
   paid: "bg-emerald-600",
   due: "bg-amber-500",
   pending: "bg-muted-foreground/40",
 };
+
+/** One line of the totals ladder. */
+function Row({
+  label,
+  value,
+  muted,
+  strong,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  muted?: boolean;
+  strong?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`flex items-baseline justify-between text-[12px] ${className}`}>
+      <span className={muted ? "text-muted-foreground" : ""}>{label}</span>
+      <span
+        className={`font-mono tabular-nums ${strong ? "font-semibold" : ""} ${
+          muted ? "text-muted-foreground" : ""
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
 
 /**
  * The executive's half of the panel: what was sold, what is owed, and the two
@@ -41,13 +70,13 @@ const DOT: Record<string, string> = {
  * to be chased from the Enquiries drawer instead. It asks for the FULL balance -
  * the booking plus any confirmed unpaid add-on - not just the booking fee.
  */
-export function MoneyTab({ appointment }: { appointment: slotBookingZodType }) {
+export function BillingTab({ appointment }: { appointment: slotBookingZodType }) {
   const [requesting, setRequesting] = useState(false);
   const [takingPayment, setTakingPayment] = useState(false);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("");
   const { mutate: update, isPending: isSaving } = useUpdateAppointment();
-  const { lines, due, paid } = bookingLedger(appointment);
+  const { lines, due, paid, totals } = bookingLedger(appointment);
 
   function markPaid() {
     const received = amount === "" ? appointment.quotedPrice : Number(amount);
@@ -157,28 +186,66 @@ export function MoneyTab({ appointment }: { appointment: slotBookingZodType }) {
                   </span>
                   <span className="block text-[11px] text-muted-foreground">
                     {l.meta}
+                    {l.original && (
+                      <span className="ml-1.5 text-emerald-600 dark:text-emerald-400">
+                        Save {formatINR(l.original - l.amount)}
+                      </span>
+                    )}
                   </span>
                 </span>
-                <span className="font-mono text-[13px] font-semibold tabular-nums">
-                  {formatINR(l.amount)}
+                <span className="text-right">
+                  {l.original && (
+                    <span className="block font-mono text-[11px] text-muted-foreground line-through tabular-nums">
+                      {formatINR(l.original)}
+                    </span>
+                  )}
+                  <span className="block font-mono text-[13px] font-semibold tabular-nums">
+                    {formatINR(l.amount)}
+                  </span>
                 </span>
               </li>
             ))}
           </ul>
         )}
 
-        <div className="mt-2 flex items-baseline justify-between border-t pt-2.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {due > 0 ? "Total due" : "Collected"}
-          </span>
-          <span
-            className={`font-mono text-base font-bold tabular-nums ${
-              due > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600"
-            }`}
-          >
-            {formatINR(due > 0 ? due : paid)}
-          </span>
-        </div>
+        {lines.length > 0 && (
+          <div className="mt-2 space-y-1 border-t pt-2.5">
+            {/* Only worth showing the arithmetic when something came off. */}
+            {totals.discount > 0 && (
+              <>
+                <Row label="Subtotal" value={formatINR(totals.subtotal)} muted />
+                <Row
+                  label="Discount"
+                  value={`- ${formatINR(totals.discount)}`}
+                  className="text-emerald-600 dark:text-emerald-400"
+                />
+              </>
+            )}
+            {/* Only worth a line when it differs from what's due - otherwise
+                it's the same number printed twice, which is the common case. */}
+            {totals.total !== due && (
+              <Row label="Total" value={formatINR(totals.total)} strong />
+            )}
+            {totals.paid > 0 && (
+              <Row label="Paid" value={formatINR(totals.paid)} muted />
+            )}
+
+            <div className="flex items-baseline justify-between pt-1.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {due > 0 ? "Total due" : "Collected"}
+              </span>
+              <span
+                className={`font-mono text-base font-bold tabular-nums ${
+                  due > 0
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-emerald-600"
+                }`}
+              >
+                {formatINR(due > 0 ? due : paid)}
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="mt-3 flex gap-2">
           {due > 0 ? (
@@ -260,6 +327,7 @@ export function MoneyTab({ appointment }: { appointment: slotBookingZodType }) {
 
       <AddonsVisitSection appointment={appointment} />
       <BookingTermsSection appointment={appointment} />
+      <InvoiceSection appointmentId={appointment._id} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { readCreatedISO } from "@/lib/metrics";
 import type { EnquiryType } from "@/type/schema";
+import { splitFor, splitRevenue, type TherapistSplits } from "@/lib/earnings";
 
 /**
  * Analytics for a SERVICE business, derived client-side from the appointments
@@ -79,6 +80,7 @@ function startOfWeek(now: Date): Date {
 
 export function deriveAnalytics(
   records: EnquiryType[],
+  splits: TherapistSplits,
   now: Date = new Date(),
 ): AnalyticsResult {
   const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -164,9 +166,7 @@ export function deriveAnalytics(
   for (const r of live) {
     if (!isPaid(r)) continue;
     const amt = amountOf(r);
-    const split = 60;
-    const tCut = Math.round((amt * split) / 100);
-    const cCut = amt - tCut;
+    const { therapistCut: tCut, companyCut: cCut } = splitRevenue(amt, splitFor(r, splits));
     therapistPayoutTotal += tCut;
     companyEarningsTotal += cCut;
 

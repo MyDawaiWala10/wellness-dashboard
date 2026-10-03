@@ -8,7 +8,7 @@ import type { EnquiryType } from "@/type/schema";
 
 export type CreateEnquiryInput = Pick<
   EnquiryType,
-  "name" | "phonenumber" | "preferredReachOutTime" | "note"
+  "name" | "phonenumber" | "preferredReachOutTime" | "note" | "source" | "referredByDoctorId"
 >;
 
 export default async function createEnquiry(

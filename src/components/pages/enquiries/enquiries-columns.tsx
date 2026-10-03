@@ -16,6 +16,7 @@ import type { EnquiryType } from "@/type/schema";
 import { EnquiryStatusBadge } from "./enquiry-status-badge";
 import { formatTimeRange } from "./time-range";
 import { bookingTypeLabel, toDayKey } from "./booking";
+import { BookingIdBadge } from "@/components/booking-id-badge";
 
 /**
  * Read the Mongoose-side updatedAt timestamp (created/updatedAt aren't in the
@@ -149,16 +150,7 @@ export function makeEnquiryColumns({
       id: "enquiryId",
       accessorFn: (r) => r.enquiryId ?? "",
       header: "ID",
-      cell: ({ row }) => {
-        const id = row.original.enquiryId;
-        return id ? (
-          <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-            {id}
-          </span>
-        ) : (
-          <span className="text-muted-foreground/40">-</span>
-        );
-      },
+      cell: ({ row }) => <BookingIdBadge record={row.original} />,
     },
     {
       accessorKey: "name",

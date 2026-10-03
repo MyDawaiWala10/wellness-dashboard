@@ -31,14 +31,15 @@ import {
 import { QueryWrapper } from "@/components/query-wrapper";
 import { useAuthStore } from "@/providers/permission-provider";
 import { useGetAllTherapist } from "@/data/therapist/therapist";
-import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { useGetAllAppointments, useUpdateAppointment } from "@/data/appointment/appointment";
 import {
   buildEarningRows,
   computeEarningsSummary,
+  therapistSplits,
   type EarningRow,
 } from "@/lib/earnings";
 import { toast } from "sonner";
+import { BookingIdBadge } from "@/components/booking-id-badge";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -109,8 +110,14 @@ function EarningsTableRow({
       <td className="px-3 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
         {dateStr}
       </td>
-      <td className="px-3 py-3 font-mono text-xs font-medium text-foreground">
-        {row.enquiryId || row.appointmentId.slice(-6)}
+      <td className="px-3 py-3">
+        {row.enquiryId ? (
+          <BookingIdBadge record={row} />
+        ) : (
+          <span className="font-mono text-xs font-medium text-foreground">
+            {row.appointmentId.slice(-6)}
+          </span>
+        )}
       </td>
       <td className="px-3 py-3 font-semibold text-foreground">{row.customerName}</td>
       {isAdmin && (
@@ -140,7 +147,11 @@ function EarningsTableRow({
         )}
       </td>
       <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 font-bold">
-        {fmt(row.therapistCut)}
+        {row.splitPercent == null ? (
+          <span className="text-muted-foreground font-normal">-</span>
+        ) : (
+          fmt(row.therapistCut)
+        )}
       </td>
       {isAdmin && (
         <td className="px-3 py-3 text-right tabular-nums text-indigo-700 dark:text-indigo-300 font-bold">
@@ -258,7 +269,6 @@ export default function EarningsPage() {
   const { data: appointments = [], isLoading: apptLoading, isError: apptError, error: apptErr, refetch } =
     useGetAllAppointments(user as any);
   const { data: therapists = [] } = useGetAllTherapist();
-  const { data: clinicSettings } = useGetClinicSettings();
 
   const updateApptMutation = useUpdateAppointment({ silent: true });
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -276,16 +286,7 @@ export default function EarningsPage() {
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortAsc, setSortAsc] = useState(false);
 
-  // ── Therapist split map ──────────────────────────────────────────────────
-  const therapistSplitMap = useMemo(() => {
-    const map = new Map<string, number | null>();
-    for (const t of therapists as any[]) {
-      if (t.doctorId) map.set(t.doctorId, t.splitPercent ?? null);
-    }
-    return map;
-  }, [therapists]);
-
-  const globalSplit = clinicSettings?.therapistSplitPercent ?? 60;
+  const splits = useMemo(() => therapistSplits(therapists as any[]), [therapists]);
 
   // ── Raw rows with local override ─────────────────────────────────────────
   const allRows = useMemo(() => {
@@ -293,14 +294,14 @@ export default function EarningsPage() {
     // role=THERAPIST, so no client-side filter needed.
     const appts = appointments as any[];
     
-    const rows = buildEarningRows(appts, globalSplit, therapistSplitMap);
+    const rows = buildEarningRows(appts, splits);
     return rows.map((r) => {
       if (r.appointmentId in localPaidOverrides) {
         return { ...r, therapistPaid: localPaidOverrides[r.appointmentId] };
       }
       return r;
     });
-  }, [appointments, globalSplit, therapistSplitMap, isAdmin, user, localPaidOverrides]);
+  }, [appointments, splits, localPaidOverrides]);
 
   // ── Unique services for filter ────────────────────────────────────────────
   const services = useMemo(
@@ -433,7 +434,7 @@ export default function EarningsPage() {
             value={fmt(summary.totalCompanyEarnings)}
             icon={<Building2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400 stroke-[2.5]" />}
             accent="bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800"
-            sub={`${100 - globalSplit}% margin`}
+            sub={`${summary.totalRevenue > 0 ? Math.round((summary.totalCompanyEarnings / summary.totalRevenue) * 100) : 0}% margin`}
           />
         )}
         <KpiCard

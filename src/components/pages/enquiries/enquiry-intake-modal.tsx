@@ -30,23 +30,35 @@ import {
 import { useCreateEnquiry, findOpenEnquiryByPhone } from "@/data/enquiry/enquiry";
 import { useGetCustomers } from "@/data/customer/customer";
 import { useAuthStore } from "@/providers/permission-provider";
+import { BookingSourceField } from "@/components/booking-source-field";
+import { bookingSourceError, type BookingSource } from "@/lib/booking-source";
 
-const intakeFormSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  phonenumber: z
-    .number({ error: "Phone is required" })
-    .refine((n) => String(n).length === 10, "Phone must be exactly 10 digits"),
-  preferredReachOutTime: z
-    .object({
-      from: z.string().min(1, "Start time is required"),
-      to: z.string().min(1, "End time is required"),
-    })
-    .refine((v) => v.from < v.to, {
-      message: "End time must be after start time",
-      path: ["to"],
-    }),
-  note: z.string().optional(),
-});
+const intakeFormSchema = z
+  .object({
+    name: z.string().min(2, "Name must be at least 2 characters"),
+    phonenumber: z
+      .number({ error: "Phone is required" })
+      .refine((n) => String(n).length === 10, "Phone must be exactly 10 digits"),
+    preferredReachOutTime: z
+      .object({
+        from: z.string().min(1, "Start time is required"),
+        to: z.string().min(1, "End time is required"),
+      })
+      .refine((v) => v.from < v.to, {
+        message: "End time must be after start time",
+        path: ["to"],
+      }),
+    note: z.string().optional(),
+    source: z.string().optional(),
+    referredByDoctorId: z.string().nullable().optional(),
+  })
+  .superRefine((v, ctx) => {
+    const message = bookingSourceError({
+      source: v.source as BookingSource | "",
+      referredByDoctorId: v.referredByDoctorId,
+    });
+    if (message) ctx.addIssue({ code: "custom", message, path: ["source"] });
+  });
 
 type IntakeFormValues = z.infer<typeof intakeFormSchema>;
 
@@ -81,6 +93,9 @@ export function EnquiryIntakeModal({
     phonenumber: undefined as unknown as number,
     preferredReachOutTime: { from: "", to: "" },
     note: "",
+    // No default on purpose: an untouched pick would file a walk-in as WhatsApp.
+    source: "",
+    referredByDoctorId: null,
   };
 
   const form = useForm<IntakeFormValues>({
@@ -131,12 +146,20 @@ export function EnquiryIntakeModal({
   }
 
   function onSubmit(values: IntakeFormValues) {
-    createMutation.mutate(values, {
-      onSuccess: () => {
-        setOpen(false);
-        form.reset();
+    createMutation.mutate(
+      {
+        ...values,
+        // Only a therapist referral carries a referrer; don't post a stale one.
+        referredByDoctorId:
+          values.source === "therapist" ? values.referredByDoctorId : undefined,
       },
-    });
+      {
+        onSuccess: () => {
+          setOpen(false);
+          form.reset();
+        },
+      },
+    );
   }
 
   return (
@@ -266,6 +289,30 @@ export function EnquiryIntakeModal({
                 AM/PM based on your locale.
               </p>
             </div>
+
+            <FormField
+              control={form.control}
+              name="source"
+              render={({ fieldState }) => (
+                <FormItem>
+                  <FormLabel>How did they reach us?</FormLabel>
+                  <BookingSourceField
+                    value={{
+                      source: (form.watch("source") ?? "") as BookingSource | "",
+                      referredByDoctorId: form.watch("referredByDoctorId"),
+                    }}
+                    onChange={(next) => {
+                      form.setValue("referredByDoctorId", next.referredByDoctorId ?? null);
+                      form.setValue("source", next.source ?? "", {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      });
+                    }}
+                    error={fieldState.error?.message}
+                  />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

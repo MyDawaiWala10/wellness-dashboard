@@ -3,7 +3,7 @@ import { base_url } from "@/constant";
 import { fetchWithAuth } from "@/lib/fetchwithauth";
 import { ApiResponse } from "@/type/api";
 
-export type ClinicSettings = { bookingGapMinutes: number; therapistSplitPercent: number };
+export type ClinicSettings = { bookingGapMinutes: number };
 
 export default async function getClinicSettings(): Promise<ApiResponse<ClinicSettings>> {
   try {

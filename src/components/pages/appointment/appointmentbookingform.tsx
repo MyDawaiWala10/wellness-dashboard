@@ -44,6 +44,8 @@ import {
   type BookingType,
 } from "@/components/pages/enquiries/booking";
 import { TherapistAvailabilityGrid } from "@/components/pages/enquiries/therapist-availability-grid";
+import { BookingSourceField } from "@/components/booking-source-field";
+import { bookingSourceError, type BookingSource } from "@/lib/booking-source";
 import { useGetServices } from "@/data/service/service";
 import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { CustomerSearchField } from "@/components/pages/invoices/customer-search-field";
@@ -144,6 +146,9 @@ export default function AppointmentBookingForm() {
       therapyStartTime: "",
       doctorId: "",
       status: "scheduled",
+      // No default on purpose: an untouched pick would file a walk-in as WhatsApp.
+      source: "",
+      referredByDoctorId: null,
     },
   });
 
@@ -234,6 +239,11 @@ export default function AppointmentBookingForm() {
     v: z.infer<typeof slotBookingZodSchema>,
   ): string | null {
     if (!v.name?.trim()) return "Enter the customer name";
+    const sourceProblem = bookingSourceError({
+      source: (v.source ?? "") as BookingSource | "",
+      referredByDoctorId: v.referredByDoctorId,
+    });
+    if (sourceProblem) return sourceProblem;
     if (isCourse && !(v.sessionNumber && v.sessionNumber >= 1)) {
       return "Enter how many sessions this course is";
     }
@@ -1218,6 +1228,22 @@ export default function AppointmentBookingForm() {
                   </FormItem>
                 )}
               />
+
+              {/* Required, checked in blockingReason() alongside the other
+                  booking rules so both save paths enforce it. */}
+              <FormItem>
+                <FormLabel>How did they reach us?</FormLabel>
+                <BookingSourceField
+                  value={{
+                    source: (form.watch("source") ?? "") as BookingSource | "",
+                    referredByDoctorId: form.watch("referredByDoctorId"),
+                  }}
+                  onChange={(next) => {
+                    form.setValue("referredByDoctorId", next.referredByDoctorId ?? null);
+                    form.setValue("source", next.source ?? "", { shouldDirty: true });
+                  }}
+                />
+              </FormItem>
 
               <Button
                 type="submit"
