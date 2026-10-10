@@ -11,6 +11,7 @@ import { TherapistformType } from "@/type/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuthStore } from "@/providers/permission-provider";
+import getReferrals from "@/actions/therapist/get-referrals";
 
 export const therapistQueryOptions = {
   queryKey: ["therapists"],
@@ -136,6 +137,18 @@ export function useUpdateTherapist() {
     onSuccess: () => {
       toast.success("Therapist updated successfully");
     },
+  });
+}
+
+export function useGetReferrals(doctorId: string) {
+  return useQuery({
+    queryKey: ["referrals", doctorId],
+    queryFn: async () => {
+      const result = await getReferrals(doctorId);
+      if (!result.success) throw new Error(result.message);
+      return result.data ?? [];
+    },
+    enabled: !!doctorId,
   });
 }
 

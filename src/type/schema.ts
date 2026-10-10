@@ -355,6 +355,8 @@ export const TherapistformSchema = z.object({
   // Share of collected revenue paid to this therapist. Admin-only; required
   // when adding a therapist (the add form enforces it).
   splitPercent: z.number().min(0, "0-100").max(100, "0-100").optional().nullable(),
+  // Public referral code, issued by the server (never edited here).
+  referralCode: z.string().optional(),
 });
 export type TherapistformType = z.infer<typeof TherapistformSchema>
 
