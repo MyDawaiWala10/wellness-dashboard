@@ -1,4 +1,4 @@
-// A short, gentle chime for new-enquiry notifications, plus a persisted mute
+// The notification sound for new-enquiry notifications, plus a persisted mute
 // preference. Everything here is best-effort: browsers block audio until the
 // user has interacted with the page, so every path fails silently rather than
 // throwing - a missed beep must never break the notification it accompanies.
@@ -23,47 +23,23 @@ export function setEnquirySoundMuted(muted: boolean): void {
   }
 }
 
-// One reused AudioContext. Created lazily on the first beep so we never spin one
-// up during SSR or before it's needed.
-let ctx: AudioContext | null = null;
-
-function playTone(context: AudioContext, freq: number, start: number, dur: number) {
-  const osc = context.createOscillator();
-  const gain = context.createGain();
-  osc.type = "sine";
-  osc.frequency.value = freq;
-  osc.connect(gain);
-  gain.connect(context.destination);
-  // Soft attack + exponential decay so it reads as a chime, not a flat test tone.
-  gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(0.12, start + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-  osc.start(start);
-  osc.stop(start + dur + 0.02);
-}
+// One reused element, created on the first play so nothing loads during SSR.
+let audio: HTMLAudioElement | null = null;
 
 /**
- * Play the two-note new-enquiry chime, unless muted or the browser won't allow
- * audio yet. No-ops (silently) in every failure case.
+ * Play the new-enquiry notification sound, unless muted or the browser won't
+ * allow audio yet. No-ops (silently) in every failure case.
  */
 export function playEnquiryBeep(): void {
   if (isEnquirySoundMuted()) return;
   if (typeof window === "undefined") return;
   try {
-    const AC =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
-    if (!AC) return;
-    ctx = ctx ?? new AC();
-    // Autoplay policy: a context created without a recent user gesture starts
-    // "suspended". resume() may reject - swallow it; a later gesture-driven
-    // call (e.g. toggling sound on) will have primed it.
-    if (ctx.state === "suspended") ctx.resume().catch(() => {});
-    const t = ctx.currentTime;
-    playTone(ctx, 784, t, 0.12); // G5
-    playTone(ctx, 1047, t + 0.11, 0.16); // C6
+    audio = audio ?? new Audio("/sounds/notification.mp3");
+    audio.currentTime = 0;
+    // Autoplay policy: play() rejects until the user has interacted with the
+    // page - swallow it, by design.
+    audio.play().catch(() => {});
   } catch {
-    /* AudioContext blocked/unavailable - stay silent, by design */
+    /* Audio unavailable - stay silent */
   }
 }

@@ -7,46 +7,7 @@ import { Bell } from "lucide-react";
 import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { EnquiryType } from "@/type/schema";
-
-/**
- * Synthesize a soft, professional dual-note chime (D5 -> A5) using Web Audio API.
- * Completely standalone - zero external asset dependencies.
- */
-function playNotificationSound() {
-  try {
-    const AudioContextClass =
-      window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-
-    const ctx = new AudioContextClass();
-    
-    // Note 1: D5 (587.33 Hz)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = "sine";
-    osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
-    gain1.gain.setValueAtTime(0.15, ctx.currentTime);
-    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(ctx.currentTime);
-    osc1.stop(ctx.currentTime + 0.4);
-
-    // Note 2: A5 (880 Hz) slightly delayed
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = "sine";
-    osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
-    gain2.gain.setValueAtTime(0.2, ctx.currentTime + 0.12);
-    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.start(ctx.currentTime + 0.12);
-    osc2.stop(ctx.currentTime + 0.6);
-  } catch (err) {
-    console.warn("Audio notification failed:", err);
-  }
-}
+import { playEnquiryBeep } from "@/lib/notification-sound";
 
 export default function InboundBookingNotifier() {
   const { user } = useAuthStore();
@@ -84,7 +45,7 @@ export default function InboundBookingNotifier() {
 
     if (newRecords.length > 0) {
       // Play soft chime sound
-      playNotificationSound();
+      playEnquiryBeep();
 
       // Show toast alert for each new record
       for (const rec of newRecords) {
