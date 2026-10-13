@@ -24,6 +24,8 @@ export const enquiriesQueryOptions = (user: UserType) => ({
   refetchOnWindowFocus: true,
   staleTime: 5 * 1000, // 5 seconds
   refetchInterval: 8 * 1000, // Poll every 8s for new inbound web bookings
+  // Keep polling in a hidden tab so the new-enquiry sound still plays there.
+  refetchIntervalInBackground: true,
 });
 
 export function useGetAllEnquiries(user: UserType) {
