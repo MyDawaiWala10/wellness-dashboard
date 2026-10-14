@@ -14,7 +14,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toPhoneDigits } from "@/lib/phone";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -479,7 +478,7 @@ export function EnquiryDetailDrawer({
 
   // ── Step 3: confirm the booking ──
   // The fee belongs to the type, so switching type re-prices from the
-  // catalogue. It stays editable afterwards - exceptions happen.
+  // catalogue. It can't be typed over (the backend ignores it anyway).
   function chooseBookingType(t: BookingType) {
     const fee = catalogueFee(t, services);
     save(
@@ -506,10 +505,10 @@ export function EnquiryDetailDrawer({
       toast.error("Confirm the booking type first");
       return;
     }
-    // The amount field shows the fee until the executive overrides it.
-    const amount = draft.paymentAmount ?? draft.quotedPrice;
+    // The amount received is always the fee.
+    const amount = draft.quotedPrice;
     if (!amount) {
-      toast.error("Enter the amount received");
+      toast.error("This booking has no price yet - add its service on the Services page");
       return;
     }
 
@@ -803,25 +802,19 @@ export function EnquiryDetailDrawer({
                 !editingLead && "hidden",
               )}
             >
-              <LabeledInput
-                label="Name"
-                value={draft.name ?? ""}
-                onChange={(v) => patch({ name: v })}
-                onBlur={() => save()}
-              />
+              {/* Who the booking is for is fixed once it exists (the backend
+                  refuses changes too); only a missing email can be filled. */}
+              <LabeledInput label="Name" value={draft.name ?? ""} disabled />
               <LabeledInput
                 label="Phone"
                 type="tel"
                 value={String(draft.phonenumber ?? "")}
-                onChange={(v) => {
-                  const digits = toPhoneDigits(v);
-                  patch({ phonenumber: digits === "" ? undefined : Number(digits) });
-                }}
-                onBlur={() => save()}
+                disabled
               />
               <LabeledInput
                 label="Email"
                 value={draft.email ?? ""}
+                disabled={Boolean(record.email)}
                 onChange={(v) => patch({ email: v })}
                 onBlur={() => save()}
               />
@@ -993,19 +986,10 @@ export function EnquiryDetailDrawer({
               <label className="text-xs text-muted-foreground">Fee (₹)</label>
               <Input
                 type="number"
-                min={0}
                 placeholder="0"
+                readOnly
                 disabled={!draft.typeOfappointment}
                 value={draft.quotedPrice ?? ""}
-                onChange={(e) =>
-                  patch({
-                    quotedPrice:
-                      e.target.value === ""
-                        ? undefined
-                        : Number(e.target.value),
-                  })
-                }
-                onBlur={() => save()}
               />
               {!draft.typeOfappointment ? (
                 <p className="text-xs text-muted-foreground pt-1">
@@ -1020,8 +1004,8 @@ export function EnquiryDetailDrawer({
                       (b) => b.value === draft.typeOfappointment,
                     )?.serviceName
                   }
-                  &rdquo; isn&apos;t on the Services page - add it there so the
-                  fee pre-fills, or type it in here.
+                  &rdquo; isn&apos;t on the Services page - add it there to
+                  price this booking.
                 </p>
               ) : draft.quotedPrice !== bookingFee ? (
                 <p className="text-xs text-muted-foreground pt-1">
@@ -1049,18 +1033,13 @@ export function EnquiryDetailDrawer({
                 </label>
                 <Input
                   type="number"
-                  min={0}
                   placeholder="0"
-                  value={draft.paymentAmount ?? draft.quotedPrice ?? ""}
-                  onChange={(e) =>
-                    patch({
-                      paymentAmount:
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value),
-                    })
+                  readOnly
+                  value={
+                    (draft.paymentReceived ? draft.paymentAmount : undefined) ??
+                    draft.quotedPrice ??
+                    ""
                   }
-                  onBlur={() => save()}
                 />
               </div>
               <div>
@@ -1718,12 +1697,14 @@ function LabeledInput({
   onChange,
   onBlur,
   type = "text",
+  disabled = false,
 }: {
   label: string;
   value: string;
-  onChange: (v: string) => void;
+  onChange?: (v: string) => void;
   onBlur?: () => void;
   type?: string;
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -1731,7 +1712,8 @@ function LabeledInput({
       <Input
         type={type}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        onChange={(e) => onChange?.(e.target.value)}
         onBlur={onBlur}
       />
     </div>

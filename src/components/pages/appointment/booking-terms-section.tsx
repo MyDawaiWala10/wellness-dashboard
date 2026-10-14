@@ -98,6 +98,8 @@ export function BookingTermsSection({
           <Input
             type="number"
             min={0}
+            // An intake's fee comes from the Services catalogue only.
+            readOnly={!isCourse}
             value={price ?? ""}
             onChange={(e) =>
               setPrice(e.target.value === "" ? undefined : Number(e.target.value))
