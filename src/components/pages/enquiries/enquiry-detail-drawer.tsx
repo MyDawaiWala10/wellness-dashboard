@@ -547,11 +547,7 @@ export function EnquiryDetailDrawer({
     }
 
     // The candidate span: start time from the grid + the chosen duration.
-    const startMin = toMinutes(assignPick.time);
-    const endMin = startMin + assignDuration;
-    const end = `${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(
-      endMin % 60,
-    ).padStart(2, "0")}`;
+    const end = endTimeOf(assignPick.time, assignDuration);
 
     const change: Partial<EnquiryType> = {
       physioSlot: { date: assignDate, time: assignPick.time },
@@ -1258,7 +1254,9 @@ export function EnquiryDetailDrawer({
                       <span className="font-medium">{assignPick.doctor}</span>
                       <span className="text-muted-foreground">
                         {" "}
-                        · {assignDate} at {assignPick.time}
+                        · {assignDate}, {assignPick.time} to{" "}
+                        {endTimeOf(assignPick.time, assignDuration)} (
+                        {assignDuration} min)
                       </span>
                     </p>
                     <div className="flex shrink-0 gap-2">
@@ -1706,6 +1704,12 @@ function buildActivity(d: EnquiryType): ActivityEntry[] {
   return entries
     .filter((e) => e.name && e.name !== "System")
     .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+}
+
+/** "14:30" + 90 → "16:00". */
+function endTimeOf(start: string, durationMin: number): string {
+  const endMin = toMinutes(start) + durationMin;
+  return `${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
 }
 
 function LabeledInput({
