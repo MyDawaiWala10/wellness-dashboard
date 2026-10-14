@@ -550,6 +550,8 @@ export function EnquiryDetailDrawer({
 
     const change: Partial<EnquiryType> = {
       physioSlot: { date: assignDate, time: assignPick.time },
+      // `slot` is the visit time the Appointments page, dashboard and backend read.
+      slot: { date: assignDate, time: assignPick.time },
       therapyStartTime: assignPick.time,
       therapyEndTime: end,
       doctorId: assignPick.doctorId,
