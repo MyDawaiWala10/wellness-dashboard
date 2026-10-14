@@ -8,6 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   useCompleteSession,
   useUpdateAppointment,
 } from "@/data/appointment/appointment";
@@ -70,6 +80,10 @@ export function VisitTab({
   const { user } = useAuthStore();
   const isTherapist = user?.role === "THERAPIST";
   const canSendVisitOtp = ["SUPER_ADMIN", "ADMIN", "STAFF"].includes(user?.role ?? "");
+  // The visit itself is the therapist's work; an admin may only complete it
+  // for them, after a warning (the backend allows the same three roles).
+  const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
+  const [confirmAdminComplete, setConfirmAdminComplete] = useState(false);
   const { data: services = [] } = useGetServices();
   const { mutate: update } = useUpdateAppointment({ silent: true });
   const { mutate: saveNote } = useUpdateAppointment({ silent: true });
@@ -283,17 +297,23 @@ export function VisitTab({
       </Step>
 
       <Step n={2} title="During the visit">
-        <label className="flex w-fit cursor-pointer items-center gap-1.5 text-[13px]">
-          <input
-            type="checkbox"
-            disabled={!verified}
-            checked={done.has("performed")}
-            onChange={(e) =>
-              toggle("performed", "Service performed", e.target.checked)
-            }
-          />
-          Service performed
-        </label>
+        {isTherapist ? (
+          <label className="flex w-fit cursor-pointer items-center gap-1.5 text-[13px]">
+            <input
+              type="checkbox"
+              disabled={!verified}
+              checked={done.has("performed")}
+              onChange={(e) =>
+                toggle("performed", "Service performed", e.target.checked)
+              }
+            />
+            Service performed
+          </label>
+        ) : (
+          <p className="text-[13px] text-muted-foreground">
+            Service performed: {done.has("performed") ? "Done" : "Not yet"}
+          </p>
+        )}
       </Step>
 
       <Step
@@ -303,8 +323,13 @@ export function VisitTab({
             ? `Session note - session ${progress.currentSession} of ${progress.total}`
             : "Session note"
         }
-        sub={`Findings, diagnosis, what you did. Saved automatically, filed under ${actor}.`}
+        sub={
+          isTherapist
+            ? `Findings, diagnosis, what you did. Saved automatically, filed under ${actor}.`
+            : "Written by the therapist. Past session notes are in History."
+        }
       >
+        {isTherapist && (
         <Textarea
           rows={4}
           value={note}
@@ -318,6 +343,7 @@ export function VisitTab({
           }}
           placeholder="Lower back, limited flexion. Dry needling on QL, 15 min stretch..."
         />
+        )}
       </Step>
 
       <Step n={4} title="Finish">
@@ -332,13 +358,17 @@ export function VisitTab({
                 : "Visit completed"}
             </span>
           </div>
+        ) : !isTherapist && !isAdmin ? (
+          <p className="text-[13px] text-muted-foreground">
+            The therapist completes the visit.
+          </p>
         ) : (
           <Button
             type="button"
             size="sm"
             className="w-full"
             disabled={isCompleting || packageDone || !verified}
-            onClick={complete}
+            onClick={() => (isTherapist ? complete() : setConfirmAdminComplete(true))}
           >
             {isCompleting ? (
               <>
@@ -351,6 +381,29 @@ export function VisitTab({
           </Button>
         )}
       </Step>
+
+      <AlertDialog open={confirmAdminComplete} onOpenChange={setConfirmAdminComplete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Complete this visit for the therapist?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Completing the visit is the therapist&apos;s job. Only do this if
+              they can&apos;t, for example they forgot before leaving. It will be
+              recorded in History as completed by you on their behalf, and the
+              session note box is cleared for the next visit.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-600 text-white hover:bg-amber-700"
+              onClick={complete}
+            >
+              Complete anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Rolling scheduling: the next visit is booked at the end of this one,
           which is how treatment courses actually run. Optional - completing a
