@@ -27,6 +27,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
               signalSessionExpired();
               return;
             }
+            // A background refresh failed (sleep, Wi-Fi blip, a deploy) while
+            // the page still shows good data - stay quiet, the next poll recovers.
+            if (query.state.data !== undefined) return;
             toast.error(error.message);
           },
         }),

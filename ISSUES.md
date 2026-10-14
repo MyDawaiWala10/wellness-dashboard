@@ -592,6 +592,28 @@ The dropdown now shows the user's full name, email, and role (title-cased, e.g. 
 
 ---
 
+### 23. "An Unexpected Response Was Received from the Server" After Sleep or a Wi-Fi Drop
+
+**Severity:** Medium
+**Status:** Fixed (2026-10-14)
+**Category:** UI/UX
+**Affected Pages:** Dashboard home, Enquiries, and every page that loads a list
+
+#### Description
+The enquiries list re-checks the server every 8 seconds, including while the tab is in the background (needed for the new-enquiry sound). When the computer slept or the network dropped for a moment, one of those checks failed (`net::ERR_NETWORK_IO_SUSPENDED` in the console). The dashboard then replaced the bookings it was already showing with a big "An unexpected response was received from the server" box, plus a red pop-up, even though nothing was wrong on the server. A tab left open across a new deploy can show the same message once, because it calls the previous build.
+
+#### Fix
+- A failed **background** refresh is now silent: the page keeps showing what it has, and the next check (within 8 seconds of the network coming back) refreshes it.
+- The error box only appears when there is nothing to show at all, i.e. the **first** load failed (`isLoadingError` instead of `isError`).
+- The 8-second enquiries check retries 3 times before giving up, so a short drop fixes itself.
+
+#### Affected Code
+- `src/providers/providers.tsx` (global query `onError`: no pop-up when data is already on screen)
+- `src/data/enquiry/enquiry.ts` (`retry: 3`)
+- Every page that passes `isError` to `QueryWrapper` now passes `isLoadingError`
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -618,3 +640,4 @@ The dropdown now shows the user's full name, email, and role (title-cased, e.g. 
 | 20 | Production `customers.phone` has a unique index (second patient on a shared phone fails) | High | Open (owner's call to drop it) |
 | 21 | Staff dashboard can't see the new customer fields | Medium | Open |
 | 22 | Patient website OTP: 4-digit codes, no verify rate limit | High | Open (website) |
+| 23 | "Unexpected response from the server" after sleep / Wi-Fi drop | Medium | Fixed |

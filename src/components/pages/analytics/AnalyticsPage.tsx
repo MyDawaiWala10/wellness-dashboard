@@ -162,7 +162,7 @@ const AnalyticsPage = () => {
 
       <QueryWrapper
         isLoading={enq.isLoading}
-        isError={enq.isError}
+        isError={enq.isLoadingError}
         error={enq.error}
         onRetry={enq.refetch}
         skeleton={<AnalyticsSkeleton />}

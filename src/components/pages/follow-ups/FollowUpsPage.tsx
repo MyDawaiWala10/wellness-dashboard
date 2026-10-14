@@ -59,7 +59,7 @@ function isCold(r: EnquiryType): boolean {
 export default function FollowUpsPage() {
   const { user } = useAuthStore();
   const { id, role, userEmail } = user || {};
-  const { data: allRecords, isLoading, isError, error, refetch, isFetching } =
+  const { data: allRecords, isLoading, isLoadingError: isError, error, refetch, isFetching } =
     useGetAllEnquiries({ role, id, userEmail });
 
   const [openDetail, setOpenDetail] = useState<EnquiryType | null>(null);

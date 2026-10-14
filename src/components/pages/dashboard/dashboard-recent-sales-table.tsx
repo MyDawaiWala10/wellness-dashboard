@@ -34,7 +34,7 @@ const DashboardTable = () => {
   const {
     data: appointmentData,
     isLoading,
-    isError,
+    isLoadingError: isError,
     error,
     refetch,
   } = useGetAllAppointments({ role, id, userEmail });

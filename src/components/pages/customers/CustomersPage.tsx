@@ -92,7 +92,7 @@ export default function CustomersPage() {
   const {
     data: customers = [],
     isLoading,
-    isError,
+    isLoadingError: isError,
     error,
     refetch,
   } = useGetCustomers({ id, role, userEmail });

@@ -92,7 +92,7 @@ const DashboardPageComponents = () => {
 
       <QueryWrapper
         isLoading={loading}
-        isError={enq.isError}
+        isError={enq.isLoadingError}
         error={enq.error}
         onRetry={enq.refetch}
         skeleton={<TotalsSkeleton />}

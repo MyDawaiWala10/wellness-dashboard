@@ -266,7 +266,7 @@ export default function EarningsPage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role !== "THERAPIST";
 
-  const { data: appointments = [], isLoading: apptLoading, isError: apptError, error: apptErr, refetch } =
+  const { data: appointments = [], isLoading: apptLoading, isLoadingError: apptError, error: apptErr, refetch } =
     useGetAllAppointments(user as any);
   const { data: therapists = [] } = useGetAllTherapist();
 

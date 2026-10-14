@@ -28,7 +28,7 @@ interface ColumnDataType<TData extends TherapistformType> {
 export default function AllTherapistPage({
   columns,
 }: ColumnDataType<TherapistformType>) {
-  const { data: DoctorsDetail, isLoading, isError, error, refetch } = useGetAllTherapist();
+  const { data: DoctorsDetail, isLoading, isLoadingError: isError, error, refetch } = useGetAllTherapist();
   const { data: sessionCounts = [] } = useGetTherapistSessionCounts();
   const [selected, setSelected] = useState<TherapistformType | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");

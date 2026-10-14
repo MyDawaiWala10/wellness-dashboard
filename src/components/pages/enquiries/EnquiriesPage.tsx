@@ -290,7 +290,7 @@ export default function EnquiriesPage() {
   const {
     data: allRecords,
     isLoading,
-    isError,
+    isLoadingError: isError,
     error,
     refetch,
     isFetching,

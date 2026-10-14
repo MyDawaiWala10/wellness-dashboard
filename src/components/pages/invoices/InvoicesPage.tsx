@@ -57,7 +57,7 @@ export default function InvoicesPage() {
     data: invoices = [],
     isLoading,
     isFetching,
-    isError,
+    isLoadingError: isError,
     error,
     refetch,
   } = useGetInvoices();

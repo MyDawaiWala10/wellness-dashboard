@@ -42,7 +42,7 @@ export default function SlotBookingPage() {
   const {
     data: appointments,
     isLoading,
-    isError,
+    isLoadingError: isError,
     error,
     refetch,
   } = useGetAllAppointments({ role, id, userEmail });

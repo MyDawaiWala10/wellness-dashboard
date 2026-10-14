@@ -26,6 +26,8 @@ export const enquiriesQueryOptions = (user: UserType) => ({
   refetchInterval: 8 * 1000, // Poll every 8s for new inbound web bookings
   // Keep polling in a hidden tab so the new-enquiry sound still plays there.
   refetchIntervalInBackground: true,
+  // Ride out short network drops before calling the poll failed.
+  retry: 3,
 });
 
 export function useGetAllEnquiries(user: UserType) {

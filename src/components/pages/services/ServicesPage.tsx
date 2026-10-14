@@ -51,7 +51,7 @@ export default function ServicesPage() {
   const {
     data: services = [],
     isLoading,
-    isError,
+    isLoadingError: isError,
     error,
     refetch,
   } = useGetServices();

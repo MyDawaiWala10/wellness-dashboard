@@ -94,7 +94,7 @@ const SettingsPageComponents = () => {
   const{user} = useAuthStore()
   const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
   const [open, setOpen] = useState(false);
-  const { data, isLoading,isError,error,refetch } = useGetAllUsers();
+  const { data, isLoading, isLoadingError: isError, error, refetch } = useGetAllUsers();
   const { mutate, isPending } = useUpdateUserProfile();
   const form = useForm<z.infer<typeof SettingsSchema>>({
     resolver: zodResolver(SettingsSchema),
