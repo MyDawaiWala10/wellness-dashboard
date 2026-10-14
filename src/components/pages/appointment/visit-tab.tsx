@@ -69,6 +69,7 @@ export function VisitTab({
 }) {
   const { user } = useAuthStore();
   const isTherapist = user?.role === "THERAPIST";
+  const canSendVisitOtp = ["SUPER_ADMIN", "ADMIN", "STAFF"].includes(user?.role ?? "");
   const { data: services = [] } = useGetServices();
   const { mutate: update } = useUpdateAppointment({ silent: true });
   const { mutate: saveNote } = useUpdateAppointment({ silent: true });
@@ -207,7 +208,9 @@ export function VisitTab({
         sub={
           verified
             ? undefined
-            : "Send the code to the customer and type back what they read out. The session starts once it checks out."
+            : isTherapist
+              ? "Ask the office to send the customer a code, then type what they read out. The session starts once it checks out."
+              : "Send the customer a code. The therapist types what the customer reads out to start the session."
         }
       >
         {verified ? (
@@ -215,58 +218,66 @@ export function VisitTab({
             Verified by the customer - the session is under way.
           </p>
         ) : (
+          // The office sends, the therapist verifies - never the same person,
+          // so a session can't start without the customer (enforced server-side).
           <div className="flex gap-1.5">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0"
-              onClick={async () => {
-                if (!appointment._id) return;
-                const r = await sendVisitOtp(appointment._id);
-                if (!r.success || !r.code) {
-                  toast.error(r.message ?? "Could not create a code");
-                  return;
-                }
-                const link = whatsAppLink(
-                  appointment.phonenumber,
-                  `Your MDW visit code is ${r.code}`,
-                );
-                if (link) window.open(link, "_blank");
-                else toast.error("Customer number can't be messaged on WhatsApp");
-              }}
-            >
-              Send OTP
-            </Button>
-            <Input
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="Code"
-              className="h-8"
-              aria-label="Code from the customer"
-            />
-            <Button
-              type="button"
-              size="sm"
-              className="h-8 shrink-0"
-              disabled={!otp.trim()}
-              onClick={async () => {
-                if (!appointment._id) return;
-                const r = await verifyVisitOtp(appointment._id, otp.trim());
-                if (r.success) {
-                  setVerified(true);
-                  setOtp("");
-                  // The customer just confirmed the therapist is with them, so
-                  // arrival is proven - no need to also tick it by hand.
-                  startSession();
-                  toast.success("Session started");
-                } else {
-                  toast.error(r.message ?? "Incorrect code");
-                }
-              }}
-            >
-              Verify
-            </Button>
+            {canSendVisitOtp && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0"
+                onClick={async () => {
+                  if (!appointment._id) return;
+                  const r = await sendVisitOtp(appointment._id);
+                  if (!r.success || !r.code) {
+                    toast.error(r.message ?? "Could not create a code");
+                    return;
+                  }
+                  const link = whatsAppLink(
+                    appointment.phonenumber,
+                    `Your MDW visit code is ${r.code}`,
+                  );
+                  if (link) window.open(link, "_blank");
+                  else toast.error("Customer number can't be messaged on WhatsApp");
+                }}
+              >
+                Send OTP
+              </Button>
+            )}
+            {isTherapist && (
+              <>
+                <Input
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  placeholder="Code"
+                  className="h-8"
+                  aria-label="Code from the customer"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 shrink-0"
+                  disabled={!otp.trim()}
+                  onClick={async () => {
+                    if (!appointment._id) return;
+                    const r = await verifyVisitOtp(appointment._id, otp.trim());
+                    if (r.success) {
+                      setVerified(true);
+                      setOtp("");
+                      // The customer just confirmed the therapist is with them, so
+                      // arrival is proven - no need to also tick it by hand.
+                      startSession();
+                      toast.success("Session started");
+                    } else {
+                      toast.error(r.message ?? "Incorrect code");
+                    }
+                  }}
+                >
+                  Verify
+                </Button>
+              </>
+            )}
           </div>
         )}
       </Step>
