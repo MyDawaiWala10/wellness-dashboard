@@ -39,15 +39,6 @@ const intakeFormSchema = z
     phonenumber: z
       .number({ error: "Phone is required" })
       .refine((n) => String(n).length === 10, "Phone must be exactly 10 digits"),
-    preferredReachOutTime: z
-      .object({
-        from: z.string().min(1, "Start time is required"),
-        to: z.string().min(1, "End time is required"),
-      })
-      .refine((v) => v.from < v.to, {
-        message: "End time must be after start time",
-        path: ["to"],
-      }),
     note: z.string().optional(),
     source: z.string().optional(),
     referredByDoctorId: z.string().nullable().optional(),
@@ -91,7 +82,6 @@ export function EnquiryIntakeModal({
   const emptyValues: IntakeFormValues = {
     name: "",
     phonenumber: undefined as unknown as number,
-    preferredReachOutTime: { from: "", to: "" },
     note: "",
     // No default on purpose: an untouched pick would file a walk-in as WhatsApp.
     source: "",
@@ -249,46 +239,6 @@ export function EnquiryIntakeModal({
                   </span>
                 </div>
               ))}
-
-            <div className="space-y-2">
-              <FormLabel>Preferred reach-out time</FormLabel>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <FormField
-                  control={form.control}
-                  name="preferredReachOutTime.from"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs text-muted-foreground">
-                        From
-                      </FormLabel>
-                      <FormControl>
-                        <Input type="time" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="preferredReachOutTime.to"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs text-muted-foreground">
-                        To
-                      </FormLabel>
-                      <FormControl>
-                        <Input type="time" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                When does the client want to be reached? Browser will show
-                AM/PM based on your locale.
-              </p>
-            </div>
 
             <FormField
               control={form.control}
