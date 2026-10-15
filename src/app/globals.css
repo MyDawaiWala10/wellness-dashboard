@@ -135,3 +135,11 @@
   background-color: hsl(0 0% 50%);
   border-radius: 4px;
 }
+
+/* An open Sheet or Dialog sets pointer-events: none on <body>, and toasts
+   inherit it, so a toast's button ("View Enquiries") couldn't be clicked while
+   a drawer was open. Hidden toasts keep sonner's own "none" (its rule is more
+   specific). */
+[data-sonner-toast] {
+  pointer-events: auto;
+}
