@@ -71,6 +71,7 @@ import { useGetBackOfficeUsers } from "@/data/user/user-list";
 import { useAuthStore } from "@/providers/permission-provider";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { BRAND, publicOrigin } from "@/lib/brand";
+import { GENDERS, genderLabel, type Gender } from "@/lib/person";
 import { toWhatsAppNumber, whatsAppLink } from "@/lib/whatsapp";
 import {
   paymentRequestMessage,
@@ -754,6 +755,7 @@ export function EnquiryDetailDrawer({
                     ["Phone", draft.phonenumber ? String(draft.phonenumber) : ""],
                     ["Email", draft.email],
                     ["Age", draft.age ? String(draft.age) : ""],
+                    ["Gender", genderLabel(draft.gender)],
                     ["Location", draft.location],
                     ["Preferred call", formatTimeRange(draft.preferredReachOutTime)],
                   ] as [string, string | undefined][]
@@ -799,6 +801,24 @@ export function EnquiryDetailDrawer({
                 onChange={(v) => patch({ age: Number(v) })}
                 onBlur={() => save()}
               />
+              <div>
+                <label className="text-xs text-muted-foreground">Gender</label>
+                <Select
+                  value={draft.gender ?? ""}
+                  onValueChange={(v) => save({ gender: v as Gender })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Not given" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GENDERS.map((g) => (
+                      <SelectItem key={g} value={g}>
+                        {genderLabel(g)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <LabeledInput
                 label="Location"
                 value={draft.location ?? ""}

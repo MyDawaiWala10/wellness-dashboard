@@ -11,7 +11,9 @@ import {
   CalendarDays,
   Pencil,
   Plus,
+  UserRound,
 } from "lucide-react";
+import { genderLabel } from "@/lib/person";
 import { format, formatDistanceToNow } from "date-fns";
 
 import {
@@ -537,6 +539,16 @@ export function CustomerDetailDrawer({
               <div className="flex items-center gap-2 text-sm">
                 <MapPin className="h-4 w-4 text-muted-foreground" />
                 <span>{customer.location}</span>
+              </div>
+            )}
+            {(customer.gender || customer.age) && (
+              <div className="flex items-center gap-2 text-sm">
+                <UserRound className="h-4 w-4 text-muted-foreground" />
+                <span>
+                  {[genderLabel(customer.gender), customer.age && `${customer.age} years`]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
               </div>
             )}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -6,6 +6,7 @@ import { getCustomers } from "@/actions/customers/get-customers";
 import type { EnquiryType, UserType } from "@/type/schema";
 import type { CustomerNote, PersistedCustomer } from "@/type/customer-record";
 import { isTodayISO, readCreatedISO } from "@/lib/metrics";
+import { personAge } from "@/lib/person";
 
 /**
  * A customer is derived from appointments (grouped by phone) and enriched with
@@ -19,6 +20,8 @@ export interface Customer {
   name: string;
   email?: string;
   location?: string;
+  gender?: string;
+  age?: number;
   bookings: EnquiryType[];     // sorted newest-first
   totalBookings: number;       // excluding cancelled
   totalAll: number;            // including cancelled (for "all-time" stats if needed)
@@ -88,6 +91,8 @@ export function deriveCustomers(
       name: persisted?.name ?? latest.name ?? "Unnamed",
       email: persisted?.email || latest.email || undefined,
       location: persisted?.address || latest.location || undefined,
+      gender: persisted?.gender || latest.gender || undefined,
+      age: personAge(persisted) ?? (latest.age || undefined),
       bookings: sorted,
       totalBookings,
       totalAll,

@@ -302,7 +302,7 @@ Minor UX issue - the table might briefly show stale data until the query refetch
 ### 21. Staff Dashboard Can't See the New Customer Fields
 
 **Severity:** Medium  
-**Status:** Open (2026-10-02; dashboard UI was out of scope for the customer-accounts work)  
+**Status:** Partly fixed (2026-10-16: gender and age now show, see #24; city, pincode, emergency contact, photo and app login still open)  
 **Affected Pages:** Customers (`/dashboard/customers`) and the booking drawers
 
 #### Description
@@ -614,6 +614,31 @@ The enquiries list re-checks the server every 8 seconds, including while the tab
 
 ---
 
+### 24. Website Gender and Age Never Reached the Customer Record
+
+**Severity:** High
+**Status:** Fixed (2026-10-16)
+**Category:** Data
+**Affected Pages:** Enquiries (Lead info), Customers
+
+#### Description
+The website booking form started asking for gender and age on 2026-10-13, but only wrote them into the note text ("Gender: Female"). The backend's public booking endpoint didn't accept either field, bookings had no gender field, and the customer record (which already had space for gender and date of birth, from the Customers' App work) was only ever filled once, at the first booking, with name, phone, email and address. So Lead info showed Age as "-" and no screen showed gender. A half-wired change: the form was updated, the backend and dashboard were not.
+
+#### Fix
+- The customer record is the person. Every booking path (website, dashboard, app, invoices) goes through `ensureCustomerForAppointment`, which now fills the customer's **missing** email, address, gender and age from the booking and never overwrites them (the public form has no login, so anyone can type any number).
+- Age is stored as a birth year (`birthYear`), so it never goes stale. An exact date of birth from the app wins.
+- A new booking for a known customer takes their gender and age on first link, so returning customers show them too.
+- Office corrections in Lead info (gender, age) also update the customer record. Therapists can't.
+- The website sends `gender` and `age` as fields and no longer copies them into the note.
+- Older leads: `scripts/backfill-gender-age-from-notes.ts` moves the note lines into the fields (dry run by default).
+
+#### Affected Code
+- Backend: `lib/personDetails.ts` (new), `lib/invoiceGeneration.ts`, `lib/bookingService.ts` (repeat folding), `controllers/appointmentController.ts` (public endpoint, PUT), `controllers/customerController.ts`, `models/customerModel.ts`, `models/appointmentsBookingModel.ts`, `lib/customerProfile.ts`
+- Website: `src/lib/wellness-backend.ts`
+- Dashboard: `src/lib/person.ts` (new), enquiry drawer Lead info, Customers drawer, `src/data/customer/customer.ts`
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -638,6 +663,7 @@ The enquiries list re-checks the server every 8 seconds, including while the tab
 | 18 | Account menu didn't show name/email/role | Low | Fixed |
 | 19 | Therapist edit is not ownership-scoped | Medium | Open |
 | 20 | Production `customers.phone` has a unique index (second patient on a shared phone fails) | High | Open (owner's call to drop it) |
-| 21 | Staff dashboard can't see the new customer fields | Medium | Open |
+| 21 | Staff dashboard can't see the new customer fields | Medium | Partly fixed (gender, age) |
 | 22 | Patient website OTP: 4-digit codes, no verify rate limit | High | Open (website) |
 | 23 | "Unexpected response from the server" after sleep / Wi-Fi drop | Medium | Fixed |
+| 24 | Website gender and age never reached the customer record | High | Fixed |

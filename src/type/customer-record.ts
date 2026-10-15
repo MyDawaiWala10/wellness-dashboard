@@ -11,6 +11,9 @@ export interface PersistedCustomer {
   phone: number;
   email?: string;
   address?: string;
+  gender?: string;
+  birthYear?: number;
+  dob?: string;
   notes?: CustomerNote[];
 
   createdAt?: string;

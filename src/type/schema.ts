@@ -1,5 +1,6 @@
 import z from "zod";
 import { ROLES } from "@/constant";
+import { GENDERS } from "@/lib/person";
 
 export const AnalyticsSchema = z.object({
   totalDoctors: z.number(),
@@ -91,6 +92,7 @@ export const enquirySchema = z.object({
     .optional(),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   age: z.number().optional(),
+  gender: z.enum(GENDERS).optional(),
   location: z.string().optional(),
   category: z.string().optional(),
   note: z.string().optional(),
