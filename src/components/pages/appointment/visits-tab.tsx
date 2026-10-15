@@ -5,16 +5,17 @@ import { bookingLabel } from "@/components/pages/enquiries/booking";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { bookingLedger } from "@/lib/booking-money";
 import { visitStatusLabel } from "@/lib/package-progress";
-import { childVisitsOf, visitLabel, visitShort, visitWhen } from "@/lib/visit-groups";
+import { childVisitsOf, nextVisitOf, visitLabel, visitShort, visitWhen } from "@/lib/visit-groups";
 import { VisitTab } from "./visit-tab";
 
 /**
- * Every visit of a booking in one place: the booking's own visit, add-ons done
- * in it, and each later visit (add-on sessions, course follow-ups) - when, how
- * long, its status and whether it's paid for. Expanding a later visit shows its
- * own Visit steps (code, verify, complete), since it is still its own visit.
+ * Every visit of a booking in one tab: the booking's own visit (with add-ons
+ * done in it) and each later visit (add-on sessions, course follow-ups) - when,
+ * how long, status and whether it's paid for. Each expands to its own Visit
+ * steps (code, verify, collect, complete); the next one to happen starts open.
+ * A booking with no later visits just shows its own steps.
  */
-export function SessionsTab({
+export function VisitsTab({
   booking,
   allAppointments,
 }: {
@@ -22,6 +23,10 @@ export function SessionsTab({
   allAppointments: slotBookingZodType[];
 }) {
   const visits = childVisitsOf(booking, allAppointments);
+  if (visits.length === 0) {
+    return <VisitTab appointment={booking} allAppointments={allAppointments} />;
+  }
+  const nextId = nextVisitOf(booking, allAppointments)?._id;
   const inVisitAddons = (booking.recommendedServices ?? []).filter(
     (r) => r.status === "confirmed" && r.firstInVisit !== false,
   );
@@ -29,25 +34,30 @@ export function SessionsTab({
 
   return (
     <div className="space-y-2">
-      <div className="rounded-lg border p-3 space-y-1">
-        <Line
-          title={`${bookingLabel(booking)} (this booking)`}
-          when={visitWhen(booking)}
-          status={visitStatusLabel(booking.status)}
-          money={due > 0 ? `${formatINR(due)} due on this booking` : "Paid"}
-          moneyDue={due > 0}
-        />
-        {inVisitAddons.map((r) => (
-          <p key={`${r.serviceId}-${r.recommendedAt}`} className="pl-3 text-[11px] text-muted-foreground">
-            + {r.serviceName}, in this visit
-          </p>
-        ))}
-      </div>
+      <details open={nextId === booking._id || !nextId} className="group rounded-lg border p-3">
+        <summary className="cursor-pointer list-none space-y-1">
+          <Line
+            title={`${bookingLabel(booking)} (this booking)`}
+            when={visitWhen(booking)}
+            status={visitStatusLabel(booking.status)}
+            money={due > 0 ? `${formatINR(due)} due on this booking` : "Paid"}
+            moneyDue={due > 0}
+          />
+          {inVisitAddons.map((r) => (
+            <p key={`${r.serviceId}-${r.recommendedAt}`} className="pl-3 text-[11px] text-muted-foreground">
+              + {r.serviceName}, in this visit
+            </p>
+          ))}
+        </summary>
+        <div className="mt-3 border-t pt-3">
+          <VisitTab appointment={booking} allAppointments={allAppointments} />
+        </div>
+      </details>
 
       {visits.map((v) => {
         const short = visitShort(v, booking);
         return (
-          <details key={v._id} className="group rounded-lg border p-3">
+          <details key={v._id} open={v._id === nextId} className="group rounded-lg border p-3">
             <summary className="cursor-pointer list-none">
               <Line
                 title={visitLabel(v, booking)}

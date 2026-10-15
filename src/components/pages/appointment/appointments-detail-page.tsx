@@ -12,10 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { slotBookingZodType } from "@/type/schema";
 import AppointmentDetailsPage from "./appointments-details-page";
 import { AppointmentSummaryStrip } from "./appointment-summary-strip";
-import { VisitTab } from "./visit-tab";
 import { BillingTab } from "./billing-tab";
 import { HistoryTab } from "./history-tab";
-import { SessionsTab } from "./sessions-tab";
+import { VisitsTab } from "./visits-tab";
 import { childVisitsOf } from "@/lib/visit-groups";
 import { RecordIds } from "./record-ids";
 import { BookingSourceEditor } from "@/components/booking-source-editor";
@@ -74,23 +73,14 @@ const AppointmentDetailDrawer = ({
           <div className="space-y-3 px-4 pb-6">
             <AppointmentSummaryStrip appointment={live} services={services} />
 
-            {/* A finished booking with visits still to come opens on them. */}
-            <Tabs
-              key={live._id}
-              defaultValue={live.status === "completed" && openVisits.length > 0 ? "sessions" : "visit"}
-            >
+            <Tabs key={live._id} defaultValue="visit">
               <TabsList className="w-full">
                 <TabsTrigger value="visit" className="flex-1">
-                  Visit
+                  {visits.length > 0 ? "Visits" : "Visit"}
+                  {openVisits.length > 0 && (
+                    <span className="ml-1.5 text-[10px] text-muted-foreground">{openVisits.length}</span>
+                  )}
                 </TabsTrigger>
-                {visits.length > 0 && (
-                  <TabsTrigger value="sessions" className="flex-1">
-                    Sessions
-                    {openVisits.length > 0 && (
-                      <span className="ml-1.5 text-[10px] text-muted-foreground">{openVisits.length}</span>
-                    )}
-                  </TabsTrigger>
-                )}
                 <TabsTrigger value="money" className="flex-1">
                   Billing
                   {due > 0 && (
@@ -103,17 +93,8 @@ const AppointmentDetailDrawer = ({
               </TabsList>
 
               <TabsContent value="visit" className="mt-3">
-                <VisitTab
-                  appointment={live}
-                  allAppointments={allAppointments}
-                />
+                <VisitsTab booking={live} allAppointments={allAppointments} />
               </TabsContent>
-
-              {visits.length > 0 && (
-                <TabsContent value="sessions" className="mt-3">
-                  <SessionsTab booking={live} allAppointments={allAppointments} />
-                </TabsContent>
-              )}
 
               <TabsContent value="money" className="mt-3">
                 <BillingTab appointment={live} />
