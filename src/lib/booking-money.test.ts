@@ -113,14 +113,33 @@ describe("bookingLedger - nothing priced yet", () => {
 });
 
 describe("bookingLedger - part-payments", () => {
-  it("splits a part-paid booking into what's paid and the balance due", () => {
+  it("a part-paid booking is ONE line showing what's paid and what's due", () => {
     const { lines, paid, due } = bookingLedger(booking({ quotedPrice: 1600, paymentAmount: 600 }));
-    expect(lines.map((l) => [l.amount, l.state])).toEqual([
-      [600, "paid"],
-      [1000, "due"],
-    ]);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ amount: 1600, due: 1000, state: "due" });
+    expect(lines[0].meta).toBe("₹600 paid · ₹1,000 due");
     expect(paid).toBe(600);
     expect(due).toBe(1000);
+  });
+
+  it("a part-paid add-on is one line too, and a pending one isn't owed", () => {
+    const { lines, due } = bookingLedger(
+      booking({
+        quotedPrice: 600,
+        paymentAmount: 600,
+        paymentReceived: true,
+        recommendedServices: [
+          { serviceId: "S", recommendedAt: "t", serviceName: "Dry Needling", quotedPrice: 400, status: "confirmed", paidAmount: 150 },
+          { serviceId: "P", recommendedAt: "u", serviceName: "Maybe", quotedPrice: 999, status: "pending" },
+        ],
+      }),
+    );
+    expect(lines.map((l) => [l.label, l.due, l.state])).toEqual([
+      ["Consultation", 0, "paid"],
+      ["Dry Needling", 250, "due"],
+      ["Maybe", 999, "pending"],
+    ]);
+    expect(due).toBe(250);
   });
 
   it("a fully paid booking is one paid line", () => {

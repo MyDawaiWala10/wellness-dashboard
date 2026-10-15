@@ -1,18 +1,22 @@
 import type { slotBookingZodType } from "@/type/schema";
 import { bookingLabel } from "@/components/pages/enquiries/booking";
+import { formatINR } from "@/components/pages/services/services-columns";
 
 export type LedgerLine = {
   key: string;
   label: string;
   meta: string;
+  /** The item's price. */
   amount: number;
+  /** Still owed on it (0 when paid; the full price while pending). */
+  due: number;
   /**
    * What the line would have cost before a discount, when one was given.
    * Only ever set on the booking line: add-ons carry a single quotedPrice with
    * no original/discount fields on the model, so there's nothing to compare.
    */
   original?: number;
-  /** paid | due | awaiting the customer's confirmation */
+  /** paid (nothing owed) | due (some or all owed) | awaiting the customer's confirmation */
   state: "paid" | "due" | "pending";
 };
 
@@ -26,6 +30,22 @@ export type LedgerTotals = {
   paid: number;
   due: number;
 };
+
+/**
+ * One line per item, part-payments included: "₹400 paid · ₹200 due" rather
+ * than a paid line plus a balance line. Mirrors the backend's bookingMoney.ts.
+ */
+function paidLine(key: string, label: string, price: number, paid: number, unpaidMeta: string): LedgerLine {
+  const due = Math.max(0, price - paid);
+  return {
+    key,
+    label,
+    meta: due === 0 ? "Paid" : paid > 0 ? `${formatINR(paid)} paid · ${formatINR(due)} due` : unpaidMeta,
+    amount: price,
+    due,
+    state: due === 0 ? "paid" : "due",
+  };
+}
 
 /** Paid so far on an add-on (older add-ons only had a collected flag). */
 export const addonPaid = (r: { quotedPrice?: number; paidAmount?: number; paymentCollected?: boolean }) =>
@@ -52,61 +72,27 @@ export function bookingLedger(a: slotBookingZodType): {
     // originalPrice gets filled in on plenty of bookings that were never
     // discounted, so comparing is safer than trusting the field's presence.
     const listed = a.originalPrice ?? 0;
-    const original = listed > fee ? listed : undefined;
-    // Part-paid: the paid share and the balance as two lines (mirrors the
-    // backend's lib/bookingMoney.ts).
     const paid = a.paymentReceived ? fee : Math.min(fee, Math.max(0, a.paymentAmount ?? 0));
-    const label = bookingLabel(a);
-    if (paid > 0) {
-      lines.push({
-        key: "booking-paid",
-        label,
-        meta: paid < fee ? "Paid so far" : "Paid",
-        amount: paid,
-        original: paid >= fee ? original : undefined,
-        state: "paid",
-      });
-    }
-    if (paid < fee) {
-      lines.push({
-        key: "booking",
-        label: paid > 0 ? `${label} - balance` : label,
-        meta: "Unpaid",
-        amount: fee - paid,
-        original: paid > 0 ? undefined : original,
-        state: "due",
-      });
-    }
+    lines.push({
+      ...paidLine("booking", bookingLabel(a), fee, paid, "Unpaid"),
+      original: listed > fee ? listed : undefined,
+    });
   }
 
   for (const r of a.recommendedServices ?? []) {
     const key = `${r.serviceId}-${r.recommendedAt}`;
     const price = r.quotedPrice ?? 0;
-    if (r.status !== "confirmed") {
-      lines.push({ key, label: r.serviceName, meta: "Awaiting customer", amount: price, state: "pending" });
-      continue;
-    }
-    // Part-paid add-on: paid share and balance (mirrors lib/bookingMoney.ts).
-    const paid = Math.min(price, addonPaid(r));
-    if (paid > 0) {
-      lines.push({ key: `${key}-paid`, label: r.serviceName, meta: paid < price ? "Paid so far" : "Paid", amount: paid, state: "paid" });
-    }
-    if (paid < price) {
-      lines.push({
-        key,
-        label: paid > 0 ? `${r.serviceName} - balance` : r.serviceName,
-        meta: "Confirmed - unpaid",
-        amount: price - paid,
-        state: "due",
-      });
-    }
+    lines.push(
+      r.status !== "confirmed"
+        ? { key, label: r.serviceName, meta: "Awaiting customer", amount: price, due: price, state: "pending" }
+        : paidLine(key, r.serviceName, price, Math.min(price, addonPaid(r)), "Confirmed - unpaid"),
+    );
   }
 
-  const sum = (s: LedgerLine["state"]) =>
-    lines.filter((l) => l.state === s).reduce((t, l) => t + l.amount, 0);
-
-  const paid = sum("paid");
-  const due = sum("due");
+  // Pending add-ons aren't owed yet - the customer hasn't agreed to them.
+  const owed = lines.filter((l) => l.state !== "pending");
+  const paid = owed.reduce((t, l) => t + l.amount - l.due, 0);
+  const due = owed.reduce((t, l) => t + l.due, 0);
 
   // The ladder covers everything on the booking, pending add-ons included, so
   // "Total" answers "what is this booking worth" rather than "what is owed
