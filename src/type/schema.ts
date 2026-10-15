@@ -184,6 +184,9 @@ export const enquirySchema = z.object({
   therapistPaidAt: z.string().datetime().optional(),
   // Per-visit OTP verification state (server-managed; UI gates checkout on it).
   visitOtpVerified: z.boolean().optional(),
+  visitOtpSentAt: z.string().optional(),
+  visitOtpSentBy: z.string().optional(),
+  visitOtpVerifiedAt: z.string().optional(),
   // Ad-hoc multi-session tracking + per-session report log.
   totalSessions: z.number().optional(),
   sessionIntervalDays: z.number().optional(),

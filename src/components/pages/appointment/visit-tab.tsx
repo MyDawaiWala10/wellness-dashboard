@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
 import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -227,6 +228,15 @@ export function VisitTab({
               : "Send the customer a code. The therapist types what the customer reads out to start the session."
         }
       >
+        {draft.visitOtpSentAt && (
+          <p className="mb-1 text-[11px] text-muted-foreground">
+            Code sent {format(new Date(draft.visitOtpSentAt), "yyyy-MM-dd HH:mm")}
+            {draft.visitOtpSentBy ? ` by ${draft.visitOtpSentBy}` : ""}
+            {draft.visitOtpVerifiedAt
+              ? ` · verified ${format(new Date(draft.visitOtpVerifiedAt), "yyyy-MM-dd HH:mm")}`
+              : " · works until it's used"}
+          </p>
+        )}
         {verified ? (
           <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
             Verified by the customer - the session is under way.
@@ -252,6 +262,12 @@ export function VisitTab({
                     appointment.phonenumber,
                     `Your MDW visit code is ${r.code}`,
                   );
+                  setDraft((d) => ({
+                    ...d,
+                    visitOtpSentAt: new Date().toISOString(),
+                    visitOtpSentBy: actor,
+                    visitOtpVerifiedAt: undefined,
+                  }));
                   if (link) window.open(link, "_blank");
                   else toast.error("Customer number can't be messaged on WhatsApp");
                 }}
@@ -278,6 +294,7 @@ export function VisitTab({
                     const r = await verifyVisitOtp(appointment._id, otp.trim());
                     if (r.success) {
                       setVerified(true);
+                      setDraft((d) => ({ ...d, visitOtpVerifiedAt: new Date().toISOString() }));
                       setOtp("");
                       // The customer just confirmed the therapist is with them, so
                       // arrival is proven - no need to also tick it by hand.
