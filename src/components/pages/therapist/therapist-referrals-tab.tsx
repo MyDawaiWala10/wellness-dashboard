@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { BookingIdBadge } from "@/components/booking-id-badge";
 import { useGetAllTherapist, useGetReferrals } from "@/data/therapist/therapist";
-import { useAuthStore } from "@/providers/permission-provider";
 import { BRAND } from "@/lib/brand";
 import type { TherapistformType } from "@/type/schema";
 
@@ -14,16 +13,12 @@ interface TherapistReferralsTabProps {
 }
 
 export function TherapistReferralsTab({ doctorId }: TherapistReferralsTabProps) {
-  const { user } = useAuthStore();
   const { data: therapists = [] } = useGetAllTherapist();
   const therapist = (therapists as TherapistformType[]).find((t) => t.doctorId === doctorId);
   const { data: referrals = [], isLoading } = useGetReferrals(doctorId);
 
-  // The code is for admins and the therapist it belongs to; other staff only
-  // see which bookings came in through it.
-  const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
-  const isOwn = user?.role === "THERAPIST" && therapist?.userId === user?.id;
-  const code = (isAdmin || isOwn) && therapist?.referralCode;
+  // Only the Super Admin opens this tab, and only they are sent codes.
+  const code = therapist?.referralCode;
   const link = code ? `https://${BRAND.website}/?ref=${code}` : "";
 
   async function copy(text: string, what: string) {

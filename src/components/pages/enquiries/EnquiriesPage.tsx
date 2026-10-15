@@ -287,6 +287,7 @@ export function SectionTable({
 export default function EnquiriesPage() {
   const { user } = useAuthStore();
   const { id, role, userEmail } = user || {};
+  const isSuperAdmin = role === "SUPER_ADMIN";
   const {
     data: allRecords,
     isLoading,
@@ -457,8 +458,9 @@ export default function EnquiriesPage() {
         onOpenDetail: (r) => setOpenDetail(r),
         lastActiveLabel: "Waiting since",
         lastActiveField: "received",
+        showReferral: isSuperAdmin,
       }),
-    [],
+    [isSuperAdmin],
   );
   // Attended leads: the timestamp = last staff action → "Last updated".
   const bottomColumns = useMemo(
@@ -467,8 +469,9 @@ export default function EnquiriesPage() {
         onOpenDetail: (r) => setOpenDetail(r),
         lastActiveLabel: "Last updated",
         lastActiveField: "updated",
+        showReferral: isSuperAdmin,
       }),
-    [],
+    [isSuperAdmin],
   );
 
   // Top-section empty message changes based on whether ANY records exist.

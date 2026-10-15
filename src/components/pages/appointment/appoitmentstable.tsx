@@ -11,6 +11,7 @@ import { getConfirmedAddonNames } from "@/lib/package-progress";
 import { bookingKindOf, bookingLabel } from "@/components/pages/enquiries/booking";
 import { AppointmentStatusBadge } from "@/components/status-badge";
 import { BookingIdBadge } from "@/components/booking-id-badge";
+import { referralColumn } from "@/components/referral-column";
 import { format } from "date-fns";
 
 /**
@@ -35,10 +36,12 @@ function getCreatedMs(row: slotBookingZodType): number {
 
 // `allAppointments` is every visit, including ones shown inside their booking
 // (the Next visit and Sessions columns read it); `services` resolves catalogue
-// packages for the Sessions column.
+// packages for the Sessions column; `showReferral` adds the Super Admin only
+// Referral column.
 export function makeAppointmentColumns(
   allAppointments: slotBookingZodType[],
   services: ServiceType[],
+  showReferral = false,
 ): ColumnDef<slotBookingZodType>[] {
   return [
     {
@@ -66,6 +69,7 @@ export function makeAppointmentColumns(
       ),
       cell: ({ row }) => <BookingIdBadge record={row.original} />,
     },
+    ...(showReferral ? [referralColumn] : []),
     {
       accessorKey: "name",
       header: ({ column }) => (

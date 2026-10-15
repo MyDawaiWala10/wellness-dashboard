@@ -50,8 +50,8 @@ export default function SlotBookingPage() {
   const { data: services = [] } = useGetServices();
 
   const columns = useMemo(
-    () => makeAppointmentColumns(appointments ?? [], services),
-    [appointments, services],
+    () => makeAppointmentColumns(appointments ?? [], services, role === "SUPER_ADMIN"),
+    [appointments, services, role],
   );
 
   const apptTodayStats = useMemo(() => {

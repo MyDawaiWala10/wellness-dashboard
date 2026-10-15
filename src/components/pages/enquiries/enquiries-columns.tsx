@@ -17,6 +17,7 @@ import { EnquiryStatusBadge } from "./enquiry-status-badge";
 import { formatTimeRange } from "./time-range";
 import { bookingTypeLabel, toDayKey } from "./booking";
 import { BookingIdBadge } from "@/components/booking-id-badge";
+import { referralColumn } from "@/components/referral-column";
 
 /**
  * Read the Mongoose-side updatedAt timestamp (created/updatedAt aren't in the
@@ -136,6 +137,8 @@ interface MakeColumnsParams {
   showAttempts?: boolean;
   /** Show contact/intake columns (email, city, type) - used on Follow-ups. */
   showContactCols?: boolean;
+  /** Show the Referral column - Super Admin only. */
+  showReferral?: boolean;
 }
 
 export function makeEnquiryColumns({
@@ -144,6 +147,7 @@ export function makeEnquiryColumns({
   lastActiveField = "updated",
   showAttempts = false,
   showContactCols = false,
+  showReferral = false,
 }: MakeColumnsParams): ColumnDef<EnquiryType>[] {
   return [
     {
@@ -152,6 +156,7 @@ export function makeEnquiryColumns({
       header: "ID",
       cell: ({ row }) => <BookingIdBadge record={row.original} />,
     },
+    ...(showReferral ? [referralColumn] : []),
     {
       accessorKey: "name",
       header: ({ column }) => (

@@ -40,15 +40,15 @@ export function BookingSourceEditor({
   saving?: boolean;
 }) {
   const { mutate: update, isPending } = useUpdateAppointment({ silent: true });
-  // Therapists see the source but don't set it: who referred a booking is the
-  // back office's call, and a therapist could otherwise credit themselves.
-  // UI-level only, like the rest of the therapist scoping on these screens.
+  // Therapists see nothing about referrals (client rule), and the server doesn't
+  // send them the source, so the whole section is hidden from them.
   const isTherapist = useAuthStore((s) => s.user?.role) === "THERAPIST";
 
   const [draft, setDraft] = useState<BookingSourceValue>({
     source: bookingSource(record),
     referredByDoctorId: record.referredByDoctorId ?? null,
   });
+  if (isTherapist) return null;
 
   function handleChange(next: BookingSourceValue) {
     setDraft(next);
@@ -70,7 +70,7 @@ export function BookingSourceEditor({
         value={draft}
         onChange={handleChange}
         error={draft.source === "therapist" ? bookingSourceError(draft) : undefined}
-        disabled={isTherapist || (saving ?? isPending)}
+        disabled={saving ?? isPending}
       />
     </section>
   );

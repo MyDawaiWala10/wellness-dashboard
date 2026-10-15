@@ -8,6 +8,7 @@ import { Loader2, X, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { useUpdateTherapist } from "@/data/therapist/therapist";
+import { useAuthStore } from "@/providers/permission-provider";
 import {
   useAddSpecialization,
   useGetSpecializations,
@@ -76,6 +77,8 @@ export default function TherapistDetailsPage({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [activeTab, setActiveTab] = useState("profile");
+  // Referrals are Super Admin only (client rule).
+  const isSuperAdmin = useAuthStore((s) => s.user?.role) === "SUPER_ADMIN";
 
   const { mutate: updateMutate, isPending: isUpdating } = useUpdateTherapist();
   const {
@@ -217,9 +220,11 @@ export default function TherapistDetailsPage({
             <TabsTrigger value="earnings" className="flex-1">
               Earnings
             </TabsTrigger>
-            <TabsTrigger value="referrals" className="flex-1">
-              Referrals
-            </TabsTrigger>
+            {isSuperAdmin && (
+              <TabsTrigger value="referrals" className="flex-1">
+                Referrals
+              </TabsTrigger>
+            )}
             <TabsTrigger value="availability" className="flex-1">
               Availability
             </TabsTrigger>
@@ -536,7 +541,7 @@ export default function TherapistDetailsPage({
         {/* ── Referrals tab ────────────────────────────────────── */}
         <TabsContent value="referrals" className="flex-1 overflow-y-auto m-0">
           <div className="px-5 sm:px-6 py-5">
-            {data.doctorId && (
+            {isSuperAdmin && data.doctorId && (
               <TherapistReferralsTab doctorId={data.doctorId} />
             )}
           </div>

@@ -1,5 +1,8 @@
+"use client";
+
 import { bookingSource, bookingSourceMeta } from "@/lib/booking-source";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/providers/permission-provider";
 
 /**
  * The booking ID, as a pill coloured by how the booking reached us.
@@ -20,6 +23,10 @@ export function BookingIdBadge({
   };
   className?: string;
 }) {
+  // Therapists see nothing about referrals (client rule), and the colour says
+  // "Via Therapist", so theirs is a plain pill. The server doesn't send them
+  // the source either.
+  const isTherapist = useAuthStore((s) => s.user?.role) === "THERAPIST";
   if (!record.enquiryId) {
     return <span className="text-xs text-muted-foreground">-</span>;
   }
@@ -33,11 +40,11 @@ export function BookingIdBadge({
 
   return (
     <span
-      title={title}
-      aria-label={`${record.enquiryId}, booked ${title}`}
+      title={isTherapist ? undefined : title}
+      aria-label={isTherapist ? record.enquiryId : `${record.enquiryId}, booked ${title}`}
       className={cn(
         "inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold",
-        meta.className,
+        isTherapist ? "bg-muted text-foreground" : meta.className,
         className,
       )}
     >
