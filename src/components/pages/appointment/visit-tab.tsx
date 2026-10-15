@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
 import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,8 +25,8 @@ import { useGetServices } from "@/data/service/service";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { ActivityEntry, slotBookingZodType } from "@/type/schema";
 import { getPackageProgressForAppointment } from "@/lib/package-progress";
-import { whatsAppLink } from "@/lib/whatsapp";
-import { sendVisitOtp, verifyVisitOtp } from "@/actions/appointments/visit-otp";
+import { verifyVisitOtp } from "@/actions/appointments/visit-otp";
+import { SendVisitOtpButton, visitCodeStatus } from "@/components/send-visit-otp";
 import { AssignTherapistCard } from "./assign-therapist-card";
 import { RecordPaymentForm } from "@/components/record-payment-form";
 import { formatINR } from "@/components/pages/services/services-columns";
@@ -81,7 +80,6 @@ export function VisitTab({
 }) {
   const { user } = useAuthStore();
   const isTherapist = user?.role === "THERAPIST";
-  const canSendVisitOtp = ["SUPER_ADMIN", "ADMIN", "STAFF"].includes(user?.role ?? "");
   // The visit itself is the therapist's work; an admin may only complete it
   // for them, after a warning (the backend allows the same three roles).
   const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
@@ -228,13 +226,7 @@ export function VisitTab({
         }
       >
         {draft.visitOtpSentAt && (
-          <p className="mb-1 text-[11px] text-muted-foreground">
-            Code sent {format(new Date(draft.visitOtpSentAt), "yyyy-MM-dd HH:mm")}
-            {draft.visitOtpSentBy ? ` by ${draft.visitOtpSentBy}` : ""}
-            {draft.visitOtpVerifiedAt
-              ? ` · verified ${format(new Date(draft.visitOtpVerifiedAt), "yyyy-MM-dd HH:mm")}`
-              : " · works until it's used"}
-          </p>
+          <p className="mb-1 text-[11px] text-muted-foreground">{visitCodeStatus(draft)}</p>
         )}
         {verified ? (
           <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
@@ -244,36 +236,17 @@ export function VisitTab({
           // The office sends, the therapist verifies - never the same person,
           // so a session can't start without the customer (enforced server-side).
           <div className="flex gap-1.5">
-            {canSendVisitOtp && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 shrink-0"
-                onClick={async () => {
-                  if (!appointment._id) return;
-                  const r = await sendVisitOtp(appointment._id);
-                  if (!r.success || !r.code) {
-                    toast.error(r.message ?? "Could not create a code");
-                    return;
-                  }
-                  const link = whatsAppLink(
-                    appointment.phonenumber,
-                    `Your MDW visit code is ${r.code}`,
-                  );
-                  setDraft((d) => ({
-                    ...d,
-                    visitOtpSentAt: new Date().toISOString(),
-                    visitOtpSentBy: actor,
-                    visitOtpVerifiedAt: undefined,
-                  }));
-                  if (link) window.open(link, "_blank");
-                  else toast.error("Customer number can't be messaged on WhatsApp");
-                }}
-              >
-                Send OTP
-              </Button>
-            )}
+            <SendVisitOtpButton
+              appointment={appointment}
+              onSent={() =>
+                setDraft((d) => ({
+                  ...d,
+                  visitOtpSentAt: new Date().toISOString(),
+                  visitOtpSentBy: actor,
+                  visitOtpVerifiedAt: undefined,
+                }))
+              }
+            />
             {isTherapist && (
               <>
                 <Input

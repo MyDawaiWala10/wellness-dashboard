@@ -52,6 +52,7 @@ import { BookingIdBadge } from "@/components/booking-id-badge";
 import { BookingSourceEditor } from "@/components/booking-source-editor";
 import { formatTimeRange } from "./time-range";
 import { RecordPaymentForm } from "@/components/record-payment-form";
+import { SendVisitOtpButton, visitCodeStatus } from "@/components/send-visit-otp";
 
 import {
   useDeleteAppointment,
@@ -1215,6 +1216,28 @@ export function EnquiryDetailDrawer({
                   </div>
                 )}
               </>
+            )}
+          </section>
+
+          {/* ── Section: Send OTP - right here, so the office doesn't have to go to
+              the Appointments page (same button as the Visit tab). ── */}
+          <section id="enq-sec-otp" className="space-y-2 border-t pt-4 scroll-mt-4">
+            <h3 className="text-sm font-semibold">6. Send OTP</h3>
+            <p className="text-xs text-muted-foreground">
+              The session code the customer reads out to the therapist to start
+              the visit. It works until it's used.
+            </p>
+            {!hasAssignment ? (
+              <p className="text-xs text-muted-foreground">Assign a therapist first (step 5).</p>
+            ) : record.status === "completed" || record.status === "cancelled" ? (
+              <p className="text-xs text-muted-foreground">This visit is {record.status}.</p>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] text-muted-foreground">
+                  {record.visitOtpSentAt ? visitCodeStatus(record) : "Not sent yet."}
+                </p>
+                <SendVisitOtpButton appointment={record} />
+              </div>
             )}
           </section>
 
