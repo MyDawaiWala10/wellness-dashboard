@@ -1,7 +1,8 @@
 "use client";
 
 import { formatINR } from "@/components/pages/services/services-columns";
-import { childVisitsOf, nextVisitOf, visitWhen } from "@/lib/visit-groups";
+import { childVisitsOf, courseProgressOf, nextVisitOf, visitWhen } from "@/lib/visit-groups";
+import { PackageProgressBadge } from "./package-progress-badge";
 import { slotBookingZodType, type ServiceType } from "@/type/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/tables/data-table-column-header";
@@ -33,11 +34,11 @@ function getCreatedMs(row: slotBookingZodType): number {
 }
 
 // `allAppointments` is every visit, including ones shown inside their booking
-// (the Next visit column reads it). `_services` stays on the signature for the
-// parked session-progress column (T2). Not referenced today.
+// (the Next visit and Sessions columns read it); `services` resolves catalogue
+// packages for the Sessions column.
 export function makeAppointmentColumns(
   allAppointments: slotBookingZodType[],
-  _services: ServiceType[],
+  services: ServiceType[],
 ): ColumnDef<slotBookingZodType>[] {
   return [
     {
@@ -178,14 +179,14 @@ export function makeAppointmentColumns(
       },
     },
     {
+      // Course progress ("1 of 9 completed"), restored from before the July
+      // cleanup. Single visits have no sessions to count, so they show "-".
       id: "session",
-      header: "Session",
+      header: "Sessions",
       cell: ({ row }) => {
-        const sessionNum = row.original.sessionNumber;
-        return sessionNum ? (
-          <Badge variant="outline" className="text-[10px] w-fit">
-            Session {sessionNum}
-          </Badge>
+        const progress = courseProgressOf(row.original, allAppointments, services);
+        return progress ? (
+          <PackageProgressBadge progress={progress} />
         ) : (
           <span className="text-muted-foreground/40">-</span>
         );

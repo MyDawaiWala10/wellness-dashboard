@@ -2,6 +2,12 @@ import type { slotBookingZodType } from "@/type/schema";
 import { toDayKey } from "@/components/pages/enquiries/booking";
 import { toMinutes } from "@/lib/booking-conflicts";
 import { addonPaid } from "@/lib/booking-money";
+import {
+  courseSessionOf,
+  getPackageProgressForAppointment,
+  type PackageProgress,
+} from "@/lib/package-progress";
+import type { ServiceType } from "@/type/schema";
 
 type Row = slotBookingZodType;
 
@@ -73,6 +79,29 @@ export function visitLabel(r: Row, parent: Row): string {
     return `${r.service ?? "Add-on"} - session ${r.addonOf.session} of ${rec?.sessions ?? 1}`;
   }
   return `Session ${r.sessionNumber ?? "?"} of ${parent.totalSessions ?? "?"}`;
+}
+
+/**
+ * A booking's course progress for the list ("1 of 3 completed"). A course with
+ * a visit per session counts its completed visits (the booking is session 1);
+ * a one-booking package uses its counter. null for single visits.
+ */
+export function courseProgressOf(r: Row, all: Row[], services: ServiceType[]): PackageProgress | null {
+  const own = courseSessionOf(r);
+  if (own && own.session === 1 && !parentIdOf(r)) {
+    const completed = [r, ...childVisitsOf(r, all)].filter((v) => v.status === "completed").length;
+    return {
+      packageName: `${own.total}-session course`,
+      packageServiceId: r.packageServiceId ?? "",
+      total: own.total,
+      completed,
+      currentSession: Math.min(completed + 1, own.total),
+      label: `${completed} of ${own.total} completed`,
+      packageDone: completed >= own.total,
+      split: true,
+    };
+  }
+  return getPackageProgressForAppointment(r, all, services);
 }
 
 /** This visit's own price: its add-on session, or its share of the course. */
