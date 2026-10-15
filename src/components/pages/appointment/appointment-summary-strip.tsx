@@ -10,6 +10,7 @@ import { bookingLedger } from "@/lib/booking-money";
 import { BookingIdBadge } from "@/components/booking-id-badge";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { whatsAppLink, toWhatsAppNumber } from "@/lib/whatsapp";
+import { useAuthStore } from "@/providers/permission-provider";
 
 /**
  * Who, how much, how far along - answered before anyone clicks anything.
@@ -31,7 +32,10 @@ export function AppointmentSummaryStrip({
     services,
   );
   const { due } = bookingLedger(appointment);
-  const wa = whatsAppLink(appointment.phonenumber, "");
+  // Office roles get Location, WhatsApp and Call; a therapist only Location
+  // and Call (B1 #7) - messaging the customer is the office's job.
+  const isTherapist = useAuthStore((s) => s.user?.role) === "THERAPIST";
+  const wa = isTherapist ? null : whatsAppLink(appointment.phonenumber, "");
   const dialable = toWhatsAppNumber(appointment.phonenumber);
   const pct = progress
     ? Math.round((progress.completed / progress.total) * 100)
