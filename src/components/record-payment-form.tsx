@@ -84,7 +84,7 @@ export function RecordPaymentForm({
         </Button>
       </div>
       <p className="text-[11px] text-muted-foreground">
-        Up to {formatINR(due)} can be recorded. A recorded payment can&apos;t be undone.
+        {`Up to ${formatINR(due)} can be recorded. A recorded payment can't be undone.`}
       </p>
     </div>
   );

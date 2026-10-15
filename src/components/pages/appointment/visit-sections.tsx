@@ -80,8 +80,9 @@ export function AddonsVisitSection({
   const [sessions, setSessions] = useState<number | undefined>(undefined);
   // When it will be done - by this booking's own therapist. Defaults to
   // this visit's day and start time.
-  const visitDay = toDayKey(appointment.slot?.date || appointment.physioSlot?.date) || format(new Date(), "yyyy-MM-dd");
-  const [date, setDate] = useState(visitDay);
+  const today = format(new Date(), "yyyy-MM-dd");
+  const visitDay = toDayKey(appointment.slot?.date || appointment.physioSlot?.date) || today;
+  const [date, setDate] = useState(visitDay < today ? today : visitDay);
   const [time, setTime] = useState(appointment.therapyStartTime || appointment.slot?.time || "");
   const [durationMin, setDurationMin] = useState(60);
   const [intervalDays, setIntervalDays] = useState(7);
@@ -91,11 +92,13 @@ export function AddonsVisitSection({
   // Consent code per add-on, keyed by serviceId|recommendedAt.
   const [codes, setCodes] = useState<Record<string, string>>({});
 
-  // No new add-ons once the package or single visit is fully complete.
+  // Once the visit (or every session) is done, an add-on can still be sold to
+  // continue care - it's then done entirely on later visits of its own.
   const progress = getPackageProgressForAppointment(appointment, [appointment], services);
   const allSessionsDone = progress
     ? progress.completed >= progress.total
     : appointment.status === "completed";
+  const cannotAdd = appointment.status === "cancelled";
 
   const selected = services.find((s) => s.serviceId === serviceId);
   const pricing = recommendedAddonTotal(
@@ -199,7 +202,7 @@ export function AddonsVisitSection({
           type="button"
           variant="outline"
           size="sm"
-          disabled={allSessionsDone}
+          disabled={cannotAdd}
           onClick={() => setShowAddForm(true)}
         >
           <Plus className="h-3.5 w-3.5 mr-1" />
@@ -216,7 +219,7 @@ export function AddonsVisitSection({
           <Stethoscope className="h-4 w-4" />
           Recommended add-ons
         </h3>
-        {!showAddForm && !allSessionsDone && (
+        {!showAddForm && !cannotAdd && (
           <Button
             type="button"
             variant="ghost"
@@ -350,7 +353,7 @@ export function AddonsVisitSection({
         </ul>
       )}
 
-      {showAddForm && !allSessionsDone && (
+      {showAddForm && !cannotAdd && (
         <div className="space-y-2 border-t pt-3">
           <Select value={serviceId} onValueChange={handleSelect}>
             <SelectTrigger className="w-full">
@@ -466,7 +469,7 @@ export function AddonsVisitSection({
                 </label>
               )}
               <p className="text-[11px] text-muted-foreground">
-                {date === visitDay
+                {date === visitDay && !allSessionsDone
                   ? "First session in this visit."
                   : "This becomes its own visit on that day."}
                 {sessions && sessions > 1 ? " Later sessions become their own visits." : ""}
