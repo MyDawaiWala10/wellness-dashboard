@@ -15,6 +15,8 @@ import { AppointmentSummaryStrip } from "./appointment-summary-strip";
 import { VisitTab } from "./visit-tab";
 import { BillingTab } from "./billing-tab";
 import { HistoryTab } from "./history-tab";
+import { SessionsTab } from "./sessions-tab";
+import { childVisitsOf } from "@/lib/visit-groups";
 import { RecordIds } from "./record-ids";
 import { BookingSourceEditor } from "@/components/booking-source-editor";
 import { useGetServices } from "@/data/service/service";
@@ -55,6 +57,9 @@ const AppointmentDetailDrawer = ({
     ? getPackageProgressForAppointment(live, allAppointments, services)
     : null;
   const due = live ? bookingLedger(live).due : 0;
+  // Later visits that live inside this booking (add-on sessions, course follow-ups).
+  const visits = live ? childVisitsOf(live, allAppointments) : [];
+  const openVisits = visits.filter((v) => v.status !== "completed" && v.status !== "cancelled");
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -69,11 +74,23 @@ const AppointmentDetailDrawer = ({
           <div className="space-y-3 px-4 pb-6">
             <AppointmentSummaryStrip appointment={live} services={services} />
 
-            <Tabs defaultValue="visit">
+            {/* A finished booking with visits still to come opens on them. */}
+            <Tabs
+              key={live._id}
+              defaultValue={live.status === "completed" && openVisits.length > 0 ? "sessions" : "visit"}
+            >
               <TabsList className="w-full">
                 <TabsTrigger value="visit" className="flex-1">
                   Visit
                 </TabsTrigger>
+                {visits.length > 0 && (
+                  <TabsTrigger value="sessions" className="flex-1">
+                    Sessions
+                    {openVisits.length > 0 && (
+                      <span className="ml-1.5 text-[10px] text-muted-foreground">{openVisits.length}</span>
+                    )}
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="money" className="flex-1">
                   Billing
                   {due > 0 && (
@@ -92,12 +109,18 @@ const AppointmentDetailDrawer = ({
                 />
               </TabsContent>
 
+              {visits.length > 0 && (
+                <TabsContent value="sessions" className="mt-3">
+                  <SessionsTab booking={live} allAppointments={allAppointments} />
+                </TabsContent>
+              )}
+
               <TabsContent value="money" className="mt-3">
                 <BillingTab appointment={live} />
               </TabsContent>
 
               <TabsContent value="history" className="mt-3 space-y-4">
-                <HistoryTab appointment={live} services={services} />
+                <HistoryTab appointment={live} services={services} visits={visits} />
                 <RecordIds
                   appointment={live}
                   therapistPhone={

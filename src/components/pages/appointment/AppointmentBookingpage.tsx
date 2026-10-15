@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { topLevelRows } from "@/lib/visit-groups";
 import { isToday } from "date-fns";
 import AppointmentBookingForm from "./appointmentbookingform";
 import { MetricCard, MetricCardsRow } from "@/components/metric-card";
@@ -108,9 +109,12 @@ export default function SlotBookingPage() {
           onRetry={refetch}
           skeleton={<AppointmentTableSkeleton />}
         >
+          {/* A booking's later visits (add-on sessions, course follow-ups)
+              live inside it (Sessions tab), not as extra rows. */}
           <AppointmentDataTable
             columns={columns}
-            data={appointments ?? []}
+            data={topLevelRows(appointments ?? [])}
+            allAppointments={appointments ?? []}
           />
         </QueryWrapper>
       </CardContent>

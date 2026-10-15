@@ -1,6 +1,7 @@
 "use client";
 
 import { formatINR } from "@/components/pages/services/services-columns";
+import { childVisitsOf, nextVisitOf, visitWhen } from "@/lib/visit-groups";
 import { slotBookingZodType, type ServiceType } from "@/type/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/tables/data-table-column-header";
@@ -31,11 +32,11 @@ function getCreatedMs(row: slotBookingZodType): number {
   return 0;
 }
 
-// `_allAppointments` + `_services` stay on the signature for the parked
-// session-progress column (T2), which needs them to compute "session X of Y"
-// across a customer's visits. Not referenced today.
+// `allAppointments` is every visit, including ones shown inside their booking
+// (the Next visit column reads it). `_services` stays on the signature for the
+// parked session-progress column (T2). Not referenced today.
 export function makeAppointmentColumns(
-  _allAppointments: slotBookingZodType[],
+  allAppointments: slotBookingZodType[],
   _services: ServiceType[],
 ): ColumnDef<slotBookingZodType>[] {
   return [
@@ -93,6 +94,32 @@ export function makeAppointmentColumns(
           <span className="text-xs">{name}</span>
         ) : (
           <span className="text-muted-foreground/40">-</span>
+        );
+      },
+    },
+    {
+      // The booking's next visit still to happen - itself or one of its later
+      // visits (add-on sessions, course follow-ups), which live inside it.
+      id: "nextVisit",
+      header: "Next visit",
+      cell: ({ row }) => {
+        const next = nextVisitOf(row.original, allAppointments);
+        const more = childVisitsOf(row.original, allAppointments).filter(
+          (v) => v.status !== "completed" && v.status !== "cancelled",
+        ).length;
+        return (
+          <div className="flex flex-col gap-0.5 whitespace-nowrap">
+            {next ? (
+              <span className="text-xs">{visitWhen(next)}</span>
+            ) : (
+              <span className="text-muted-foreground/40">-</span>
+            )}
+            {more > 0 && (
+              <Badge variant="outline" className="w-fit text-[10px]">
+                +{more} visit{more === 1 ? "" : "s"}
+              </Badge>
+            )}
+          </div>
         );
       },
     },

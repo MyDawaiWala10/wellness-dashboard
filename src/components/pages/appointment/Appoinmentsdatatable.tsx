@@ -32,6 +32,8 @@ import { slotBookingZodType } from "@/type/schema";
 interface AppointmentDataType<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  /** Every visit, including ones shown inside their booking (defaults to data). */
+  allAppointments?: TData[];
 }
 
 // Columns to hide on mobile (less critical for quick scanning)
@@ -48,6 +50,7 @@ const MOBILE_HIDDEN_IDS = [
 export function AppointmentDataTable<TData, TValue>({
   columns,
   data,
+  allAppointments,
 }: AppointmentDataType<TData, TValue>) {
   // Default to newest-first by booking time (the "Booked on" / createdAt column).
   const [sorting, setSorting] = React.useState<SortingState>([
@@ -190,7 +193,7 @@ export function AppointmentDataTable<TData, TValue>({
 
       <AppointmentDetailDrawer
         data={selected as slotBookingZodType | null}
-        allAppointments={(data as slotBookingZodType[]) ?? []}
+        allAppointments={((allAppointments ?? data) as slotBookingZodType[]) ?? []}
         open={detailOpen}
         onOpenChange={(o) => {
           setDetailOpen(o);

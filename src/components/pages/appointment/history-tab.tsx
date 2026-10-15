@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toDayKey } from "@/components/pages/enquiries/booking";
 import { format } from "date-fns";
 import { Check } from "lucide-react";
 
@@ -20,9 +21,12 @@ import { getCustomerByPhone } from "@/actions/customers/get-customer-by-phone";
 export function HistoryTab({
   appointment,
   services,
+  visits = [],
 }: {
   appointment: slotBookingZodType;
   services: ServiceType[];
+  /** This booking's later visits; their activity is shown here too. */
+  visits?: slotBookingZodType[];
 }) {
   const progress = getPackageProgressForAppointment(
     appointment,
@@ -30,7 +34,16 @@ export function HistoryTab({
     services,
   );
   const notes = appointment.sessionNotes ?? [];
-  const activity = [...(appointment.activityLog ?? [])]
+  const activity = [
+    ...(appointment.activityLog ?? []),
+    // Each later visit's own log, labelled with which visit it was.
+    ...visits.flatMap((v) =>
+      (v.activityLog ?? []).map((e) => ({
+        ...e,
+        action: `[${v.service ?? "Visit"}${v.slot?.date ? ` ${toDayKey(v.slot.date)}` : ""}] ${e.action}`,
+      })),
+    ),
+  ]
     .filter((e) => e.name && e.name !== "System")
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
