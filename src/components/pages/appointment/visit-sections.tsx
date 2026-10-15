@@ -302,13 +302,15 @@ export function AddonsVisitSection({
                       <Input
                         className="h-8"
                         placeholder="Code from customer"
+                        inputMode="numeric"
+                        maxLength={4}
                         aria-label={`Confirmation code for ${rec.serviceName}`}
                         value={codes[`${rec.serviceId}|${rec.recommendedAt}`] ?? ""}
                         onChange={(e) =>
                           setCodes((c) => ({
                             ...c,
                             [`${rec.serviceId}|${rec.recommendedAt}`]:
-                              e.target.value,
+                              e.target.value.replace(/\D/g, "").slice(0, 4),
                           }))
                         }
                       />

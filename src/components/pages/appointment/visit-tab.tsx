@@ -278,7 +278,10 @@ export function VisitTab({
               <>
                 <Input
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
+                  // Codes are 4 digits: digits only, number keypad on phones.
+                  inputMode="numeric"
+                  maxLength={4}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 4))}
                   placeholder="Code"
                   className="h-8"
                   aria-label="Code from the customer"
