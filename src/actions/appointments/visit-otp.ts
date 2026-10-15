@@ -24,5 +24,10 @@ export async function verifyVisitOtp(id: string, code: string) {
     body: JSON.stringify({ code }),
   });
   const body = await res.json().catch(() => ({}));
-  return { success: res.ok, message: body?.message as string | undefined };
+  // short: amount still to collect before this session can start (402).
+  return {
+    success: res.ok,
+    message: body?.message as string | undefined,
+    short: typeof body?.short === "number" ? (body.short as number) : undefined,
+  };
 }

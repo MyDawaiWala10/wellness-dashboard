@@ -48,14 +48,31 @@ export function bookingLedger(a: slotBookingZodType): {
     // originalPrice gets filled in on plenty of bookings that were never
     // discounted, so comparing is safer than trusting the field's presence.
     const listed = a.originalPrice ?? 0;
-    lines.push({
-      key: "booking",
-      label: bookingLabel(a),
-      meta: a.paymentReceived ? "Paid" : "Unpaid",
-      amount: fee,
-      original: listed > fee ? listed : undefined,
-      state: a.paymentReceived ? "paid" : "due",
-    });
+    const original = listed > fee ? listed : undefined;
+    // Part-paid: the paid share and the balance as two lines (mirrors the
+    // backend's lib/bookingMoney.ts).
+    const paid = a.paymentReceived ? fee : Math.min(fee, Math.max(0, a.paymentAmount ?? 0));
+    const label = bookingLabel(a);
+    if (paid > 0) {
+      lines.push({
+        key: "booking-paid",
+        label,
+        meta: paid < fee ? "Paid so far" : "Paid",
+        amount: paid,
+        original: paid >= fee ? original : undefined,
+        state: "paid",
+      });
+    }
+    if (paid < fee) {
+      lines.push({
+        key: "booking",
+        label: paid > 0 ? `${label} - balance` : label,
+        meta: "Unpaid",
+        amount: fee - paid,
+        original: paid > 0 ? undefined : original,
+        state: "due",
+      });
+    }
   }
 
   for (const r of a.recommendedServices ?? []) {

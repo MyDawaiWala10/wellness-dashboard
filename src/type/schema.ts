@@ -176,8 +176,21 @@ export const enquirySchema = z.object({
   // backend on demand (POST /api/appointments/:id/pay-link) - never set here.
   payToken: z.string().optional(),
 
+  // Server-managed: paymentAmount is the running total of `payments`, and
+  // paymentReceived means fully paid. Record money with useRecordPayment.
   paymentReceived: z.boolean().optional(),
   paymentAmount: z.number().nonnegative().optional(),
+  payments: z
+    .array(
+      z.object({
+        amount: z.number(),
+        method: z.string().optional(),
+        at: z.string(),
+        by: z.string().optional(),
+        byRole: z.string().optional(),
+      }),
+    )
+    .optional(),
   paymentMethod: z.enum(["cash", "upi", "card", "bank", "other"]).optional(),
   paymentReceivedAt: z.string().datetime().optional(),
   therapistPaid: z.boolean().optional(),

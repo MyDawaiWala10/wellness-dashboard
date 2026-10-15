@@ -249,18 +249,11 @@ export default function AppointmentBookingForm() {
     }
     if (!(v.quotedPrice && v.quotedPrice > 0)) {
       return isCourse
-        ? "No price yet - set a rate tier for this session count, or type the price"
-        : "No price yet - add this service to the Services page, or type the price";
+        ? "No price yet - set a rate tier for this session count"
+        : "No price yet - add this service to the Services page";
     }
-    // Discount validation: discount cannot exceed original price
-    if (v.discountAmount && v.discountAmount > 0) {
-      const effectiveOriginal = v.originalPrice ?? v.quotedPrice ?? 0;
-      if (v.discountType === "percent" && v.discountAmount > 100) {
-        return "Discount percentage cannot exceed 100%";
-      }
-      if (v.discountType === "fixed" && v.discountAmount > effectiveOriginal) {
-        return "Discount amount cannot exceed the original price";
-      }
+    if ((v.paymentAmount ?? 0) > grandTotal) {
+      return `The amount received can't be more than ${formatINR(grandTotal)}`;
     }
     if (needsSkipReason && !skipReason.trim()) {
       return "Give a reason for skipping the consultation";
@@ -321,7 +314,7 @@ export default function AppointmentBookingForm() {
     }
     if (attachServices) {
       const now = new Date().toISOString();
-      const paymentDone = !!values.paymentReceived;
+      const paymentDone = (values.paymentAmount ?? 0) >= grandTotal;
       payload.recommendedServices = stacked
         .filter((r) => r.serviceId)
         .map((r) => {
@@ -361,7 +354,8 @@ export default function AppointmentBookingForm() {
   // link + message. The exec finishes it on Enquiries once the customer pays.
   async function requestPaymentWa() {
     const v = form.getValues();
-    const amount = v.paymentAmount ?? v.quotedPrice ?? grandTotal;
+    // A request is not a payment: ask for the total, record nothing as paid.
+    const amount = grandTotal;
     // This path bypasses the resolver entirely (it saves directly, as an
     // enquiry), so it needs the same gate as Confirm - otherwise it is exactly
     // where an unbillable record slips through.
@@ -381,7 +375,7 @@ export default function AppointmentBookingForm() {
       doctor: "",
       status: "enquiry",
       paymentReceived: false,
-      paymentAmount: amount,
+      paymentAmount: undefined,
       totalSessions: isCourse ? v.sessionNumber : undefined,
       activityLog: [...(v.activityLog ?? []), ...skipReasonLog()],
     });
@@ -637,11 +631,11 @@ export default function AppointmentBookingForm() {
 
               {/* Therapist & time - the shared availability grid (rows =
                   therapists, columns = slots; includes the duration control and
-                  specialization search). Locked until payment is marked, so a
-                  therapist is never picked before the money is clear. */}
+                  specialization search). No payment needed first - each visit
+                  is paid for before it starts. */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Therapist &amp; time</label>
-                {form.watch("paymentReceived") ? (
+                {(
                   <TherapistAvailabilityGrid
                     date={selectedDate}
                     selectedDoctorId={doctorId}
@@ -656,10 +650,6 @@ export default function AppointmentBookingForm() {
                       });
                     }}
                   />
-                ) : (
-                  <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                    Mark the payment received (right) to choose a therapist and slot.
-                  </p>
                 )}
               </div>
 
@@ -850,7 +840,7 @@ export default function AppointmentBookingForm() {
               {!isCourse && intakeFee === undefined && (
                 <p className="rounded-md border border-dashed p-3 text-xs text-amber-600 dark:text-amber-400">
                   No catalogue price for this service yet - add it on the Services
-                  page, or type the price below.
+                  page to price this booking.
                 </p>
               )}
 
@@ -869,6 +859,7 @@ export default function AppointmentBookingForm() {
                         type="number"
                         min={0}
                         placeholder="Auto-filled from sessions × tier rate"
+                        readOnly
                         {...field}
                         value={field.value ?? ""}
                         onChange={(e) =>
@@ -885,21 +876,26 @@ export default function AppointmentBookingForm() {
                 )}
               />
 
-              {/* Payment - the gate for the therapist grid (same rule as the
-                  Enquiry funnel; the server backs it via createBooking). */}
+              {/* Payment - optional at booking, part or full. Each visit is
+                  paid for before it starts; the server records this as the
+                  first payment and never more than the price. */}
               <div className="rounded-md border p-3 space-y-3">
                 <p className="text-sm font-medium">Payment</p>
                 <p className="text-xs text-muted-foreground">
-                  Payment must be clear before a therapist is assigned.
+                  Enter what the customer paid now, if anything - part or full.
+                  The rest stays due on the booking.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-muted-foreground">Amount (₹)</label>
+                    <label className="text-xs text-muted-foreground">
+                      Amount received (₹)
+                    </label>
                     <Input
                       type="number"
                       min={0}
+                      max={grandTotal}
                       placeholder="0"
-                      value={form.watch("paymentAmount") ?? grandTotal ?? ""}
+                      value={form.watch("paymentAmount") ?? ""}
                       onChange={(e) =>
                         form.setValue(
                           "paymentAmount",
@@ -907,6 +903,11 @@ export default function AppointmentBookingForm() {
                         )
                       }
                     />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Total {formatINR(grandTotal)}
+                      {(form.watch("paymentAmount") ?? 0) > 0 &&
+                        ` · due after this ${formatINR(Math.max(0, grandTotal - (form.watch("paymentAmount") ?? 0)))}`}
+                    </p>
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">Method</label>
@@ -929,100 +930,11 @@ export default function AppointmentBookingForm() {
                         <SelectItem value="bank">Bank</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
-                      </Select>
-                    </div>
+                    </Select>
                   </div>
-                  {/* Discount section */}
-                  <div className="border-t pt-3 space-y-3">
-                    <p className="text-xs text-muted-foreground font-medium">Discount (optional)</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="text-xs text-muted-foreground">Original Price (₹)</label>
-                        <Input
-                          type="number"
-                          min={0}
-                          placeholder="Price before discount"
-                          value={form.watch("originalPrice") ?? ""}
-                          onChange={(e) =>
-                            form.setValue(
-                              "originalPrice",
-                              e.target.value === "" ? undefined : Number(e.target.value),
-                            )
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Discount</label>
-                        <Input
-                          type="number"
-                          min={0}
-                          placeholder="Amount"
-                          value={form.watch("discountAmount") ?? ""}
-                          onChange={(e) =>
-                            form.setValue(
-                              "discountAmount",
-                              e.target.value === "" ? undefined : Number(e.target.value),
-                            )
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Type</label>
-                        <Select
-                          value={form.watch("discountType") ?? ""}
-                          onValueChange={(v) =>
-                            form.setValue(
-                              "discountType",
-                              v as "fixed" | "percent",
-                            )
-                          }
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="fixed">Fixed (₹)</SelectItem>
-                            <SelectItem value="percent">Percentage (%)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Promo Code</label>
-                      <Input
-                        type="text"
-                        placeholder="e.g. FIRST10, WELCOME20"
-                        value={form.watch("discountCode") ?? ""}
-                        onChange={(e) =>
-                          form.setValue(
-                            "discountCode",
-                            e.target.value === "" ? undefined : e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.watch("paymentReceived") ?? false}
-                    onChange={(e) => {
-                      const on = e.target.checked;
-                      form.setValue("paymentReceived", on);
-                      form.setValue(
-                        "paymentReceivedAt",
-                        on ? new Date().toISOString() : undefined,
-                      );
-                      if (on && form.watch("paymentAmount") == null) {
-                        form.setValue("paymentAmount", grandTotal);
-                      }
-                    }}
-                  />
-                  Payment received
-                </label>
-                {/* Before payment: ask for it (mirrors the enquiry drawer).
-                    After: send the receipt. Only ever one. */}
-                {form.watch("paymentReceived") ? (
+                </div>
+                {/* Nothing paid yet: ask for it. Something paid: send the receipt. */}
+                {(form.watch("paymentAmount") ?? 0) > 0 ? (
                   <Button
                     type="button"
                     variant="outline"

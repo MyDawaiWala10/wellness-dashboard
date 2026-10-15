@@ -1,5 +1,6 @@
 "use client";
 
+import { formatINR } from "@/components/pages/services/services-columns";
 import { slotBookingZodType, type ServiceType } from "@/type/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/tables/data-table-column-header";
@@ -97,7 +98,8 @@ export function makeAppointmentColumns(
     },
     {
       id: "advancePayment",
-      accessorFn: (row) => (row.paymentReceived ? "Paid" : "Pending"),
+      accessorFn: (row) =>
+        row.paymentReceived ? "Paid" : (row.paymentAmount ?? 0) > 0 ? "Part paid" : "Pending",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Advance payment" />
       ),
@@ -113,8 +115,13 @@ export function makeAppointmentColumns(
           <Badge
             variant="outline"
             className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-400"
+            title={
+              (row.original.paymentAmount ?? 0) > 0
+                ? `${formatINR(row.original.paymentAmount ?? 0)} of ${formatINR(row.original.quotedPrice ?? 0)} paid`
+                : undefined
+            }
           >
-            Pending
+            {(row.original.paymentAmount ?? 0) > 0 ? "Part paid" : "Pending"}
           </Badge>
         ),
     },

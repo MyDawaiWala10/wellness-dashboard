@@ -4,15 +4,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useUpdateAppointment } from "@/data/appointment/appointment";
+import { format } from "date-fns";
+import { RecordPaymentForm } from "@/components/record-payment-form";
 import type { slotBookingZodType } from "@/type/schema";
 import { bookingLedger } from "@/lib/booking-money";
 import { bookingLabel } from "@/components/pages/enquiries/booking";
@@ -72,36 +65,9 @@ function Row({
  */
 export function BillingTab({ appointment }: { appointment: slotBookingZodType }) {
   const [requesting, setRequesting] = useState(false);
-  const [takingPayment, setTakingPayment] = useState(false);
-  const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState("");
-  const { mutate: update, isPending: isSaving } = useUpdateAppointment();
   const { lines, due, paid, totals } = bookingLedger(appointment);
-
-  function markPaid() {
-    const received = amount === "" ? appointment.quotedPrice : Number(amount);
-    if (!(received && received > 0)) {
-      toast.error("Enter the amount received");
-      return;
-    }
-    update(
-      {
-        ...appointment,
-        paymentReceived: true,
-        paymentAmount: received,
-        paymentMethod: (method ||
-          undefined) as slotBookingZodType["paymentMethod"],
-        paymentReceivedAt: new Date().toISOString(),
-      },
-      {
-        onSuccess: () => {
-          setTakingPayment(false);
-          setAmount("");
-          setMethod("");
-        },
-      },
-    );
-  }
+  // The booking's own balance (add-ons are collected on their own lines).
+  const bookingDue = lines.find((l) => l.key === "booking")?.amount ?? 0;
 
   async function requestPayment() {
     if (!appointment._id) return;
@@ -259,16 +225,6 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
               >
                 {requesting ? "Preparing..." : "Request payment"}
               </Button>
-              {!appointment.paymentReceived && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setTakingPayment((v) => !v)}
-                >
-                  Mark paid
-                </Button>
-              )}
             </>
           ) : (
             <Button
@@ -283,44 +239,33 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
           )}
         </div>
 
-        {/* Recording the booking payment - the one place money state changes. */}
-        {takingPayment && (
-          <div className="mt-3 space-y-2 rounded-md border bg-muted/30 p-2.5">
+        {/* Money received, part or full - the one place it's recorded here. */}
+        {bookingDue > 0 && appointment._id && (
+          <div className="mt-3 space-y-1.5 rounded-md border bg-muted/30 p-2.5">
             <p className="text-[11px] font-medium">
-              Record the payment for {bookingLabel(appointment)}
+              Record a payment for {bookingLabel(appointment)}
             </p>
-            <div className="flex gap-1.5">
-              <Input
-                type="number"
-                min={0}
-                className="h-8"
-                placeholder={String(appointment.quotedPrice ?? 0)}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                aria-label="Amount received"
-              />
-              <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger className="h-8 w-32">
-                  <SelectValue placeholder="Method" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="upi">UPI</SelectItem>
-                  <SelectItem value="card">Card</SelectItem>
-                  <SelectItem value="bank">Bank</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 shrink-0"
-                disabled={isSaving}
-                onClick={markPaid}
-              >
-                Save
-              </Button>
-            </div>
+            <RecordPaymentForm appointmentId={appointment._id} due={bookingDue} />
+          </div>
+        )}
+
+        {(appointment.payments?.length ?? 0) > 0 && (
+          <div className="mt-3 border-t pt-2.5">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Payments
+            </p>
+            <ul className="space-y-0.5 text-[11px] text-muted-foreground">
+              {appointment.payments!.map((p, i) => (
+                <li key={i} className="flex justify-between gap-2">
+                  <span>
+                    {format(new Date(p.at), "yyyy-MM-dd HH:mm")}
+                    {p.method ? ` · ${p.method === "upi" ? "UPI" : p.method}` : ""}
+                    {p.by ? ` · by ${p.by}` : ""}
+                  </span>
+                  <span className="font-mono tabular-nums">{formatINR(p.amount)}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </section>

@@ -26,10 +26,11 @@ import { useGetServices } from "@/data/service/service";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { ActivityEntry, slotBookingZodType } from "@/type/schema";
 import { getPackageProgressForAppointment } from "@/lib/package-progress";
-import { bookingLedger } from "@/lib/booking-money";
 import { whatsAppLink } from "@/lib/whatsapp";
 import { sendVisitOtp, verifyVisitOtp } from "@/actions/appointments/visit-otp";
 import { AssignTherapistCard } from "./assign-therapist-card";
+import { RecordPaymentForm } from "@/components/record-payment-form";
+import { formatINR } from "@/components/pages/services/services-columns";
 
 function Step({
   n,
@@ -94,6 +95,8 @@ export function VisitTab({
   const [draft, setDraft] = useState<slotBookingZodType>(appointment);
   const [note, setNote] = useState("");
   const [otp, setOtp] = useState("");
+  // Cash still to collect before this session can start (from Verify).
+  const [short, setShort] = useState(0);
   const [verified, setVerified] = useState(!!appointment.visitOtpVerified);
   const [nextDate, setNextDate] = useState("");
   const [nextTime, setNextTime] = useState("");
@@ -105,6 +108,7 @@ export function VisitTab({
     setNote("");
     setVerified(!!appointment.visitOtpVerified);
     setOtp("");
+    setShort(0);
   }, [appointment._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const done = new Set(draft.workChecklist ?? []);
@@ -164,14 +168,8 @@ export function VisitTab({
     }
     if (packageDone) return;
 
-    // Block completion if payment is outstanding - collect first.
-    const { due } = bookingLedger(draft);
-    if (due > 0) {
-      toast.error(
-        "Outstanding balance must be collected before completing this session. Go to the Money tab to record payment.",
-      );
-      return;
-    }
+    // No payment check here: each session is paid for before it starts
+    // (the code can't be verified until it is).
 
     // Both single visits and courses count through the atomic complete-session
     // endpoint, which snapshots the therapist's note into sessionNotes.
@@ -300,6 +298,9 @@ export function VisitTab({
                       // arrival is proven - no need to also tick it by hand.
                       startSession();
                       toast.success("Session started");
+                    } else if (r.short) {
+                      // Today's session isn't paid for: collect, then verify again.
+                      setShort(r.short);
                     } else {
                       toast.error(r.message ?? "Incorrect code");
                     }
@@ -309,6 +310,19 @@ export function VisitTab({
                 </Button>
               </>
             )}
+          </div>
+        )}
+        {isTherapist && !verified && short > 0 && appointment._id && (
+          <div className="mt-2 space-y-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
+            <p className="text-[12px] font-medium text-amber-800 dark:text-amber-300">
+              Collect {formatINR(short)} before starting this session, then verify the code again.
+            </p>
+            <RecordPaymentForm
+              appointmentId={appointment._id}
+              due={short}
+              cashOnly
+              onRecorded={() => setShort(0)}
+            />
           </div>
         )}
       </Step>

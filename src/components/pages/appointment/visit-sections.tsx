@@ -20,11 +20,9 @@ import {
   useAddAppointmentRecommendation,
   useConfirmAppointmentRecommendation,
   useSetAddonPaymentStatus,
-  useUpdateAppointment,
 } from "@/data/appointment/appointment";
 import type { slotBookingZodType } from "@/type/schema";
 import { addonPrice, recommendedAddonTotal } from "@/lib/service-pricing";
-import { bookingLedger } from "@/lib/booking-money";
 import { whatsAppLink } from "@/lib/whatsapp";
 import { sendAddonOtp } from "@/actions/appointments/addon-otp";
 import { getPackageProgressForAppointment } from "@/lib/package-progress";
@@ -71,7 +69,6 @@ export function AddonsVisitSection({
     useConfirmAppointmentRecommendation();
   const { mutate: setAddonPayment, isPending: isTogglingPayment } =
     useSetAddonPaymentStatus();
-  const { mutate: updateAppointment } = useUpdateAppointment({ silent: true });
 
   const stacked = appointment.recommendedServices ?? [];
   const [showAddForm, setShowAddForm] = useState(false);
@@ -191,23 +188,7 @@ export function AddonsVisitSection({
         recommendedAt,
         collected,
       },
-      {
-        onSuccess: (result) => {
-          // If addon payment was collected and all payments are now covered,
-          // auto-mark the booking as fully paid.
-          if (collected && result.data) {
-            const updated = result.data as slotBookingZodType;
-            const { due } = bookingLedger(updated);
-            if (due <= 0 && !updated.paymentReceived) {
-              updateAppointment({
-                ...updated,
-                paymentReceived: true,
-                paymentReceivedAt: new Date().toISOString(),
-              });
-            }
-          }
-        },
-      },
+      // The server marks the booking fully paid once nothing is due.
     );
   }
 

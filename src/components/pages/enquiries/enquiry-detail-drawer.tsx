@@ -51,6 +51,7 @@ import { RecordIds } from "@/components/pages/appointment/record-ids";
 import { BookingIdBadge } from "@/components/booking-id-badge";
 import { BookingSourceEditor } from "@/components/booking-source-editor";
 import { formatTimeRange } from "./time-range";
+import { RecordPaymentForm } from "@/components/record-payment-form";
 
 import {
   useDeleteAppointment,
@@ -294,6 +295,12 @@ export function EnquiryDetailDrawer({
     ? catalogueFee(draft.typeOfappointment, services)
     : undefined;
 
+  // Money, from the SAVED record: payments are recorded by the server against
+  // the stored price, so a price only seeded locally can't take payment yet.
+  const savedPrice = record.quotedPrice ?? 0;
+  const paidSoFar = record.paymentAmount ?? 0;
+  const bookingDue = Math.max(0, savedPrice - paidSoFar);
+
   // A therapist is already locked in on the saved record.
   const hasAssignment = Boolean(draft.doctorId && (draft.physioSlot?.time || draft.slot?.time));
   // The staged pick already matches what's saved - nothing left to confirm.
@@ -490,51 +497,6 @@ export function EnquiryDetailDrawer({
     );
   }
 
-  // ── Step 4: payment - the gate for step 5 ──
-  function togglePayment(checked: boolean) {
-    if (!checked) {
-      // Un-ticking re-locks the therapist step; the assignment itself stands.
-      save({
-        paymentReceived: false,
-        paymentReceivedAt: undefined,
-        status: "scheduled",
-      });
-      return;
-    }
-    if (!draft?.typeOfappointment) {
-      toast.error("Confirm the booking type first");
-      return;
-    }
-    // The amount received is always the fee.
-    const amount = draft.quotedPrice;
-    if (!amount) {
-      toast.error("This booking has no price yet - add its service on the Services page");
-      return;
-    }
-
-    save(
-      {
-        paymentReceived: true,
-        paymentReceivedAt: new Date().toISOString(),
-        paymentAmount: amount,
-        // Paid but not yet assigned - step 5 moves it to "ongoing".
-        status: "scheduled",
-        activityLog: [
-          ...(draft.activityLog ?? []),
-          {
-            at: new Date().toISOString(),
-            userId: currentUser?.id,
-            name: currentActorName(),
-            action: `Payment received ${formatINR(amount)}${
-              draft.paymentMethod ? ` (${draft.paymentMethod})` : ""
-            }`,
-          },
-        ],
-      },
-      true,
-    );
-  }
-
   // ── Step 5: assign the therapist → the booking lands on Appointments ──
   function confirmAssignment() {
     if (!assignDate || !assignPick) return;
@@ -624,7 +586,8 @@ export function EnquiryDetailDrawer({
    */
   async function requestPaymentWa() {
     if (!draft?._id) return;
-    const amount = draft.paymentAmount ?? draft.quotedPrice;
+    // Ask for what's still owed, not the whole fee.
+    const amount = bookingDue;
     if (!draft.typeOfappointment || !amount) {
       toast.error("Confirm the booking type and fee first");
       return;
@@ -672,7 +635,9 @@ export function EnquiryDetailDrawer({
   }
 
   function sendPaymentConfirmationWa() {
-    if (!draft?.paymentReceived || !draft?.paymentReceivedAt) return;
+    // Confirms the latest payment (part or full).
+    const last = draft?.payments?.at(-1);
+    if (!draft || !last) return;
 
     // Only mention the visit once a therapist has actually been assigned.
     const visitLabel =
@@ -684,9 +649,9 @@ export function EnquiryDetailDrawer({
 
     const msg = paymentConfirmedMessage({
       name: draft.name,
-      amount: draft.paymentAmount,
-      method: draft.paymentMethod,
-      receivedAt: draft.paymentReceivedAt,
+      amount: last.amount,
+      method: last.method as EnquiryType["paymentMethod"],
+      receivedAt: last.at,
       visitLabel,
     });
 
@@ -1018,118 +983,94 @@ export function EnquiryDetailDrawer({
             </div>
           </section>
 
-          {/* ── Section: Payment - the gate for the therapist step ── */}
+          {/* ── Section: Payment - part or full, any time ── */}
           <section
             id="enq-sec-payment"
             className="space-y-3 border-t pt-4 scroll-mt-4"
           >
             <h3 className="text-sm font-semibold">4. Payment</h3>
             <p className="text-xs text-muted-foreground">
-              Payment must be clear before a therapist is assigned.
+              Record what the customer pays - part or full. A therapist can be
+              assigned before payment; each visit must be paid for before it
+              starts.
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground">
-                  Amount (₹)
-                </label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  readOnly
-                  value={
-                    (draft.paymentReceived ? draft.paymentAmount : undefined) ??
-                    draft.quotedPrice ??
-                    ""
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground">Method</label>
-                <Select
-                  value={draft.paymentMethod ?? ""}
-                  onValueChange={(v) =>
-                    save({ paymentMethod: v as EnquiryType["paymentMethod"] })
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="upi">UPI</SelectItem>
-                    <SelectItem value="card">Card</SelectItem>
-                    <SelectItem value="bank">Bank</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <label
-                className={cn(
-                  "flex items-center gap-2 text-sm",
-                  !draft.typeOfappointment && "opacity-50",
+            {!savedPrice ? (
+              <p className="text-xs text-muted-foreground">
+                Confirm the booking type in step 3 to price this booking.
+              </p>
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-2 rounded-md border bg-muted/30 px-2.5 py-2 text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Fee</p>
+                    <p className="font-mono font-semibold">{formatINR(savedPrice)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Paid</p>
+                    <p className="font-mono font-semibold">{formatINR(paidSoFar)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Due</p>
+                    <p
+                      className={cn(
+                        "font-mono font-semibold",
+                        bookingDue > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600",
+                      )}
+                    >
+                      {formatINR(bookingDue)}
+                    </p>
+                  </div>
+                </div>
+
+                {record._id && <RecordPaymentForm appointmentId={record._id} due={bookingDue} />}
+
+                {(record.payments?.length ?? 0) > 0 && (
+                  <ul className="space-y-0.5 text-xs text-muted-foreground">
+                    {record.payments!.map((p, i) => (
+                      <li key={i}>
+                        Received {formatINR(p.amount)}
+                        {p.method ? ` via ${p.method}` : ""} on{" "}
+                        {format(new Date(p.at), "yyyy-MM-dd HH:mm")}
+                        {p.by ? ` by ${p.by}` : ""}
+                      </li>
+                    ))}
+                  </ul>
                 )}
-              >
-                <input
-                  type="checkbox"
-                  checked={draft.paymentReceived ?? false}
-                  disabled={!draft.typeOfappointment}
-                  onChange={(e) => togglePayment(e.target.checked)}
-                />
-                Payment received
-              </label>
-              {/* Before the money lands, the useful action is asking for it;
-                  afterwards, it's acknowledging it. Only ever show one. */}
-              {draft.paymentReceived ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9"
-                  disabled={!draft.paymentReceivedAt}
-                  onClick={sendPaymentConfirmationWa}
-                >
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Send confirmation
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9"
-                  disabled={
-                    !draft.typeOfappointment ||
-                    !(draft.paymentAmount ?? draft.quotedPrice) ||
-                    requestingPayment
-                  }
-                  onClick={requestPaymentWa}
-                >
-                  {requestingPayment ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <MessageCircle className="h-4 w-4 mr-2" />
+
+                <div className="flex flex-wrap gap-2">
+                  {bookingDue > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9"
+                      disabled={requestingPayment}
+                      onClick={requestPaymentWa}
+                    >
+                      {requestingPayment ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                      )}
+                      Request {formatINR(bookingDue)}
+                    </Button>
                   )}
-                  Request payment
-                </Button>
-              )}
-            </div>
-            {draft.paymentReceived && draft.paymentReceivedAt ? (
-              <p className="text-xs text-muted-foreground">
-                Received
-                {draft.paymentAmount
-                  ? ` ${formatINR(draft.paymentAmount)}`
-                  : ""}
-                {draft.paymentMethod ? ` via ${draft.paymentMethod}` : ""} on{" "}
-                {new Date(draft.paymentReceivedAt).toLocaleString()}
-              </p>
-            ) : !draft.typeOfappointment ? (
-              <p className="text-xs text-muted-foreground">
-                Confirm the booking type in step 3 before recording payment.
-              </p>
-            ) : null}
+                  {(record.payments?.length ?? 0) > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9"
+                      onClick={sendPaymentConfirmationWa}
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Send confirmation
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
           </section>
 
           {/* ── Section: Assign therapist - the last step of the enquiry ── */}
@@ -1142,12 +1083,6 @@ export function EnquiryDetailDrawer({
               Confirming puts this booking on the Appointments page - the
               enquiry is then done.
             </p>
-
-            {!draft.paymentReceived && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md px-2 py-1.5">
-                Record payment first.
-              </p>
-            )}
 
             {/* Settled booking - collapsed. The grid is one deliberate click away. */}
             {hasAssignment && !editingAssignment && (
@@ -1186,7 +1121,6 @@ export function EnquiryDetailDrawer({
                       <Button
                         type="button"
                         variant="outline"
-                        disabled={!draft.paymentReceived}
                         className="w-full justify-start text-left font-normal"
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -1211,7 +1145,7 @@ export function EnquiryDetailDrawer({
                   </Popover>
                 </div>
 
-                {draft.paymentReceived && assignDate && (
+                {assignDate && (
                   <TherapistAvailabilityGrid
                     date={assignDate}
                     selectedDoctorId={assignPick?.doctorId}
@@ -1229,7 +1163,7 @@ export function EnquiryDetailDrawer({
                   />
                 )}
 
-                {draft.paymentReceived && assignDate && assignPick && (
+                {assignDate && assignPick && (
                   <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-2.5 py-2">
                     <p className="min-w-0 text-sm">
                       <span className="font-medium">{assignPick.doctor}</span>

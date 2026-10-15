@@ -7,6 +7,7 @@ import addAppointmentRecommendation, {
 import confirmAppointmentRecommendation from "@/actions/appointments/confirm-appointment-recommendation";
 import setAddonPaymentStatus from "@/actions/appointments/set-addon-payment";
 import completeSession from "@/actions/appointments/complete-session";
+import recordPayment from "@/actions/appointments/record-payment";
 import deleteAppointment from "@/actions/appointments/delete-appointments";
 import getAllAppointments from "@/actions/appointments/get-all-appointments";
 import updateAppointment from "@/actions/appointments/update-appointment";
@@ -263,6 +264,30 @@ export function useCompleteSession() {
       }
       toast.success(result.message);
     },
+  });
+}
+
+/** Record money received (part or full) against a booking. */
+export function useRecordPayment() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: async (v: { appointmentId: string; amount: number; method: string }) => {
+      const result = await recordPayment(v.appointmentId, v.amount, v.method);
+      if (!result.success) throw new Error(result.message);
+      return result;
+    },
+    onError: (err: Error) => {
+      if (handleAuthError(err, router)) return;
+      toast.error(err.message);
+    },
+    onSuccess: (result) => {
+      // The money may sit on a course's first row, not the row on screen.
+      if (result.data?._id) patchAppointmentInCache(queryClient, result.data._id, result.data);
+      toast.success(result.message);
+    },
+    onSettled: () => invalidateAppointmentAndEnquiryQueries(queryClient),
   });
 }
 

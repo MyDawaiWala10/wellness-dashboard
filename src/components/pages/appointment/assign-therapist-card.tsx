@@ -48,20 +48,6 @@ export function AssignTherapistCard({
   );
   const [durationMin, setDurationMin] = useState(60);
 
-  if (!appointment.paymentReceived) {
-    return (
-      <div className="rounded-lg border border-amber-500/50 bg-amber-50/50 p-3 dark:bg-amber-950/20">
-        <p className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">
-          {assigned ? "Payment outstanding" : "No therapist assigned"}
-        </p>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
-          A therapist can only be assigned once payment is recorded. Take it on
-          the <strong>Money</strong> tab, then come back here.
-        </p>
-      </div>
-    );
-  }
-
   // Assigned and not being changed: show who and when, with a way out.
   if (assigned && !changing) {
     return (

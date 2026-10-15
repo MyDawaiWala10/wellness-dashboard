@@ -111,3 +111,23 @@ describe("bookingLedger - nothing priced yet", () => {
     expect(totals).toEqual({ subtotal: 0, discount: 0, total: 0, paid: 0, due: 0 });
   });
 });
+
+describe("bookingLedger - part-payments", () => {
+  it("splits a part-paid booking into what's paid and the balance due", () => {
+    const { lines, paid, due } = bookingLedger(booking({ quotedPrice: 1600, paymentAmount: 600 }));
+    expect(lines.map((l) => [l.amount, l.state])).toEqual([
+      [600, "paid"],
+      [1000, "due"],
+    ]);
+    expect(paid).toBe(600);
+    expect(due).toBe(1000);
+  });
+
+  it("a fully paid booking is one paid line", () => {
+    const { lines, due } = bookingLedger(
+      booking({ quotedPrice: 1600, paymentAmount: 1600, paymentReceived: true }),
+    );
+    expect(lines).toHaveLength(1);
+    expect(due).toBe(0);
+  });
+});
