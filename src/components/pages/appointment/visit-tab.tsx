@@ -97,6 +97,7 @@ export function VisitTab({
   const [otp, setOtp] = useState("");
   // Cash still to collect before this session can start (from Verify).
   const [short, setShort] = useState(0);
+  const [owed, setOwed] = useState(0);
   const [verified, setVerified] = useState(!!appointment.visitOtpVerified);
   const [nextDate, setNextDate] = useState("");
   const [nextTime, setNextTime] = useState("");
@@ -301,6 +302,7 @@ export function VisitTab({
                     } else if (r.short) {
                       // Today's session isn't paid for: collect, then verify again.
                       setShort(r.short);
+                      setOwed(Math.max(r.short, r.due ?? 0));
                     } else {
                       toast.error(r.message ?? "Incorrect code");
                     }
@@ -315,12 +317,14 @@ export function VisitTab({
         {isTherapist && !verified && short > 0 && appointment._id && (
           <div className="mt-2 space-y-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
             <p className="text-[12px] font-medium text-amber-800 dark:text-amber-300">
-              Collect {formatINR(short)} before starting this session, then verify the code again.
+              Collect at least {formatINR(short)} before starting this session
+              {owed > short ? ` (${formatINR(owed)} is due in total)` : ""}. Record what
+              the customer paid, then verify the code again.
             </p>
             <RecordPaymentForm
               appointmentId={appointment._id}
-              due={short}
-              cashOnly
+              due={owed}
+              suggested={short}
               onRecorded={() => setShort(0)}
             />
           </div>

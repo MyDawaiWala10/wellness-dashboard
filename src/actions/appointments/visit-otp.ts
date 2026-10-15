@@ -24,10 +24,12 @@ export async function verifyVisitOtp(id: string, code: string) {
     body: JSON.stringify({ code }),
   });
   const body = await res.json().catch(() => ({}));
-  // short: amount still to collect before this session can start (402).
+  // short: least to collect before this session can start (402).
   return {
     success: res.ok,
     message: body?.message as string | undefined,
     short: typeof body?.short === "number" ? (body.short as number) : undefined,
+    // due: everything still owed on the booking (the most that can be paid now).
+    due: typeof body?.due === "number" ? (body.due as number) : undefined,
   };
 }
