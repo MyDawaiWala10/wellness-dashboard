@@ -5,7 +5,8 @@ import { bookingLabel } from "@/components/pages/enquiries/booking";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { bookingLedger } from "@/lib/booking-money";
 import { visitStatusLabel } from "@/lib/package-progress";
-import { childVisitsOf, nextVisitOf, visitLabel, visitShort, visitWhen } from "@/lib/visit-groups";
+import { childVisitsOf, nextVisitOf, visitLabel, visitShare, visitShort, visitWhen } from "@/lib/visit-groups";
+import { courseSessionOf } from "@/lib/package-progress";
 import { VisitTab } from "./visit-tab";
 
 /**
@@ -27,6 +28,7 @@ export function VisitsTab({
     return <VisitTab appointment={booking} allAppointments={allAppointments} />;
   }
   const nextId = nextVisitOf(booking, allAppointments)?._id;
+  const own = courseSessionOf(booking);
   const inVisitAddons = (booking.recommendedServices ?? []).filter(
     (r) => r.status === "confirmed" && r.firstInVisit !== false,
   );
@@ -37,7 +39,7 @@ export function VisitsTab({
       <details open={nextId === booking._id || !nextId} className="group rounded-lg border p-3">
         <summary className="cursor-pointer list-none space-y-1">
           <Line
-            title={`${bookingLabel(booking)} (this booking)`}
+            title={`${own ? `Session ${own.session} of ${own.total}` : bookingLabel(booking)} (this booking)`}
             when={visitWhen(booking)}
             status={visitStatusLabel(booking.status)}
             money={due > 0 ? `${formatINR(due)} due on this booking` : "Paid"}
@@ -56,6 +58,7 @@ export function VisitsTab({
 
       {visits.map((v) => {
         const short = visitShort(v, booking);
+        const share = visitShare(v, booking);
         return (
           <details key={v._id} open={v._id === nextId} className="group rounded-lg border p-3">
             <summary className="cursor-pointer list-none">
@@ -67,7 +70,7 @@ export function VisitsTab({
                   v.status === "completed"
                     ? "Done"
                     : short > 0
-                      ? `${formatINR(short)} to collect before it starts`
+                      ? `${formatINR(short)} to collect before it starts${short > share ? ` (${formatINR(share)}/session, incl. earlier sessions)` : ""}`
                       : "Paid for"
                 }
                 moneyDue={v.status !== "completed" && short > 0}

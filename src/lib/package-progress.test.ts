@@ -170,3 +170,18 @@ describe("visitStatusLabel", () => {
     expect(visitStatusLabel(undefined)).toBe("Unknown");
   });
 });
+
+describe("a course with a visit per session (ENQ-0112)", () => {
+  const base = { name: "C", phonenumber: 9000000000, bookingKind: "course", totalSessions: 3 } as const;
+
+  it("the booking itself is session 1, even after the old counter moved on", () => {
+    const origin = { ...base, _id: "o", sessionIntervalDays: 7, sessionsCompleted: 1, sessionNumber: 2, status: "scheduled" } as never;
+    const p = getPackageProgressForAppointment(origin, [], []);
+    expect(p).toMatchObject({ currentSession: 1, total: 3, split: true, packageDone: false });
+  });
+
+  it("a follow-up is its own session, and done once completed", () => {
+    const s2 = { ...base, _id: "s2", packageOriginId: "o", sessionNumber: 2, status: "completed" } as never;
+    expect(getPackageProgressForAppointment(s2, [], [])).toMatchObject({ currentSession: 2, completed: 1, split: true });
+  });
+});

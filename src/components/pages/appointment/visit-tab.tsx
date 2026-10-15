@@ -419,7 +419,8 @@ export function VisitTab({
       {/* Rolling scheduling: the next visit is booked at the end of this one,
           which is how treatment courses actually run. Optional - completing a
           session never depends on it. Only admins/staff can schedule. */}
-      {isMulti && !packageDone && !isTherapist && (
+      {/* Not on a course with a visit per session: the next one has its own. */}
+      {isMulti && !packageDone && !isTherapist && !progress?.split && (
         <Step n={5} title="Next visit" sub="Optional - book it while you are here.">
           <div className="flex gap-1.5">
             <Input

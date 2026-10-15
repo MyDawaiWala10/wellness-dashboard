@@ -10,7 +10,25 @@ export type PackageProgress = {
   label: string;
   currentLabel?: string;
   packageDone: boolean;
+  /**
+   * One session of a course with a visit per session: this card completes
+   * once and never moves on (the next session has its own visit).
+   */
+  split?: boolean;
 };
+
+/**
+ * This visit's place in a course stored one booking per session (the booking
+ * itself is session 1; follow-ups carry sessionNumber), or null. Mirrors the
+ * backend's courseSessionOf (lib/payments.ts) - KEEP IN SYNC.
+ */
+export function courseSessionOf(a: slotBookingZodType): { session: number; total: number } | null {
+  if (a.addonOf?.bookingId) return null;
+  const total = a.totalSessions ?? 0;
+  if (a.packageOriginId && a.packageOriginId !== a._id) return { session: a.sessionNumber ?? 1, total };
+  if (a.bookingKind === "course" && total > 1 && (a.sessionIntervalDays ?? 0) > 0) return { session: 1, total };
+  return null;
+}
 
 export function getSessionPackages(services: ServiceType[]): ServiceType[] {
   return services.filter(
@@ -52,6 +70,23 @@ export function getPackageProgressForAppointment(
   _allAppointments: slotBookingZodType[],
   services: ServiceType[],
 ): PackageProgress | null {
+  // A course with a visit per session: progress is just this one session.
+  const own = courseSessionOf(appointment);
+  if (own) {
+    const done = appointment.status === "completed";
+    return {
+      packageName: `${own.total}-session course`,
+      packageServiceId: appointment.packageServiceId ?? "",
+      total: own.total,
+      completed: done ? 1 : 0,
+      currentSession: own.session,
+      label: `Session ${own.session} of ${own.total}${done ? " - done" : ""}`,
+      currentLabel: `This visit: session ${own.session} of ${own.total}`,
+      packageDone: done,
+      split: true,
+    };
+  }
+
   const pkg = resolvePackageForAppointment(appointment, services);
   // A catalogue package's count, else an ad-hoc booking's stable totalSessions.
   const total =

@@ -75,6 +75,17 @@ export function visitLabel(r: Row, parent: Row): string {
   return `Session ${r.sessionNumber ?? "?"} of ${parent.totalSessions ?? "?"}`;
 }
 
+/** This visit's own price: its add-on session, or its share of the course. */
+export function visitShare(r: Row, parent: Row): number {
+  if (r.addonOf?.bookingId) {
+    const rec = (parent.recommendedServices ?? []).find(
+      (x) => `${x.serviceId}|${x.recommendedAt}` === r.addonOf!.key,
+    );
+    return rec ? Math.round(rec.quotedPrice / (rec.sessions ?? 1)) : 0;
+  }
+  return Math.round((parent.quotedPrice ?? 0) / (parent.totalSessions || 1));
+}
+
 /**
  * Still to collect before this visit can start (0 = covered). Mirrors the
  * backend's shortBeforeStart (lib/payments.ts) - KEEP IN SYNC.
