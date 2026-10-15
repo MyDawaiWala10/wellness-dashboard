@@ -5,17 +5,21 @@ import { fetchWithAuth } from "@/lib/fetchwithauth";
 import type { ApiResponse } from "@/type/api";
 import type { slotBookingZodType } from "@/type/schema";
 
-/** Record money received (part or full). Returns the booking that holds the money. */
+/**
+ * Record money received (part or full). Returns the booking that holds the
+ * money. `addon` ("serviceId|recommendedAt") targets one add-on on it.
+ */
 export default async function recordPayment(
   appointmentId: string,
   amount: number,
   method: string,
+  addon?: string,
 ): Promise<ApiResponse<slotBookingZodType>> {
   try {
     const response = await fetchWithAuth(`${base_url}/api/appointments/${appointmentId}/payments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount, method }),
+      body: JSON.stringify({ amount, method, addon }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {

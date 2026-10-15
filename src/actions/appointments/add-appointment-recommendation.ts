@@ -12,6 +12,8 @@ export type AddRecommendationInput = {
   quotedPrice: number;
   sessions?: number;
   slot?: { date: string; time: string };
+  durationMin?: number;
+  intervalDays?: number;
 };
 
 export default async function addAppointmentRecommendation(

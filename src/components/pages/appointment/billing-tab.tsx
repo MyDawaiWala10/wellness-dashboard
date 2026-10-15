@@ -125,6 +125,26 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
     window.open(wa, "_blank", "noopener,noreferrer");
   }
 
+  // A visit for a later session of a recommended add-on: its money lives on
+  // that add-on, on the booking it was recommended on.
+  if (appointment.addonOf) {
+    return (
+      <section className="rounded-lg border p-3 space-y-1.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Billing
+        </p>
+        <p className="text-sm">
+          Session {appointment.addonOf.session} of {appointment.service ?? "an add-on"}.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          It&apos;s billed on the booking it was recommended on. The therapist
+          collects this session&apos;s share before starting (Verify asks for it);
+          the office can also record it on that booking&apos;s Billing tab.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <section className="rounded-lg border p-3">
@@ -261,6 +281,7 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
                     {format(new Date(p.at), "yyyy-MM-dd HH:mm")}
                     {p.method ? ` · ${p.method === "upi" ? "UPI" : p.method}` : ""}
                     {p.by ? ` · by ${p.by}` : ""}
+                    {p.for ? ` · for ${p.for}` : ""}
                   </span>
                   <span className="font-mono tabular-nums">{formatINR(p.amount)}</span>
                 </li>

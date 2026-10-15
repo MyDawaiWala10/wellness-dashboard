@@ -132,6 +132,12 @@ export const enquirySchema = z.object({
         quotedPrice: z.number(),
         sessions: z.number().optional(),
         slot: z.object({ date: z.string(), time: z.string() }).optional(),
+        durationMin: z.number().optional(),
+        intervalDays: z.number().optional(),
+        // First session done in the visit it was recommended on (same day).
+        firstInVisit: z.boolean().optional(),
+        // Paid so far (part-payments allowed); server-managed.
+        paidAmount: z.number().optional(),
         status: z.enum(["pending", "confirmed"]).optional(),
         recommendedAt: z.string(),
         recommendedBy: z.string().optional(),
@@ -176,6 +182,11 @@ export const enquirySchema = z.object({
   // backend on demand (POST /api/appointments/:id/pay-link) - never set here.
   payToken: z.string().optional(),
 
+  // A visit for a later session of a recommended add-on on another booking.
+  addonOf: z
+    .object({ bookingId: z.string(), key: z.string(), session: z.number() })
+    .optional(),
+
   // Server-managed: paymentAmount is the running total of `payments`, and
   // paymentReceived means fully paid. Record money with useRecordPayment.
   paymentReceived: z.boolean().optional(),
@@ -188,6 +199,8 @@ export const enquirySchema = z.object({
         at: z.string(),
         by: z.string().optional(),
         byRole: z.string().optional(),
+        // Set when the payment was for an add-on.
+        for: z.string().optional(),
       }),
     )
     .optional(),

@@ -5,7 +5,6 @@ import addAppointmentRecommendation, {
   type AddRecommendationInput,
 } from "@/actions/appointments/add-appointment-recommendation";
 import confirmAppointmentRecommendation from "@/actions/appointments/confirm-appointment-recommendation";
-import setAddonPaymentStatus from "@/actions/appointments/set-addon-payment";
 import completeSession from "@/actions/appointments/complete-session";
 import recordPayment from "@/actions/appointments/record-payment";
 import deleteAppointment from "@/actions/appointments/delete-appointments";
@@ -167,43 +166,6 @@ export function useConfirmAppointmentRecommendation() {
   });
 }
 
-export function useSetAddonPaymentStatus() {
-  const queryClient = useQueryClient();
-  const router = useRouter();
-
-  return useMutation({
-    mutationFn: async ({
-      appointmentId,
-      serviceId,
-      recommendedAt,
-      collected,
-    }: {
-      appointmentId: string;
-      serviceId: string;
-      recommendedAt: string;
-      collected: boolean;
-    }) => {
-      const result = await setAddonPaymentStatus(appointmentId, {
-        serviceId,
-        recommendedAt,
-        collected,
-      });
-      if (!result.success) throw new Error(result.message);
-      return { ...result, appointmentId };
-    },
-    onSuccess: (result) => {
-      if (result.data && result.appointmentId) {
-        patchAppointmentInCache(queryClient, result.appointmentId, result.data);
-      }
-      invalidateAppointmentAndEnquiryQueries(queryClient);
-    },
-    onError: (err: Error) => {
-      if (handleAuthError(err, router)) return;
-      toast.error(err.message);
-    },
-  });
-}
-
 export function useCompleteSession() {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -273,8 +235,8 @@ export function useRecordPayment() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: async (v: { appointmentId: string; amount: number; method: string }) => {
-      const result = await recordPayment(v.appointmentId, v.amount, v.method);
+    mutationFn: async (v: { appointmentId: string; amount: number; method: string; addon?: string }) => {
+      const result = await recordPayment(v.appointmentId, v.amount, v.method, v.addon);
       if (!result.success) throw new Error(result.message);
       return result;
     },

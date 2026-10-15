@@ -27,6 +27,10 @@ export type LedgerTotals = {
   due: number;
 };
 
+/** Paid so far on an add-on (older add-ons only had a collected flag). */
+export const addonPaid = (r: { quotedPrice?: number; paidAmount?: number; paymentCollected?: boolean }) =>
+  r.paidAmount ?? (r.paymentCollected ? r.quotedPrice ?? 0 : 0);
+
 /**
  * Everything sold on this booking, as one list with a running total.
  *
@@ -76,18 +80,26 @@ export function bookingLedger(a: slotBookingZodType): {
   }
 
   for (const r of a.recommendedServices ?? []) {
-    const confirmed = r.status === "confirmed";
-    lines.push({
-      key: `${r.serviceId}-${r.recommendedAt}`,
-      label: r.serviceName,
-      meta: !confirmed
-        ? "Awaiting customer"
-        : r.paymentCollected
-          ? "Paid"
-          : "Confirmed - unpaid",
-      amount: r.quotedPrice ?? 0,
-      state: !confirmed ? "pending" : r.paymentCollected ? "paid" : "due",
-    });
+    const key = `${r.serviceId}-${r.recommendedAt}`;
+    const price = r.quotedPrice ?? 0;
+    if (r.status !== "confirmed") {
+      lines.push({ key, label: r.serviceName, meta: "Awaiting customer", amount: price, state: "pending" });
+      continue;
+    }
+    // Part-paid add-on: paid share and balance (mirrors lib/bookingMoney.ts).
+    const paid = Math.min(price, addonPaid(r));
+    if (paid > 0) {
+      lines.push({ key: `${key}-paid`, label: r.serviceName, meta: paid < price ? "Paid so far" : "Paid", amount: paid, state: "paid" });
+    }
+    if (paid < price) {
+      lines.push({
+        key,
+        label: paid > 0 ? `${r.serviceName} - balance` : r.serviceName,
+        meta: "Confirmed - unpaid",
+        amount: price - paid,
+        state: "due",
+      });
+    }
   }
 
   const sum = (s: LedgerLine["state"]) =>

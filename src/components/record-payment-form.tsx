@@ -24,8 +24,11 @@ export function RecordPaymentForm({
   due,
   suggested = due,
   onRecorded,
+  addon,
 }: {
   appointmentId: string;
+  /** Pay one add-on ("serviceId|recommendedAt") instead of the booking. */
+  addon?: string;
   /** Most that can be recorded right now. */
   due: number;
   /** Pre-filled amount (defaults to the whole balance). */
@@ -72,7 +75,7 @@ export function RecordPaymentForm({
           disabled={!valid || isPending}
           onClick={() =>
             mutate(
-              { appointmentId, amount: value, method },
+              { appointmentId, amount: value, method, addon },
               { onSuccess: () => onRecorded?.() },
             )
           }
