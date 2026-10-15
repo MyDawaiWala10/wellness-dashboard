@@ -9,7 +9,16 @@ import { useAuthStore } from "@/providers/permission-provider";
 import type { EnquiryType } from "@/type/schema";
 import { playEnquiryBeep } from "@/lib/notification-sound";
 
+// New leads are the office's job: therapists don't get the sound or pop-up,
+// and don't run the 8-second check for them at all.
+const OFFICE_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "STAFF", "CUSTOMER_CARE"]);
+
 export default function InboundBookingNotifier() {
+  const { user } = useAuthStore();
+  return OFFICE_ROLES.has(user?.role ?? "") ? <OfficeBookingNotifier /> : null;
+}
+
+function OfficeBookingNotifier() {
   const { user } = useAuthStore();
   const { data: enquiries } = useGetAllEnquiries(
     { id: user?.id, role: user?.role, userEmail: user?.userEmail },
