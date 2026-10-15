@@ -230,8 +230,11 @@ export function EnquiryDetailDrawer({
   // a settled booking from being one stray click away from a reassignment.
   const [editingAssignment, setEditingAssignment] = useState(false);
 
-  // Re-seed every local buffer when the drawer switches record.
+  // Keep the draft in step with the live record (the pages pass the record
+  // from the list, which saves and payments update). Skipped while a save is
+  // in flight so a background refresh can't flicker the change back.
   useEffect(() => {
+    if (isUpdating) return;
     setDraft(record);
 
     // Price the booking from its type without waiting for a click. The type is
@@ -261,7 +264,10 @@ export function EnquiryDetailDrawer({
         );
       }
     }
+  }, [record, isUpdating]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Reset the local controls only when the drawer switches to another record.
+  useEffect(() => {
     setOverrideReason("");
     setAssignDate(record?.physioSlot?.date ?? "");
     setAssignPick(
@@ -286,7 +292,7 @@ export function EnquiryDetailDrawer({
     );
     setPendingTooClose(null);
     setEditingAssignment(false);
-  }, [record]);
+  }, [record?._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Only NOW is it safe to early-return - hooks above have all run.
   if (!record || !draft) return null;
@@ -380,12 +386,12 @@ export function EnquiryDetailDrawer({
     const payload: EnquiryType = effectiveReason
       ? { ...next, overrideReason: effectiveReason }
       : next;
+    // Show the change at once; the save runs behind it. On failure the shared
+    // hook shows the error and the refetch puts the saved state back.
+    setDraft(next);
     update(payload, {
-      onSuccess: () => {
-        setDraft(next);
-        setSavedOnce(true);
-      },
-      onError: (e: Error) => toast.error(e.message),
+      onSuccess: () => setSavedOnce(true),
+      onError: () => setDraft(record),
     });
   }
 

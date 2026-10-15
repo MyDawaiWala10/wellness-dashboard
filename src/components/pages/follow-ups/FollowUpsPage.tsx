@@ -151,7 +151,8 @@ export default function FollowUpsPage() {
       </Card>
 
       <EnquiryDetailDrawer
-        record={openDetail}
+        // Live record, not the row-click snapshot (see EnquiriesPage).
+        record={openDetail ? (allRecords?.find((r) => r._id === openDetail._id) ?? openDetail) : null}
         onClose={() => setOpenDetail(null)}
       />
     </>

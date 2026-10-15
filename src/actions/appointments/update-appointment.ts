@@ -25,6 +25,8 @@ export default async function updateAppointment(values: slotBookingZodType): Pro
     return {
       success: true,
       message: result.message || "Appointment updated successfully",
+      // The saved booking as the server stored it (price, payments, etc.).
+      data: result.data,
     };
   } catch (err) {
     console.error("[updateAppointment]", err);

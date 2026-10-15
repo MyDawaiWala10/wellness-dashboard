@@ -708,7 +708,9 @@ export default function EnquiriesPage() {
       </Card>
 
       <EnquiryDetailDrawer
-        record={openDetail}
+        // The live record (not the row-click snapshot), so saves and payments
+        // show in the open drawer immediately.
+        record={openDetail ? (allRecords?.find((r) => r._id === openDetail._id) ?? openDetail) : null}
         onClose={() => setOpenDetail(null)}
       />
     </>

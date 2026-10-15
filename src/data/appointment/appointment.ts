@@ -88,13 +88,14 @@ function patchAppointmentInCache(
   appointmentId: string,
   patch: slotBookingZodType,
 ) {
-  queryClient.setQueriesData<slotBookingZodType[]>(
-    { queryKey: ["appointments"] },
-    (old) => {
+  // Same backend collection behind both lists, so patch both - an open
+  // enquiry drawer reads the enquiries list.
+  for (const key of ["appointments", "enquiries"]) {
+    queryClient.setQueriesData<slotBookingZodType[]>({ queryKey: [key] }, (old) => {
       if (!old) return old;
       return old.map((a) => (a._id === appointmentId ? { ...a, ...patch } : a));
-    },
-  );
+    });
+  }
 }
 
 export function useAddAppointmentRecommendation() {
@@ -355,6 +356,9 @@ export function useUpdateAppointment(opts?: { silent?: boolean }) {
       invalidateAppointmentAndEnquiryQueries(queryClient);
     },
     onSuccess: (result) => {
+      // Server truth straight into both lists (price, payments...), so an
+      // open drawer doesn't wait for the refetch.
+      if (result.data?._id) patchAppointmentInCache(queryClient, result.data._id, result.data);
       // Auto-save callers (e.g. the enquiry drawer) pass silent:true and show
       // an inline "Saved" indicator instead of a toast on every blur/toggle.
       if (!opts?.silent) {
