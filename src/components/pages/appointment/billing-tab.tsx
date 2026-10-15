@@ -67,7 +67,7 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
   const [requesting, setRequesting] = useState(false);
   const { lines, due, paid, totals } = bookingLedger(appointment);
   // The booking's own balance (add-ons are collected on their own lines).
-  const bookingDue = lines.find((l) => l.key === "booking")?.amount ?? 0;
+  const bookingDue = lines.find((l) => l.key === "booking")?.due ?? 0;
 
   async function requestPayment() {
     if (!appointment._id) return;
@@ -89,7 +89,7 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
     // One memo for the whole balance: the booking and every confirmed add-on.
     const items = lines
       .filter((l) => l.state === "due")
-      .map((l) => `${l.label} - ${formatINR(l.amount)}`)
+      .map((l) => `${l.label} - ${formatINR(l.due)}`)
       .join("\n");
     const wa = whatsAppLink(
       appointment.phonenumber,
@@ -127,7 +127,7 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
 
   // A visit for a later session of a recommended add-on: its money lives on
   // that add-on, on the booking it was recommended on.
-  if (appointment.addonOf) {
+  if (appointment.addonOf?.bookingId) {
     return (
       <section className="rounded-lg border p-3 space-y-1.5">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">

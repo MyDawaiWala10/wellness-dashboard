@@ -66,7 +66,7 @@ export function visitWhen(r: Row): string {
 
 /** What this visit is, e.g. "Accupunture - session 1 of 1" or "Session 3 of 9". */
 export function visitLabel(r: Row, parent: Row): string {
-  if (r.addonOf) {
+  if (r.addonOf?.bookingId) {
     const rec = (parent.recommendedServices ?? []).find(
       (x) => `${x.serviceId}|${x.recommendedAt}` === r.addonOf!.key,
     );
@@ -80,7 +80,7 @@ export function visitLabel(r: Row, parent: Row): string {
  * backend's shortBeforeStart (lib/payments.ts) - KEEP IN SYNC.
  */
 export function visitShort(r: Row, parent: Row): number {
-  if (r.addonOf) {
+  if (r.addonOf?.bookingId) {
     const rec = (parent.recommendedServices ?? []).find(
       (x) => `${x.serviceId}|${x.recommendedAt}` === r.addonOf!.key,
     );
