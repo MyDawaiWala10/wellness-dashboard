@@ -56,12 +56,12 @@ export function SendVisitOtpButton({
   );
 }
 
-/** "Code sent 2026-10-15 21:40 by X · works until it's used" (or "· verified ..."). */
+/** "Code sent 2026-10-15 21:40 by X" (+ " · verified ..." once used). */
 export function visitCodeStatus(a: Pick<slotBookingZodType, "visitOtpSentAt" | "visitOtpSentBy" | "visitOtpVerifiedAt">): string {
   if (!a.visitOtpSentAt) return "";
   const at = (d: string) => format(new Date(d), "yyyy-MM-dd HH:mm");
   return (
     `Code sent ${at(a.visitOtpSentAt)}${a.visitOtpSentBy ? ` by ${a.visitOtpSentBy}` : ""}` +
-    (a.visitOtpVerifiedAt ? ` · verified ${at(a.visitOtpVerifiedAt)}` : " · works until it's used")
+    (a.visitOtpVerifiedAt ? ` · verified ${at(a.visitOtpVerifiedAt)}` : "")
   );
 }
