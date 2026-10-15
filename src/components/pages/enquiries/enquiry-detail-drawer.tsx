@@ -1232,11 +1232,11 @@ export function EnquiryDetailDrawer({
             ) : record.status === "completed" || record.status === "cancelled" ? (
               <p className="text-xs text-muted-foreground">This visit is {record.status}.</p>
             ) : (
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <SendVisitOtpButton appointment={record} />
                 <p className="text-[11px] text-muted-foreground">
                   {record.visitOtpSentAt ? visitCodeStatus(record) : "Not sent yet."}
                 </p>
-                <SendVisitOtpButton appointment={record} />
               </div>
             )}
           </section>
