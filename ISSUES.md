@@ -474,7 +474,7 @@ It's often summarised as "only one endpoint in the whole codebase is role-gated.
 ### 19. Therapist Edit Is Not Ownership-Scoped
 
 **Severity:** Medium  
-**Status:** Open (found 2026-09-18 while wiring #11)  
+**Status:** Fixed (2026-10-16). Found 2026-09-18 while wiring #11. The fix covers every therapist write, not just this one: a therapist acts only on their own profile, leave and days off (`mayActOnTherapist`) and on bookings assigned to them (`mayActOnBooking`: booking save, add-on recommend / code / confirm, complete session, payment link, plus the existing payment and visit-code checks). They can't move or reassign a visit, switch themselves off or change their therapist ID, and a colleague's profile is read-only on screen.  
 **Affected Code:** `controllers/DoctorController.ts` - `updateDoctorDetails`
 
 #### Description
@@ -687,7 +687,7 @@ Void **INV-2026-0054** on the Invoices page, reason "Duplicate: session 4 of ENQ
 | 16 | Therapist revenue-split save always fails | Medium | Fixed |
 | 17 | Per-therapist leave lookup returns everyone's leaves | Medium | Fixed |
 | 18 | Account menu didn't show name/email/role | Low | Fixed |
-| 19 | Therapist edit is not ownership-scoped | Medium | Open |
+| 19 | Therapist edit is not ownership-scoped | Medium | Fixed |
 | 20 | Production `customers.phone` has a unique index (second patient on a shared phone fails) | High | Open (owner's call to drop it) |
 | 21 | Staff dashboard can't see the new customer fields | Medium | Partly fixed (gender, age) |
 | 22 | Patient website OTP: 4-digit codes, no verify rate limit | High | Open (website) |

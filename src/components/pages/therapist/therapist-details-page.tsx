@@ -78,7 +78,11 @@ export default function TherapistDetailsPage({
   const [searchValue, setSearchValue] = useState("");
   const [activeTab, setActiveTab] = useState("profile");
   // Referrals are Super Admin only (client rule).
-  const isSuperAdmin = useAuthStore((s) => s.user?.role) === "SUPER_ADMIN";
+  const authUser = useAuthStore((s) => s.user);
+  const isSuperAdmin = authUser?.role === "SUPER_ADMIN";
+  // A therapist edits only their own profile; a colleague's is read-only (the
+  // server refuses the edit too).
+  const readOnly = authUser?.role === "THERAPIST" && data.userId !== authUser?.id;
 
   const { mutate: updateMutate, isPending: isUpdating } = useUpdateTherapist();
   const {
@@ -239,6 +243,7 @@ export default function TherapistDetailsPage({
               className="px-5 sm:px-6 py-5 space-y-6"
               data-therapist-form
             >
+              <fieldset disabled={readOnly} className="min-w-0 space-y-6">
               {/* Basic info */}
               <section className="space-y-3">
                 <SectionTitle>Basic information</SectionTitle>
@@ -525,6 +530,7 @@ export default function TherapistDetailsPage({
                   )}
                 />
               </section>
+              </fieldset>
             </form>
           </Form>
         </TabsContent>
@@ -554,6 +560,7 @@ export default function TherapistDetailsPage({
               <TherapistAvailabilityTab
                 doctorId={data.doctorId}
                 weekOffDays={data.weekOffDays ?? []}
+                readOnly={readOnly}
               />
             )}
           </div>
@@ -593,7 +600,7 @@ export default function TherapistDetailsPage({
               Cancel
             </Button>
           )}
-          {activeTab === "profile" && (
+          {activeTab === "profile" && !readOnly && (
             <Button
               type="button"
               disabled={isUpdating || isDeleting}

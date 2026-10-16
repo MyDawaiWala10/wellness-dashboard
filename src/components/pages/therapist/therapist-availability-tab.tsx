@@ -21,11 +21,14 @@ interface TherapistAvailabilityTabProps {
   doctorId: string;
   /** Initial value from parent, but overridden by fresh query data. */
   weekOffDays: number[];
+  /** A therapist looking at a colleague: see the days off, change nothing. */
+  readOnly?: boolean;
 }
 
 export function TherapistAvailabilityTab({
   doctorId,
   weekOffDays: initialWeekOffDays,
+  readOnly = false,
 }: TherapistAvailabilityTabProps) {
   const [newStart, setNewStart] = useState("");
   const [newEnd, setNewEnd] = useState("");
@@ -81,8 +84,11 @@ export function TherapistAvailabilityTab({
       <CalendarGrid
         weekOffDays={weekOffDays}
         leaves={leaves}
-        onDayClick={handleCalendarDayClick}
+        onDayClick={readOnly ? undefined : handleCalendarDayClick}
       />
+
+      {/* A colleague's schedule can be browsed above but not changed here. */}
+      <fieldset disabled={readOnly} className="min-w-0 space-y-6">
 
       {/* ── Weekly off-days ──────────────────────────────────── */}
       <section className="space-y-3">
@@ -223,6 +229,7 @@ export function TherapistAvailabilityTab({
           </div>
         )}
       </section>
+      </fieldset>
     </div>
   );
 }
