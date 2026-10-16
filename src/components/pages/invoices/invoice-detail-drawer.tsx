@@ -54,12 +54,6 @@ function safeText(s: unknown): string {
   return typeof s === "string" ? s : "";
 }
 
-function formatInvoiceType(t: string): string {
-  return (t ?? "")
-    .replace(/_/g, " ")
-    .replace(/^\w/, (c) => c.toUpperCase());
-}
-
 export function InvoiceDetailDrawer({
   invoice,
   onClose,
@@ -305,22 +299,6 @@ export function InvoiceDetailDrawer({
           </section>
 
           <Separator />
-
-          {/* Summary */}
-          <section className="grid grid-cols-2 gap-3">
-            <div className="border rounded-md p-3">
-              <div className="text-xs text-muted-foreground">Type</div>
-              <div className="text-sm font-medium">
-                {formatInvoiceType(invoice.invoice_type)}
-              </div>
-            </div>
-            <div className="border rounded-md p-3">
-              <div className="text-xs text-muted-foreground">Total</div>
-              <div className="text-sm font-medium tabular-nums">
-                {formatINR(invoice.total)}
-              </div>
-            </div>
-          </section>
 
           {/* Edit form */}
           <section className="space-y-3">
