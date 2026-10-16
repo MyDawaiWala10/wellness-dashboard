@@ -4,8 +4,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Loader2, X, Plus } from "lucide-react";
+import { Copy, Loader2, X, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import { BRAND } from "@/lib/brand";
 
 import { useUpdateTherapist } from "@/data/therapist/therapist";
 import { useAuthStore } from "@/providers/permission-provider";
@@ -163,6 +166,17 @@ export default function TherapistDetailsPage({
     );
   }
 
+  // Bookings made through this link are credited to the therapist.
+  const referralLink = `https://${BRAND.website}/?ref=${data.referralCode}`;
+  async function copyReferralLink() {
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      toast.success("Referral link copied");
+    } catch {
+      toast.error("Couldn't copy - select it and copy by hand");
+    }
+  }
+
   function onSubmit(values: z.infer<typeof TherapistformSchema>) {
     // Combine firstName + lastName into name for backend
     const submissionValues = {
@@ -206,6 +220,24 @@ export default function TherapistDetailsPage({
                 {watchedActive ? "Active" : "Not Active"}
               </Badge>
             </div>
+            {/* The server sends the code to the Super Admin and to the therapist themself only. */}
+            {data.referralCode && (
+              <div className="mt-2 flex items-center justify-center sm:justify-start gap-2">
+                <span className="font-mono text-sm font-semibold tracking-widest">
+                  {data.referralCode}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7"
+                  title={referralLink}
+                  onClick={copyReferralLink}
+                >
+                  <Copy className="h-3.5 w-3.5" /> Copy link
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

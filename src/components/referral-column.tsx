@@ -6,8 +6,9 @@ import type { EnquiryType, TherapistformType } from "@/type/schema";
 
 /**
  * The referral code a booking came in through, with the therapist's name and ID
- * on hover. Super Admin only (client rule): the backend only sends codes to the
- * Super Admin, and tables add this column only for them.
+ * on hover. Super Admin only (client rule): the backend sends every code only to
+ * the Super Admin (a therapist gets just their own), and tables add this column
+ * only for the Super Admin.
  */
 function ReferralCell({ record }: { record: EnquiryType }) {
   const { data: therapists = [] } = useGetAllTherapist();

@@ -1,57 +1,19 @@
 "use client";
 
-import { Copy, Loader2, UserPlus } from "lucide-react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Loader2, UserPlus } from "lucide-react";
 import { BookingIdBadge } from "@/components/booking-id-badge";
-import { useGetAllTherapist, useGetReferrals } from "@/data/therapist/therapist";
-import { BRAND } from "@/lib/brand";
-import type { TherapistformType } from "@/type/schema";
+import { useGetReferrals } from "@/data/therapist/therapist";
 
 interface TherapistReferralsTabProps {
   doctorId: string;
 }
 
+// The code and its link are in the profile header; this tab lists what came in.
 export function TherapistReferralsTab({ doctorId }: TherapistReferralsTabProps) {
-  const { data: therapists = [] } = useGetAllTherapist();
-  const therapist = (therapists as TherapistformType[]).find((t) => t.doctorId === doctorId);
   const { data: referrals = [], isLoading } = useGetReferrals(doctorId);
-
-  // Only the Super Admin opens this tab, and only they are sent codes.
-  const code = therapist?.referralCode;
-  const link = code ? `https://${BRAND.website}/?ref=${code}` : "";
-
-  async function copy(text: string, what: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(`${what} copied`);
-    } catch {
-      toast.error("Couldn't copy - select it and copy by hand");
-    }
-  }
 
   return (
     <div className="space-y-4">
-      {code && (
-        <div className="rounded-md border p-3 space-y-2">
-          <p className="text-xs text-muted-foreground">
-            Share this link, or read out the code at a visit. Bookings made with it are credited here.
-          </p>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-lg font-semibold tracking-widest">{code}</span>
-            <Button size="sm" variant="outline" onClick={() => copy(code, "Code")}>
-              <Copy className="h-3.5 w-3.5" /> Code
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm text-muted-foreground">{link}</span>
-            <Button size="sm" onClick={() => copy(link, "Link")}>
-              <Copy className="h-3.5 w-3.5" /> Copy link
-            </Button>
-          </div>
-        </div>
-      )}
-
       <div className="space-y-2">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Referred bookings
