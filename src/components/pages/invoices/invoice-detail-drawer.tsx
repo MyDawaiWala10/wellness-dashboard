@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Ban, Phone, Mail, BadgeCheck, FileText, ReceiptText, Pencil, Loader2, Trash2 } from "lucide-react";
+import { Ban, Phone, Mail, BadgeCheck, ReceiptText, Pencil, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import type { PersistedInvoice, UpdateInvoiceInput, InvoicePaymentStatus, InvoiceLineItem } from "@/type/invoice";
-import { useUpdateInvoice, useGenerateInvoicePdf, useVoidInvoice } from "@/data/invoice/invoice";
-import { whatsAppLink } from "@/lib/whatsapp";
+import { useUpdateInvoice, useVoidInvoice } from "@/data/invoice/invoice";
+// import { whatsAppLink } from "@/lib/whatsapp"; // for the turned-off WhatsApp send
 import { diffInvoice, type InvoiceChange } from "./invoice-diff";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -64,7 +64,8 @@ export function InvoiceDetailDrawer({
   const open = invoice !== null;
 
   const { mutate: updateInvoice, isPending: isUpdating } = useUpdateInvoice();
-  const { mutate: generatePdf, isPending: isGeneratingPdf } = useGenerateInvoicePdf();
+  // Turned off with the "PDF and WhatsApp" section (re-add FileText and useGenerateInvoicePdf with it):
+  // const { mutate: generatePdf, isPending: isGeneratingPdf } = useGenerateInvoicePdf();
   const { mutate: voidInvoiceMut, isPending: isVoiding } = useVoidInvoice();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -213,17 +214,18 @@ export function InvoiceDetailDrawer({
     setPendingSave({ values, changes });
   }
 
-  function handleWhatsAppSend() {
-    if (!invoice?.pdf_url) return;
-    const msg = `Hi ${invoice.customer_name},\n\nPlease find your invoice ${invoice.invoice_id}.\nTotal: ${formatINR(invoice.total)}.\nDownload: ${invoice.pdf_url}\n\nThank you.`;
-
-    const wa = whatsAppLink(invoice.customer_phone, msg);
-    if (!wa) {
-      toast.error("This customer has no usable phone number");
-      return;
-    }
-    window.open(wa, "_blank", "noopener,noreferrer");
-  }
+  // Turned off with the "PDF and WhatsApp" section below (stale PDF address).
+  // function handleWhatsAppSend() {
+  //   if (!invoice?.pdf_url) return;
+  //   const msg = `Hi ${invoice.customer_name},\n\nPlease find your invoice ${invoice.invoice_id}.\nTotal: ${formatINR(invoice.total)}.\nDownload: ${invoice.pdf_url}\n\nThank you.`;
+  //
+  //   const wa = whatsAppLink(invoice.customer_phone, msg);
+  //   if (!wa) {
+  //     toast.error("This customer has no usable phone number");
+  //     return;
+  //   }
+  //   window.open(wa, "_blank", "noopener,noreferrer");
+  // }
 
   if (!invoice) {
     return (
@@ -463,9 +465,14 @@ export function InvoiceDetailDrawer({
             )}
           </section>
 
+          {/* Turned off: the PDF link and "Send via WhatsApp" used the PDF address
+              loaded with the page, which goes stale when the invoice changes
+              (it once opened a ₹2,500 PDF for a ₹3,000 invoice). The Download
+              button at the top always asks the server for the current PDF.
+              Bring WhatsApp back by fetching that same fresh address first.
+
           <Separator />
 
-          {/* PDF / WhatsApp */}
           <section className="space-y-2">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-semibold">
@@ -521,6 +528,7 @@ export function InvoiceDetailDrawer({
               </Button>
             </div>
           </section>
+          */}
 
           {!invoice.voided && (
             <>

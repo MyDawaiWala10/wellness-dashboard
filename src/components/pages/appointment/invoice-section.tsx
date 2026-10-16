@@ -1,13 +1,9 @@
 "use client";
 
-import { Download, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  useGenerateInvoicePdf,
-  useInvoiceForAppointment,
-} from "@/data/invoice/invoice";
+import { useInvoiceForAppointment } from "@/data/invoice/invoice";
 import { useAuthStore } from "@/providers/permission-provider";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { invoiceStatusLabel } from "@/lib/invoice-status";
@@ -29,7 +25,8 @@ export function InvoiceSection({ appointmentId }: { appointmentId?: string }) {
   const { data: invoice, isLoading } = useInvoiceForAppointment(appointmentId, {
     enabled: !isTherapist,
   });
-  const { mutate: generatePdf, isPending: isGenerating } = useGenerateInvoicePdf();
+  // Turned off with the PDF link below (re-add Button, Download and useGenerateInvoicePdf with it):
+  // const { mutate: generatePdf, isPending: isGenerating } = useGenerateInvoicePdf();
 
   if (isTherapist) return null;
 
@@ -73,6 +70,10 @@ export function InvoiceSection({ appointmentId }: { appointmentId?: string }) {
             </span>
           </div>
 
+          {/* Turned off: this link used the PDF address loaded with the page,
+              which goes stale when the invoice changes. The Download button at
+              the top of the booking panel always gets the current PDF.
+
           {invoice.pdf_url ? (
             <Button
               asChild
@@ -98,6 +99,7 @@ export function InvoiceSection({ appointmentId }: { appointmentId?: string }) {
               {isGenerating ? "Generating..." : "Generate PDF"}
             </Button>
           )}
+          */}
         </div>
       )}
     </section>
