@@ -150,8 +150,13 @@ export default function AppointmentDetailsPage({
               Customer details
             </button>
 
+            {/* Therapists see the details (address, phone for the visit) but
+                never change them; the backend drops their edits too. */}
             {showCustomer && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+              <fieldset
+                disabled={isTherapist}
+                className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-4 mt-3"
+              >
                 <FormField
                   control={form.control}
                   name="name"
@@ -217,7 +222,7 @@ export default function AppointmentDetailsPage({
                     </FormItem>
                   )}
                 />
-              </div>
+              </fieldset>
             )}
           </div>
         </div>
@@ -261,16 +266,19 @@ export default function AppointmentDetailsPage({
             </AlertDialogContent>
           </AlertDialog>
 
-          <Button type="submit" size="sm" disabled={isUpdating || isCancelling}>
-            {isUpdating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Saving...
-              </>
-            ) : (
-              "Save changes"
-            )}
-          </Button>
+          {/* A therapist has nothing to save here (no reschedule, no customer edits). */}
+          {!isTherapist && (
+            <Button type="submit" size="sm" disabled={isUpdating || isCancelling}>
+              {isUpdating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                "Save changes"
+              )}
+            </Button>
+          )}
         </div>
       </form>
     </Form>
