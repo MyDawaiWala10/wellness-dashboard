@@ -29,10 +29,8 @@ import { addonPaid } from "@/lib/booking-money";
 import { toDayKey } from "@/components/pages/enquiries/booking";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { RecordPaymentForm } from "@/components/record-payment-form";
-import { TherapistAvailabilityGrid } from "@/components/pages/enquiries/therapist-availability-grid";
+import { TherapistDayPicker } from "@/components/pages/enquiries/therapist-availability-grid";
 import { format } from "date-fns";
-
-const DURATIONS = [30, 60, 90, 120];
 
 /** "Mon, 16 Nov 2026 · 11:30 (60 min), every 7 days" */
 function scheduleLabel(rec: { slot?: { date: string; time: string }; durationMin?: number; intervalDays?: number; sessions?: number }) {
@@ -428,49 +426,22 @@ export function AddonsVisitSection({
               <p className="text-[11px] font-medium">
                 When - done by {appointment.doctor ?? "this booking's therapist"}
               </p>
-              <div className="grid grid-cols-3 gap-1.5">
-                <Input
-                  type="date"
-                  className="h-8"
-                  aria-label="Date"
-                  min={format(new Date(), "yyyy-MM-dd")}
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-                <Input
-                  type="time"
-                  className="h-8"
-                  aria-label="Start time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                />
-                <Select value={String(durationMin)} onValueChange={(v) => setDurationMin(Number(v))}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DURATIONS.map((d) => (
-                      <SelectItem key={d} value={String(d)}>
-                        {d} min
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* The therapist's own day, so they pick a time they're free. This
-                  booking's visit doesn't count: a same-day add-on is part of it. */}
-              {appointment.doctorId && date && (
-                <TherapistAvailabilityGrid
-                  doctorId={appointment.doctorId}
-                  date={date}
-                  selectedDoctorId={appointment.doctorId}
-                  selectedStart={time}
-                  excludeRecordId={appointment._id}
-                  durationMin={durationMin}
-                  onDurationChange={setDurationMin}
-                  onPick={(p) => setTime(p.startTime.padStart(5, "0"))}
-                />
-              )}
+              {/* The therapist's own day: tap a free time, ‹ › to change day.
+                  This booking's visit doesn't count: a same-day add-on is part
+                  of it. A new day clears the time so it's picked on that day. */}
+              <TherapistDayPicker
+                doctorId={appointment.doctorId ?? ""}
+                date={date}
+                onDateChange={(d) => {
+                  setDate(d);
+                  setTime("");
+                }}
+                selectedStart={time}
+                durationMin={durationMin}
+                onDurationChange={setDurationMin}
+                excludeRecordId={appointment._id}
+                onPick={setTime}
+              />
               {sessions && sessions > 1 && (
                 <label className="flex items-center gap-2 text-xs">
                   Every

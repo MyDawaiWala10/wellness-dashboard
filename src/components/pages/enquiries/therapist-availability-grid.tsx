@@ -1,10 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { addDays, format, parseISO } from "date-fns";
 
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Popover,
   PopoverContent,
@@ -50,9 +59,6 @@ interface TherapistAvailabilityGridProps {
   selectedStart?: string;
   /** This enquiry's own record - its slot must not count against itself. */
   excludeRecordId?: string;
-  /** Show only this therapist's row (their own day), without the search and
-   *  duration picker: the caller already has those (the add-on form). */
-  doctorId?: string;
   /** Visit length in minutes - controlled by the caller (owns the conflict check). */
   durationMin: number;
   onDurationChange: (d: number) => void;
@@ -65,23 +71,11 @@ interface TherapistAvailabilityGridProps {
 }
 
 /**
- * Rows = therapists, columns = time slots, cells free/busy for one day.
- * Clicking a free cell picks the therapist and the time in a single action.
- *
- * Deliberately a grid and not a calendar library: this is an ERP-shaped app
- * where the executive is choosing among therapists at a glance, and horizontal
- * space is the constraint.
+ * Free/busy for every active therapist at each slot on one day, plus who is off.
+ * Shared by the all-therapists grid and the one-therapist day picker so both
+ * read availability the same way.
  */
-export function TherapistAvailabilityGrid({
-  date,
-  selectedDoctorId,
-  selectedStart,
-  excludeRecordId,
-  doctorId: onlyDoctorId,
-  durationMin,
-  onDurationChange,
-  onPick,
-}: TherapistAvailabilityGridProps) {
+function useDayAvailability(date: string, excludeRecordId?: string) {
   const { data: therapists } = useGetAllTherapist();
   const authUser = useAuthStore((s) => s.user);
   const { data: appointments = [] } = useGetAllAppointments({
@@ -92,17 +86,13 @@ export function TherapistAvailabilityGrid({
   const { data: settings } = useGetClinicSettings();
   const { data: allLeaves = [] } = useGetAllTherapistLeaves(date);
   const gap = settings?.bookingGapMinutes ?? 60;
-  const [query, setQuery] = useState("");
 
   const all = useMemo(
     () =>
       ((therapists ?? []) as TherapistformType[]).filter(
-        (t) =>
-          t.doctorId &&
-          t.isActive !== false &&
-          (!onlyDoctorId || t.doctorId === onlyDoctorId),
+        (t) => t.doctorId && t.isActive !== false,
       ),
-    [therapists, onlyDoctorId],
+    [therapists],
   );
 
   // Colour every cell by the therapist's EXISTING occupancy, independent of the
@@ -128,6 +118,42 @@ export function TherapistAvailabilityGrid({
     return map;
   }, [all, appointments, date, gap, excludeRecordId]);
 
+  // Who is off on this date (weekly off-days + leave blocks).
+  const offDayDoctorIds = useMemo(() => {
+    const dayOfWeek = new Date(date + "T00:00:00").getDay();
+    const ids = new Set<string>();
+    for (const t of all) {
+      if (t.weekOffDays?.includes(dayOfWeek)) ids.add(t.doctorId as string);
+    }
+    for (const leave of allLeaves) {
+      if (leave.startDate <= date && leave.endDate >= date) ids.add(leave.doctorId);
+    }
+    return ids;
+  }, [all, allLeaves, date]);
+
+  return { all, occupancy, offDayDoctorIds, gap };
+}
+
+/**
+ * Rows = therapists, columns = time slots, cells free/busy for one day.
+ * Clicking a free cell picks the therapist and the time in a single action.
+ *
+ * Deliberately a grid and not a calendar library: this is an ERP-shaped app
+ * where the executive is choosing among therapists at a glance, and horizontal
+ * space is the constraint.
+ */
+export function TherapistAvailabilityGrid({
+  date,
+  selectedDoctorId,
+  selectedStart,
+  excludeRecordId,
+  durationMin,
+  onDurationChange,
+  onPick,
+}: TherapistAvailabilityGridProps) {
+  const { all, occupancy, offDayDoctorIds, gap } = useDayAvailability(date, excludeRecordId);
+  const [query, setQuery] = useState("");
+
   // Search matches name OR specialization, so an executive can find "who does
   // Electrotherapy?" without opening the Therapists page.
   const rows = useMemo(() => {
@@ -139,28 +165,6 @@ export function TherapistAvailabilityGrid({
         (t.specialization ?? []).some((s) => s.toLowerCase().includes(q)),
     );
   }, [all, query]);
-
-  // Check which therapists are off on the selected date (weekly off-days + leave blocks)
-  const offDayDoctorIds = useMemo(() => {
-    const dayOfWeek = new Date(date + "T00:00:00").getDay();
-    const ids = new Set<string>();
-
-    // Weekly off-days
-    for (const t of all) {
-      if (t.weekOffDays?.includes(dayOfWeek)) {
-        ids.add(t.doctorId as string);
-      }
-    }
-
-    // One-off leave blocks covering this date
-    for (const leave of allLeaves) {
-      if (leave.startDate <= date && leave.endDate >= date) {
-        ids.add(leave.doctorId);
-      }
-    }
-
-    return ids;
-  }, [all, allLeaves, date]);
 
   if (all.length === 0) {
     return (
@@ -178,39 +182,35 @@ export function TherapistAvailabilityGrid({
 
   return (
     <div className="space-y-2">
-      {!onlyDoctorId && (
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="h-8 pl-8 text-xs"
-            placeholder="Filter by name or specialization…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-      )}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="h-8 pl-8 text-xs"
+          placeholder="Filter by name or specialization…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
 
-      {!onlyDoctorId && (
-        <div className="flex items-center gap-1.5 text-xs">
-          <span className="text-muted-foreground">Duration</span>
-          {DURATION_OPTIONS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => onDurationChange(d)}
-              aria-pressed={durationMin === d}
-              className={cn(
-                "rounded border px-2 py-1",
-                durationMin === d
-                  ? "border-primary bg-primary/10"
-                  : "hover:bg-muted/50",
+      <div className="flex items-center gap-1.5 text-xs">
+        <span className="text-muted-foreground">Duration</span>
+        {DURATION_OPTIONS.map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => onDurationChange(d)}
+            aria-pressed={durationMin === d}
+            className={cn(
+              "rounded border px-2 py-1",
+              durationMin === d
+                ? "border-primary bg-primary/10"
+                : "hover:bg-muted/50",
             )}
           >
             {d}m
           </button>
         ))}
       </div>
-      )}
 
       <div className="rounded-md border">
         <div className="max-h-72 overflow-auto">
@@ -254,12 +254,11 @@ export function TherapistAvailabilityGrid({
                       const status = probe?.status ?? "ok";
                       const isBusy = status === "overlap";
                       const isTooClose = status === "too-close";
-                      // Compared as minutes: a time input gives "09:30", the grid "9:30".
-                      const cellMin = toMinutes(cell);
                       const isSelected =
                         selectedDoctorId === doctorId &&
-                        cellMin === selectedStartMin;
+                        selectedStart === cell;
                       // Cells the chosen span rolls over, between start and end.
+                      const cellMin = toMinutes(cell);
                       const isCovered =
                         selectedDoctorId === doctorId &&
                         !Number.isNaN(selectedStartMin) &&
@@ -338,6 +337,131 @@ export function TherapistAvailabilityGrid({
           specializations.
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * One therapist's day as tappable times, with ‹ › to move a day at a time.
+ * For picking when a therapist does something themselves (an add-on), where
+ * the whole-team grid is more than they need. Same availability as the grid.
+ */
+export function TherapistDayPicker({
+  doctorId,
+  date,
+  onDateChange,
+  selectedStart,
+  durationMin,
+  onDurationChange,
+  excludeRecordId,
+  onPick,
+}: {
+  doctorId: string;
+  /** The day shown, "yyyy-MM-dd". */
+  date: string;
+  onDateChange: (date: string) => void;
+  /** The picked start, "HH:MM". */
+  selectedStart?: string;
+  durationMin: number;
+  onDurationChange: (d: number) => void;
+  /** A booking whose own visit shouldn't count as busy. */
+  excludeRecordId?: string;
+  /** Gets "HH:MM" (zero-padded). */
+  onPick: (startTime: string) => void;
+}) {
+  const { occupancy, offDayDoctorIds } = useDayAvailability(date, excludeRecordId);
+  const now = new Date();
+  const today = format(now, "yyyy-MM-dd");
+  // Earlier today can't be picked.
+  const nowMin = date === today ? now.getHours() * 60 + now.getMinutes() : -1;
+  const startMin = selectedStart ? toMinutes(selectedStart) : NaN;
+  const moveDay = (days: number) =>
+    onDateChange(format(addDays(parseISO(date), days), "yyyy-MM-dd"));
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5">
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          className="h-8 w-8 shrink-0"
+          aria-label="Previous day"
+          disabled={date <= today}
+          onClick={() => moveDay(-1)}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Input
+          type="date"
+          aria-label="Day"
+          className="h-8 w-auto"
+          min={today}
+          value={date}
+          onChange={(e) => e.target.value && onDateChange(e.target.value)}
+        />
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          className="h-8 w-8 shrink-0"
+          aria-label="Next day"
+          onClick={() => moveDay(1)}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Select value={String(durationMin)} onValueChange={(v) => onDurationChange(Number(v))}>
+          <SelectTrigger className="ml-auto h-8 w-24" aria-label="Length">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {DURATION_OPTIONS.map((d) => (
+              <SelectItem key={d} value={String(d)}>
+                {d} min
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {offDayDoctorIds.has(doctorId) ? (
+        <p className="text-xs text-muted-foreground">Day off. Try another day.</p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {TIME_SLOTS.map((cell) => {
+            const status = occupancy.get(`${doctorId}|${cell}`)?.status ?? "ok";
+            const cellMin = toMinutes(cell);
+            const taken = status === "overlap" || cellMin <= nowMin;
+            const picked = cellMin === startMin;
+            const covered = cellMin > startMin && cellMin < startMin + durationMin;
+            return (
+              <button
+                key={cell}
+                type="button"
+                disabled={taken}
+                aria-pressed={picked}
+                aria-label={`${cell}${taken ? " (not available)" : status === "too-close" ? " (close to another visit)" : ""}`}
+                onClick={() => onPick(cell.padStart(5, "0"))}
+                className={cn(
+                  "h-8 rounded-md border px-2.5 text-xs tabular-nums transition-colors",
+                  taken
+                    ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/50 line-through"
+                    : status === "too-close"
+                      ? "border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400"
+                      : "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/25",
+                  covered && !picked && "border-primary/40 bg-primary/20",
+                  picked && "border-primary bg-primary text-primary-foreground hover:bg-primary",
+                )}
+              >
+                {cell}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <p className="text-[10px] text-muted-foreground">
+        Tap a time. Crossed out = taken, amber = close to another visit.
+      </p>
     </div>
   );
 }
