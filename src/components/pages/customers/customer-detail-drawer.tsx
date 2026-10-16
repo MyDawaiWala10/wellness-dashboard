@@ -327,12 +327,6 @@ function BookingRow({ booking, index }: { booking: EnquiryType; index: number })
   const createdAt = (booking as unknown as { createdAt?: string }).createdAt;
   const sessionNotes = booking.sessionNotes ?? [];
 
-  const serviceFromNote = (() => {
-    const note = booking.note ?? "";
-    const m = note.match(/^\[Service:\s*([^\]]+)\]/);
-    return m ? m[1].trim() : null;
-  })();
-
   const preferred = formatTimeRange(booking.preferredReachOutTime);
 
   return (
@@ -358,9 +352,9 @@ function BookingRow({ booking, index }: { booking: EnquiryType; index: number })
               </span>
             )}
             <AppointmentStatusBadge status={status} />
-            {serviceFromNote && (
+            {booking.service && (
               <span className="text-xs text-muted-foreground">
-                {serviceFromNote}
+                {booking.service}
               </span>
             )}
           </div>
@@ -375,7 +369,7 @@ function BookingRow({ booking, index }: { booking: EnquiryType; index: number })
       {/* Expanded detail */}
       {expanded && (
         <div className="border-t p-3 space-y-2 text-sm bg-muted/30">
-          <DetailRow label="Service" value={serviceFromNote ?? booking.typeOfappointment ?? "-"} />
+          <DetailRow label="Service" value={booking.service ?? booking.typeOfappointment ?? "-"} />
           <DetailRow label="Preferred time" value={preferred ?? "-"} />
           <DetailRow
             label="Consultation slot"

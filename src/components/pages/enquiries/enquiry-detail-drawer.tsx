@@ -851,7 +851,7 @@ export function EnquiryDetailDrawer({
             {(draft.service || (draft.vitals && draft.vitals.length > 0)) && (
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-md border bg-muted/30 px-2.5 py-1.5">
                 <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Offering
+                  Asking for
                 </span>
                 <span className="text-sm font-medium">
                   {draft.service ?? "-"}
