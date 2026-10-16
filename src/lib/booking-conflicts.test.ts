@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toMinutes, checkConflict, conflictMessage } from "./booking-conflicts";
+import { toMinutes, checkConflict, conflictMessage, firstBookableDay, nowInIndia } from "./booking-conflicts";
 import type { EnquiryType } from "@/type/schema";
 
 const visit = (over: Partial<EnquiryType>): EnquiryType =>
@@ -113,5 +113,27 @@ describe("conflictMessage - the gap is a hard block", () => {
       "13:30 for 60 min leaves less than the 60-min gap to Asha's 14:30 visit. Pick another time.",
     );
     expect(conflictMessage({ status: "ok" }, "12:30", 60, 60)).toBeNull();
+  });
+});
+
+describe("the day ends at 8:30 PM (B2 #7)", () => {
+  // 16 Oct 2026 in India, at the given time.
+  const at = (hhmm: string) => new Date(`2026-10-16T${hhmm}:00+05:30`);
+  const visit = (date: string, startTime: string, durationMin = 60) => ({ doctorId: "THR-1", date, startTime, durationMin });
+
+  it("a visit must finish by 8:30 PM", () => {
+    expect(checkConflict(visit("2026-10-20", "19:30"), [], 60, { now: at("10:00") }).status).toBe("ok");
+    expect(checkConflict(visit("2026-10-20", "19:30", 90), [], 60, { now: at("10:00") }).status).toBe("after-hours");
+    expect(conflictMessage({ status: "after-hours" }, "19:30", 90, 60)).toBe(
+      "90 min from 19:30 ends after 8:30 PM - visits must finish by then. Pick an earlier time.",
+    );
+  });
+
+  it("from 8:30 PM today is closed, and the first bookable day is tomorrow", () => {
+    expect(checkConflict(visit("2026-10-16", "17:30"), [], 60, { now: at("20:29") }).status).toBe("ok");
+    expect(checkConflict(visit("2026-10-16", "17:30"), [], 60, { now: at("20:30") }).status).toBe("closed");
+    expect(firstBookableDay(at("20:29"))).toBe("2026-10-16");
+    expect(firstBookableDay(at("20:30"))).toBe("2026-10-17");
+    expect(nowInIndia(at("09:05"))).toEqual({ day: "2026-10-16", min: 545 });
   });
 });

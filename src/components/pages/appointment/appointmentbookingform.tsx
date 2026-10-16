@@ -44,6 +44,7 @@ import { courseDayOffset, perWeekLabel, SESSIONS_PER_WEEK } from "@/lib/course-s
 import {
   checkConflict,
   conflictMessage,
+  firstBookableDay,
   toMinutes,
 } from "@/lib/booking-conflicts";
 import { useGetSessionRates } from "@/data/session-rate/session-rate";
@@ -598,7 +599,7 @@ export default function AppointmentBookingForm() {
                             field.onChange(date ? format(date, "yyyy-MM-dd") : "");
                             setIsCalendarOpen(false);
                           }}
-                          disabled={(date) => date < new Date()}
+                          disabled={(date) => date < new Date(`${firstBookableDay()}T00:00:00`)}
                         />
                       </PopoverContent>
                     </Popover>

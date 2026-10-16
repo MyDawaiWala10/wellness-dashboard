@@ -11,7 +11,7 @@ import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { slotBookingZodType } from "@/type/schema";
 import { TherapistAvailabilityGrid } from "@/components/pages/enquiries/therapist-availability-grid";
-import { checkConflict, conflictMessage, toMinutes } from "@/lib/booking-conflicts";
+import { checkConflict, conflictMessage, firstBookableDay, toMinutes } from "@/lib/booking-conflicts";
 import { toDayKey } from "@/components/pages/enquiries/booking";
 
 /**
@@ -157,7 +157,7 @@ export function AssignTherapistCard({
         className="h-8 w-full sm:w-44"
         value={date}
         onChange={(e) => setDate(e.target.value)}
-        min={new Date().toISOString().split("T")[0]}
+        min={firstBookableDay()}
         aria-label="Visit date"
       />
       <TherapistAvailabilityGrid

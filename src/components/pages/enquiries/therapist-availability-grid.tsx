@@ -28,6 +28,7 @@ import type { TherapistformType } from "@/type/schema";
 import {
   checkConflict,
   conflictMessage,
+  firstBookableDay,
   toMinutes,
   type ConflictResult,
 } from "@/lib/booking-conflicts";
@@ -45,7 +46,6 @@ export const TIME_SLOTS = [
   "17:30",
   "18:30",
   "19:30",
-  "20:30",
 ];
 
 /** Assignable visit lengths, in minutes. */
@@ -265,6 +265,8 @@ export function TherapistAvailabilityGrid({
                       const status = probe?.status ?? "ok";
                       const isBusy = status === "overlap";
                       const isTooClose = status === "too-close";
+                      // Ends after 8:30 PM, or today after 8:30 PM.
+                      const isClosed = status === "after-hours" || status === "closed";
                       const isSelected =
                         selectedDoctorId === doctorId &&
                         selectedStart === cell;
@@ -279,10 +281,14 @@ export function TherapistAvailabilityGrid({
                         <td key={cell} className="p-0.5 text-center">
                           <button
                             type="button"
-                            disabled={isBusy || isTooClose || isOffDay}
+                            disabled={isBusy || isTooClose || isClosed || isOffDay}
                             title={
                               isOffDay
                                 ? `${therapist.name} is off on this day`
+                                : isClosed
+                                  ? status === "closed"
+                                    ? "Bookings for today closed at 8:30 PM"
+                                    : `Visits must finish by 8:30 PM - ${durationMin} min from ${cell} runs past it`
                                 : isBusy
                                   ? `Booked - ${probe?.with?.name ?? "existing visit"}`
                                   : isTooClose
@@ -311,7 +317,7 @@ export function TherapistAvailabilityGrid({
                               "h-6 w-full min-w-[2.25rem] rounded-sm border transition-colors",
                               isOffDay
                                 ? SLOT_STYLE.off
-                                : isBusy
+                                : isBusy || isClosed
                                   ? SLOT_STYLE.busy
                                   : isTooClose
                                     ? SLOT_STYLE.tooClose
@@ -341,8 +347,8 @@ export function TherapistAvailabilityGrid({
         </div>
         <p className="border-t px-2 py-1.5 text-[10px] text-muted-foreground">
           Click a free slot to set the therapist and start time. × = booked, ! =
-          too close to another visit (needs a {gap}-min gap), - = day off. Click a
-          name for their specializations.
+          too close to another visit (needs a {gap}-min gap), - = day off, grey =
+          past 8:30 PM. Click a name for their specializations.
         </p>
       </div>
     </div>
@@ -384,6 +390,8 @@ export function TherapistDayPicker({
   );
   const now = new Date();
   const today = format(now, "yyyy-MM-dd");
+  // From 8:30 PM today can't be booked, so the earliest day is tomorrow.
+  const firstDay = firstBookableDay(now);
   // Earlier today can't be picked.
   const nowMin = date === today ? now.getHours() * 60 + now.getMinutes() : -1;
   const startMin = selectedStart ? toMinutes(selectedStart) : NaN;
@@ -432,7 +440,7 @@ export function TherapistDayPicker({
           variant="outline"
           className="h-8 w-8 shrink-0"
           aria-label="Previous day"
-          disabled={date <= today}
+          disabled={date <= firstDay}
           onClick={() => moveDay(-1)}
         >
           <ChevronLeft className="h-4 w-4" />
@@ -441,7 +449,7 @@ export function TherapistDayPicker({
           type="date"
           aria-label="Day"
           className="h-8 w-auto"
-          min={today}
+          min={firstDay}
           value={date}
           onChange={(e) => e.target.value && changeDay(e.target.value)}
         />
@@ -479,7 +487,8 @@ export function TherapistDayPicker({
             const past = cellMin <= nowMin;
             const busy = status === "overlap";
             const tooClose = status === "too-close";
-            const taken = past || busy || tooClose;
+            const closed = status === "after-hours" || status === "closed";
+            const taken = past || busy || tooClose || closed;
             const picked = cellMin === startMin;
             const covered = cellMin > startMin && cellMin < startMin + durationMin;
             return (
@@ -492,7 +501,11 @@ export function TherapistDayPicker({
                 title={
                   past
                     ? "Already passed"
-                    : busy
+                    : closed
+                      ? status === "closed"
+                        ? "Bookings for today closed at 8:30 PM"
+                        : "Would end after 8:30 PM"
+                      : busy
                       ? "Runs into another visit"
                       : tooClose
                         ? `Needs a ${gap}-min gap to another visit`
@@ -501,7 +514,7 @@ export function TherapistDayPicker({
                 onClick={() => pick(cell.padStart(5, "0"))}
                 className={cn(
                   "h-8 rounded-md border px-2.5 text-xs tabular-nums transition-colors",
-                  past || busy ? SLOT_STYLE.busy : tooClose ? SLOT_STYLE.tooClose : SLOT_STYLE.free,
+                  past || busy || closed ? SLOT_STYLE.busy : tooClose ? SLOT_STYLE.tooClose : SLOT_STYLE.free,
                   covered && !picked && SLOT_STYLE.covered,
                   picked && SLOT_STYLE.picked,
                 )}
@@ -519,7 +532,7 @@ export function TherapistDayPicker({
         </p>
       )}
       <p className="text-[10px] text-muted-foreground">
-        Tap a time. × = booked, ! = too close to another visit (needs a {gap}-min gap).
+        Tap a time. × = booked, ! = too close to another visit (needs a {gap}-min gap). Visits end by 8:30 PM.
       </p>
     </div>
   );

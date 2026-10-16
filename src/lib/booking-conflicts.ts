@@ -16,9 +16,42 @@ export type CandidateVisit = {
 };
 
 export type ConflictResult = {
-  status: "ok" | "overlap" | "too-close";
+  // "after-hours": it would end after 8:30 PM; "closed": today, from 8:30 PM.
+  status: "ok" | "overlap" | "too-close" | "after-hours" | "closed";
   with?: { name: string; time: string };
 };
+
+// The day ends at 8:30 PM (B2 #7): visits finish by then, and from then on
+// nothing more can be booked for today. Mirrors the backend's LAST_END_MIN
+// (lib/bookingService.ts bookingTimeProblem), which refuses the same.
+export const LAST_END_MIN = 20 * 60 + 30;
+
+/** Now in India: today's "yyyy-MM-dd" and minutes since midnight. */
+export function nowInIndia(now = new Date()): { day: string; min: number } {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(now)
+      .map((x) => [x.type, x.value]),
+  );
+  return { day: `${p.year}-${p.month}-${p.day}`, min: Number(p.hour) * 60 + Number(p.minute) };
+}
+
+/** The first day a visit can still be booked: today, or tomorrow from 8:30 PM. */
+export function firstBookableDay(now = new Date()): string {
+  const { day, min } = nowInIndia(now);
+  if (min < LAST_END_MIN) return day;
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
 
 /** The reserved [startMin, endMin] of an existing appointment, or null. */
 function spanOf(
@@ -48,12 +81,15 @@ export function checkConflict(
   candidate: CandidateVisit,
   existing: EnquiryType[],
   gapMinutes: number,
-  opts?: { excludeId?: string; defaultDurationMin?: number },
+  opts?: { excludeId?: string; defaultDurationMin?: number; now?: Date },
 ): ConflictResult {
   const defaultDuration = opts?.defaultDurationMin ?? 60;
   const candStart = toMinutes(candidate.startTime);
   if (Number.isNaN(candStart)) return { status: "ok" };
   const candEnd = candStart + candidate.durationMin;
+  if (candEnd > LAST_END_MIN) return { status: "after-hours" };
+  const india = nowInIndia(opts?.now);
+  if (candidate.date === india.day && india.min >= LAST_END_MIN) return { status: "closed" };
 
   let tooClose: ConflictResult | null = null;
 
@@ -100,6 +136,12 @@ export function conflictMessage(
   }
   if (conflict.status === "too-close") {
     return `${startTime} for ${durationMin} min leaves less than the ${gapMinutes}-min gap to ${other}. Pick another time.`;
+  }
+  if (conflict.status === "after-hours") {
+    return `${durationMin} min from ${startTime} ends after 8:30 PM - visits must finish by then. Pick an earlier time.`;
+  }
+  if (conflict.status === "closed") {
+    return "Bookings for today closed at 8:30 PM - pick tomorrow or later.";
   }
   return null;
 }

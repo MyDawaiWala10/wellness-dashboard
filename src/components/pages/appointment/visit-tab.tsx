@@ -31,6 +31,7 @@ import { AssignTherapistCard } from "./assign-therapist-card";
 import { RecordPaymentForm } from "@/components/record-payment-form";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { format } from "date-fns";
+import { firstBookableDay } from "@/lib/booking-conflicts";
 
 function Step({
   n,
@@ -479,7 +480,7 @@ export function VisitTab({
               className="h-8"
               value={nextDate}
               onChange={(e) => setNextDate(e.target.value)}
-              min={new Date().toISOString().split("T")[0]}
+              min={firstBookableDay()}
               aria-label="Next visit date"
             />
             <Input

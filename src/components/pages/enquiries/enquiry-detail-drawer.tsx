@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { format, startOfToday } from "date-fns";
+import { format } from "date-fns";
 import {
   CalendarIcon,
   Check,
@@ -63,6 +63,7 @@ import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import {
   checkConflict,
   conflictMessage,
+  firstBookableDay,
   toMinutes,
 } from "@/lib/booking-conflicts";
 import createPaymentLink from "@/actions/appointments/create-payment-link";
@@ -1147,7 +1148,7 @@ export function EnquiryDetailDrawer({
                       <Calendar
                         mode="single"
                         selected={assignDate ? new Date(assignDate) : undefined}
-                        disabled={{ before: startOfToday() }}
+                        disabled={{ before: new Date(`${firstBookableDay()}T00:00:00`) }}
                         onSelect={(d) => {
                           if (d) setAssignDate(format(d, "yyyy-MM-dd"));
                           setAssignDateOpen(false);

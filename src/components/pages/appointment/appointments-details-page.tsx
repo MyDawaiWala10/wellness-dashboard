@@ -30,6 +30,7 @@ import { useUpdateAppointment } from "@/data/appointment/appointment";
 import { useAuthStore } from "@/providers/permission-provider";
 import { toast } from "sonner";
 import z from "zod";
+import { firstBookableDay } from "@/lib/booking-conflicts";
 
 interface AppointmentDetailsPageProps {
   data: slotBookingZodType;
@@ -110,7 +111,7 @@ export default function AppointmentDetailsPage({
                   <FormItem>
                     <FormLabel>Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} min={new Date().toISOString().split("T")[0]} />
+                      <Input type="date" {...field} min={firstBookableDay()} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
