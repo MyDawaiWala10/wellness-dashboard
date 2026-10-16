@@ -20,6 +20,7 @@ import createPaymentLink from "@/actions/appointments/create-payment-link";
 import { BookingTermsSection } from "./booking-terms-section";
 import { AddonsVisitSection } from "./visit-sections";
 import { InvoiceSection } from "./invoice-section";
+import { parentIdOf } from "@/lib/visit-groups";
 
 const DOT: Record<string, string> = {
   paid: "bg-emerald-600",
@@ -293,7 +294,8 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
 
       <AddonsVisitSection appointment={appointment} />
       <BookingTermsSection appointment={appointment} />
-      <InvoiceSection appointmentId={appointment._id} />
+      {/* A course session or add-on visit is billed on its booking's invoice. */}
+      <InvoiceSection appointmentId={parentIdOf(appointment) ?? appointment._id} />
     </div>
   );
 }

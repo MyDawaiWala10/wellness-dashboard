@@ -11,6 +11,9 @@ import { BookingIdBadge } from "@/components/booking-id-badge";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { whatsAppLink, toWhatsAppNumber } from "@/lib/whatsapp";
 import { useAuthStore } from "@/providers/permission-provider";
+import { InvoiceDownloadButton } from "@/components/invoice-download-button";
+import { useInvoiceForAppointment } from "@/data/invoice/invoice";
+import { parentIdOf } from "@/lib/visit-groups";
 
 /**
  * Who, how much, how far along - answered before anyone clicks anything.
@@ -37,6 +40,12 @@ export function AppointmentSummaryStrip({
   const isTherapist = useAuthStore((s) => s.user?.role) === "THERAPIST";
   const wa = isTherapist ? null : whatsAppLink(appointment.phonenumber, "");
   const dialable = toWhatsAppNumber(appointment.phonenumber);
+  // The booking's invoice (a course session or add-on visit is billed on its
+  // booking). Invoice routes are office-only, so therapists don't ask.
+  const { data: invoice } = useInvoiceForAppointment(
+    parentIdOf(appointment) ?? appointment._id,
+    { enabled: !isTherapist },
+  );
   const pct = progress
     ? Math.round((progress.completed / progress.total) * 100)
     : 0;
@@ -58,6 +67,7 @@ export function AppointmentSummaryStrip({
           </p>
         </div>
         <div className="flex shrink-0 gap-1.5">
+          {!isTherapist && <InvoiceDownloadButton invoiceId={invoice?.invoice_id} />}
           {mapsUrl && (
             <a
               href={mapsUrl}

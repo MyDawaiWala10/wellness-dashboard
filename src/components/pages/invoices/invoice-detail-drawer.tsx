@@ -39,6 +39,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InvoiceDownloadButton } from "@/components/invoice-download-button";
+import { invoiceStatusLabel } from "@/lib/invoice-status";
 
 function formatINR(n: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -247,12 +249,13 @@ export function InvoiceDetailDrawer({
     >
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="flex items-center justify-between gap-3">
+          <SheetTitle className="flex items-center justify-between gap-3 pr-8">
             <span className="flex items-center gap-2">
               <ReceiptText className="h-4 w-4 text-muted-foreground" />
               {invoice.invoice_id}
             </span>
             <span className="flex items-center gap-2">
+              <InvoiceDownloadButton invoiceId={invoice.invoice_id} />
               {invoice.voided && (
                 <Badge
                   variant="outline"
@@ -262,7 +265,7 @@ export function InvoiceDetailDrawer({
                 </Badge>
               )}
               <Badge variant={invoice.payment_status === "paid" ? "default" : "secondary"}>
-                {invoice.payment_status === "paid" ? "Paid" : "Pending"}
+                {invoiceStatusLabel(invoice)}
               </Badge>
             </span>
           </SheetTitle>

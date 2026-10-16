@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTableColumnHeader } from "@/components/tables/data-table-column-header";
 import type { PersistedInvoice, InvoicePaymentStatus, InvoiceType } from "@/type/invoice";
+import { invoiceStatusLabel } from "@/lib/invoice-status";
 
 function formatINR(n: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -30,10 +31,10 @@ const STATUS_CLASS: Record<InvoicePaymentStatus, string> = {
   pending: "border-amber-600 text-amber-800 bg-amber-50",
 };
 
-function StatusBadge({ status }: { status: InvoicePaymentStatus }) {
+function StatusBadge({ invoice }: { invoice: PersistedInvoice }) {
   return (
-    <Badge variant="outline" className={STATUS_CLASS[status]}>
-      {status === "paid" ? "Paid" : "Pending"}
+    <Badge variant="outline" className={STATUS_CLASS[invoice.payment_status]}>
+      {invoiceStatusLabel(invoice)}
     </Badge>
   );
 }
@@ -117,7 +118,7 @@ export function makeInvoiceColumns({
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Payment" />
       ),
-      cell: ({ row }) => <StatusBadge status={row.original.payment_status} />,
+      cell: ({ row }) => <StatusBadge invoice={row.original} />,
     },
     {
       id: "createdAt",

@@ -10,6 +10,7 @@ import {
 } from "@/data/invoice/invoice";
 import { useAuthStore } from "@/providers/permission-provider";
 import { formatINR } from "@/components/pages/services/services-columns";
+import { invoiceStatusLabel } from "@/lib/invoice-status";
 
 /**
  * The invoice this booking already raised, if any. Read-only on purpose:
@@ -64,7 +65,7 @@ export function InvoiceSection({ appointmentId }: { appointmentId?: string }) {
                     : "text-[10px] text-amber-600"
                 }
               >
-                {invoice.payment_status === "paid" ? "Paid" : "Pending"}
+                {invoiceStatusLabel(invoice)}
               </Badge>
             )}
             <span className="ml-auto font-mono text-[13px] font-semibold tabular-nums">
