@@ -82,11 +82,9 @@ export const enquirySchema = z.object({
     .optional(),
 
   // ── Optional / collected as the funnel progresses ──
-  // preferredReachOutTime is a structured time window the client wants to
-  // be reached in. Required at the intake form level (see the intake
-  // modal's mini-schema) but optional here so legacy records and mid-funnel
-  // records that omit it still validate. Stored as 24h "HH:MM" strings;
-  // formatted for display via formatTimeRange in ./components/pages/enquiries/time-range.
+  // preferredReachOutTime: a call window older leads were asked for (24h
+  // "HH:MM"). No longer asked for or shown (client asked to remove it); kept
+  // so those records still validate.
   preferredReachOutTime: z
     .object({ from: z.string(), to: z.string() })
     .optional(),

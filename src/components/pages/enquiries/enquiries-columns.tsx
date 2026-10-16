@@ -14,7 +14,6 @@ import { DataTableColumnHeader } from "@/components/tables/data-table-column-hea
 import { formatINR } from "@/components/pages/services/services-columns";
 import type { EnquiryType } from "@/type/schema";
 import { EnquiryStatusBadge } from "./enquiry-status-badge";
-import { formatTimeRange } from "./time-range";
 import { bookingTypeLabel, toDayKey } from "./booking";
 import { BookingIdBadge } from "@/components/booking-id-badge";
 import { referralColumn } from "@/components/referral-column";
@@ -223,20 +222,6 @@ export function makeEnquiryColumns({
         />
       ),
       cell: ({ row }) => <EnquiryStatusBadge record={row.original} />,
-    },
-    {
-      id: "preferredReachOutTime",
-      // Sort by window start ("HH:MM" sorts correctly as a 24h string); the cell
-      // still renders the full range from row.original.
-      accessorFn: (r) => r.preferredReachOutTime?.from ?? "",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Preferred call time" />
-      ),
-      cell: ({ row }) => (
-        <span className="text-muted-foreground whitespace-nowrap">
-          {formatTimeRange(row.original.preferredReachOutTime)}
-        </span>
-      ),
     },
     // ── Call tries (only rendered on the Follow-ups view) ──
     ...(showAttempts

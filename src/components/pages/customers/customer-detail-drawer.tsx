@@ -57,17 +57,6 @@ const SEGMENT_CLASS: Record<string, string> = {
   vip: "border-amber-600 text-amber-800 bg-amber-100",
 };
 
-function formatTimeRange(r: { from?: string; to?: string } | undefined) {
-  if (!r?.from || !r?.to) return null;
-  const toAmPm = (hhmm: string) => {
-    const [h, m] = hhmm.split(":").map(Number);
-    if (Number.isNaN(h)) return hhmm;
-    const period = h >= 12 ? "PM" : "AM";
-    const h12 = h % 12 || 12;
-    return `${h12}:${String(m).padStart(2, "0")} ${period}`;
-  };
-  return `${toAmPm(r.from)} - ${toAmPm(r.to)}`;
-}
 
 function TherapistNotes({
   customerId,
@@ -327,7 +316,6 @@ function BookingRow({ booking, index }: { booking: EnquiryType; index: number })
   const createdAt = (booking as unknown as { createdAt?: string }).createdAt;
   const sessionNotes = booking.sessionNotes ?? [];
 
-  const preferred = formatTimeRange(booking.preferredReachOutTime);
 
   return (
     <div className="border rounded-md overflow-hidden">
@@ -370,7 +358,6 @@ function BookingRow({ booking, index }: { booking: EnquiryType; index: number })
       {expanded && (
         <div className="border-t p-3 space-y-2 text-sm bg-muted/30">
           <DetailRow label="Service" value={booking.service ?? booking.typeOfappointment ?? "-"} />
-          <DetailRow label="Preferred time" value={preferred ?? "-"} />
           <DetailRow
             label="Consultation slot"
             value={
