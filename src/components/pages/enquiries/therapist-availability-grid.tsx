@@ -51,6 +51,16 @@ export const TIME_SLOTS = [
 /** Assignable visit lengths, in minutes. */
 const DURATION_OPTIONS = [30, 60, 90, 120];
 
+/** How a slot looks, shared by the grid and the day picker so they match. */
+const SLOT_STYLE = {
+  off: "cursor-not-allowed border-transparent bg-red-500/10 text-red-400/50",
+  busy: "cursor-not-allowed border-transparent bg-muted text-muted-foreground/40",
+  tooClose: "cursor-not-allowed border-transparent bg-amber-500/10 text-amber-700/60 dark:text-amber-400/60",
+  free: "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/25",
+  covered: "border-primary/40 bg-primary/20",
+  picked: "border-primary bg-primary text-primary-foreground hover:bg-primary",
+};
+
 interface TherapistAvailabilityGridProps {
   /** The picked day, "yyyy-MM-dd". */
   date: string;
@@ -300,17 +310,14 @@ export function TherapistAvailabilityGrid({
                             className={cn(
                               "h-6 w-full min-w-[2.25rem] rounded-sm border transition-colors",
                               isOffDay
-                                ? "cursor-not-allowed border-transparent bg-red-500/10 text-red-400/50"
+                                ? SLOT_STYLE.off
                                 : isBusy
-                                  ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/40"
+                                  ? SLOT_STYLE.busy
                                   : isTooClose
-                                    ? "cursor-not-allowed border-transparent bg-amber-500/10 text-amber-700/60 dark:text-amber-400/60"
-                                    : "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/25",
-                              isCovered &&
-                                !isSelected &&
-                                "border-primary/40 bg-primary/20",
-                              isSelected &&
-                                "border-primary bg-primary text-primary-foreground hover:bg-primary",
+                                    ? SLOT_STYLE.tooClose
+                                    : SLOT_STYLE.free,
+                              isCovered && !isSelected && SLOT_STYLE.covered,
+                              isSelected && SLOT_STYLE.picked,
                             )}
                           >
                             {isSelected
@@ -469,7 +476,10 @@ export function TherapistDayPicker({
           {TIME_SLOTS.map((cell) => {
             const status = occupancy.get(`${doctorId}|${cell}`)?.status ?? "ok";
             const cellMin = toMinutes(cell);
-            const taken = status !== "ok" || cellMin <= nowMin;
+            const past = cellMin <= nowMin;
+            const busy = status === "overlap";
+            const tooClose = status === "too-close";
+            const taken = past || busy || tooClose;
             const picked = cellMin === startMin;
             const covered = cellMin > startMin && cellMin < startMin + durationMin;
             return (
@@ -480,25 +490,24 @@ export function TherapistDayPicker({
                 aria-pressed={picked}
                 aria-label={`${cell}${taken ? " (not available)" : ""}`}
                 title={
-                  cellMin <= nowMin
+                  past
                     ? "Already passed"
-                    : status === "overlap"
+                    : busy
                       ? "Runs into another visit"
-                      : status === "too-close"
+                      : tooClose
                         ? `Needs a ${gap}-min gap to another visit`
                         : undefined
                 }
                 onClick={() => pick(cell.padStart(5, "0"))}
                 className={cn(
                   "h-8 rounded-md border px-2.5 text-xs tabular-nums transition-colors",
-                  taken
-                    ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/50 line-through"
-                    : "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/25",
-                  covered && !picked && "border-primary/40 bg-primary/20",
-                  picked && "border-primary bg-primary text-primary-foreground hover:bg-primary",
+                  past || busy ? SLOT_STYLE.busy : tooClose ? SLOT_STYLE.tooClose : SLOT_STYLE.free,
+                  covered && !picked && SLOT_STYLE.covered,
+                  picked && SLOT_STYLE.picked,
                 )}
               >
                 {cell}
+                {picked ? " ✓" : busy ? " ×" : tooClose ? " !" : ""}
               </button>
             );
           })}
@@ -510,7 +519,7 @@ export function TherapistDayPicker({
         </p>
       )}
       <p className="text-[10px] text-muted-foreground">
-        Tap a time. Crossed out = taken, or too close to another visit (needs a {gap}-min gap).
+        Tap a time. × = booked, ! = too close to another visit (needs a {gap}-min gap).
       </p>
     </div>
   );
