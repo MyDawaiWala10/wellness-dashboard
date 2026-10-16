@@ -50,6 +50,9 @@ interface TherapistAvailabilityGridProps {
   selectedStart?: string;
   /** This enquiry's own record - its slot must not count against itself. */
   excludeRecordId?: string;
+  /** Show only this therapist's row (their own day), without the search and
+   *  duration picker: the caller already has those (the add-on form). */
+  doctorId?: string;
   /** Visit length in minutes - controlled by the caller (owns the conflict check). */
   durationMin: number;
   onDurationChange: (d: number) => void;
@@ -74,6 +77,7 @@ export function TherapistAvailabilityGrid({
   selectedDoctorId,
   selectedStart,
   excludeRecordId,
+  doctorId: onlyDoctorId,
   durationMin,
   onDurationChange,
   onPick,
@@ -93,9 +97,12 @@ export function TherapistAvailabilityGrid({
   const all = useMemo(
     () =>
       ((therapists ?? []) as TherapistformType[]).filter(
-        (t) => t.doctorId && t.isActive !== false,
+        (t) =>
+          t.doctorId &&
+          t.isActive !== false &&
+          (!onlyDoctorId || t.doctorId === onlyDoctorId),
       ),
-    [therapists],
+    [therapists, onlyDoctorId],
   );
 
   // Colour every cell by the therapist's EXISTING occupancy, independent of the
@@ -171,35 +178,39 @@ export function TherapistAvailabilityGrid({
 
   return (
     <div className="space-y-2">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          className="h-8 pl-8 text-xs"
-          placeholder="Filter by name or specialization…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </div>
+      {!onlyDoctorId && (
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="h-8 pl-8 text-xs"
+            placeholder="Filter by name or specialization…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+      )}
 
-      <div className="flex items-center gap-1.5 text-xs">
-        <span className="text-muted-foreground">Duration</span>
-        {DURATION_OPTIONS.map((d) => (
-          <button
-            key={d}
-            type="button"
-            onClick={() => onDurationChange(d)}
-            aria-pressed={durationMin === d}
-            className={cn(
-              "rounded border px-2 py-1",
-              durationMin === d
-                ? "border-primary bg-primary/10"
-                : "hover:bg-muted/50",
+      {!onlyDoctorId && (
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className="text-muted-foreground">Duration</span>
+          {DURATION_OPTIONS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => onDurationChange(d)}
+              aria-pressed={durationMin === d}
+              className={cn(
+                "rounded border px-2 py-1",
+                durationMin === d
+                  ? "border-primary bg-primary/10"
+                  : "hover:bg-muted/50",
             )}
           >
             {d}m
           </button>
         ))}
       </div>
+      )}
 
       <div className="rounded-md border">
         <div className="max-h-72 overflow-auto">
@@ -243,11 +254,12 @@ export function TherapistAvailabilityGrid({
                       const status = probe?.status ?? "ok";
                       const isBusy = status === "overlap";
                       const isTooClose = status === "too-close";
+                      // Compared as minutes: a time input gives "09:30", the grid "9:30".
+                      const cellMin = toMinutes(cell);
                       const isSelected =
                         selectedDoctorId === doctorId &&
-                        selectedStart === cell;
+                        cellMin === selectedStartMin;
                       // Cells the chosen span rolls over, between start and end.
-                      const cellMin = toMinutes(cell);
                       const isCovered =
                         selectedDoctorId === doctorId &&
                         !Number.isNaN(selectedStartMin) &&

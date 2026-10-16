@@ -29,6 +29,7 @@ import { addonPaid } from "@/lib/booking-money";
 import { toDayKey } from "@/components/pages/enquiries/booking";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { RecordPaymentForm } from "@/components/record-payment-form";
+import { TherapistAvailabilityGrid } from "@/components/pages/enquiries/therapist-availability-grid";
 import { format } from "date-fns";
 
 const DURATIONS = [30, 60, 90, 120];
@@ -456,6 +457,20 @@ export function AddonsVisitSection({
                   </SelectContent>
                 </Select>
               </div>
+              {/* The therapist's own day, so they pick a time they're free. This
+                  booking's visit doesn't count: a same-day add-on is part of it. */}
+              {appointment.doctorId && date && (
+                <TherapistAvailabilityGrid
+                  doctorId={appointment.doctorId}
+                  date={date}
+                  selectedDoctorId={appointment.doctorId}
+                  selectedStart={time}
+                  excludeRecordId={appointment._id}
+                  durationMin={durationMin}
+                  onDurationChange={setDurationMin}
+                  onPick={(p) => setTime(p.startTime.padStart(5, "0"))}
+                />
+              )}
               {sessions && sessions > 1 && (
                 <label className="flex items-center gap-2 text-xs">
                   Every
