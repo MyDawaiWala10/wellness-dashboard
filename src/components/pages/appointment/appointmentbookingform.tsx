@@ -40,6 +40,7 @@ import { useGetServices } from "@/data/service/service";
 import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { CustomerSearchField } from "@/components/pages/invoices/customer-search-field";
 import { sessionRate, sessionTotal, addonPrice, recommendedAddonTotal } from "@/lib/service-pricing";
+import { courseDayOffset, perWeekLabel, SESSIONS_PER_WEEK } from "@/lib/course-schedule";
 import {
   checkConflict,
   conflictMessage,
@@ -230,6 +231,10 @@ export default function AppointmentBookingForm() {
     if (sourceProblem) return sourceProblem;
     if (isCourse && !(v.sessionNumber && v.sessionNumber >= 1)) {
       return "Enter how many sessions this course is";
+    }
+    // Without it only session 1 would be booked.
+    if (isCourse && (v.sessionNumber ?? 0) > 1 && !v.sessionsPerWeek) {
+      return "Choose how often - once to four times a week";
     }
     if (!(v.quotedPrice && v.quotedPrice > 0)) {
       return isCourse
@@ -730,49 +735,32 @@ export default function AppointmentBookingForm() {
                 />
               )}
 
-              {/* Session frequency: how often follow-up sessions occur */}
+              {/* Session frequency: so many sessions a week (B2 #10 - only the
+                  four the client asked for), spread evenly from the start date. */}
               {isCourse && sessions && sessions > 1 && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Session interval</label>
+                  <label className="text-sm font-medium">How often</label>
                   <Select
-                    value={String(form.watch("sessionIntervalDays") ?? "")}
-                    onValueChange={(v) => {
-                      if (v === "custom") {
-                        form.setValue("sessionIntervalDays", undefined);
-                      } else {
-                        form.setValue("sessionIntervalDays", Number(v));
-                      }
-                    }}
+                    value={String(form.watch("sessionsPerWeek") ?? "")}
+                    onValueChange={(v) => form.setValue("sessionsPerWeek", Number(v))}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="How often?" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="7">Weekly (every 7 days)</SelectItem>
-                      <SelectItem value="14">Biweekly (every 14 days)</SelectItem>
-                      <SelectItem value="3">Every 3 days</SelectItem>
-                      <SelectItem value="30">Monthly (every 30 days)</SelectItem>
-                      <SelectItem value="custom">Custom interval</SelectItem>
+                      {SESSIONS_PER_WEEK.map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {perWeekLabel(n)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                  {form.watch("sessionIntervalDays") === undefined && (
-                    <Input
-                      type="number"
-                      min={1}
-                      placeholder="Custom interval in days"
-                      value=""
-                      onChange={(e) => {
-                        const val = e.target.value === "" ? undefined : Number(e.target.value);
-                        if (val && val > 0) form.setValue("sessionIntervalDays", val);
-                      }}
-                    />
-                  )}
                   {/* Date preview */}
-                  {form.watch("sessionIntervalDays") && selectedDate && (() => {
-                    const interval = form.watch("sessionIntervalDays")!;
+                  {form.watch("sessionsPerWeek") && selectedDate && (() => {
+                    const perWeek = form.watch("sessionsPerWeek")!;
                     const dates = Array.from({ length: sessions }, (_, i) => {
                       const d = new Date(selectedDate);
-                      d.setDate(d.getDate() + i * interval);
+                      d.setDate(d.getDate() + courseDayOffset(i + 1, perWeek));
                       return d;
                     });
                     return (

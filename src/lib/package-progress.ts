@@ -26,7 +26,7 @@ export function courseSessionOf(a: slotBookingZodType): { session: number; total
   if (a.addonOf?.bookingId) return null;
   const total = a.totalSessions ?? 0;
   if (a.packageOriginId && a.packageOriginId !== a._id) return { session: a.sessionNumber ?? 1, total };
-  if (a.bookingKind === "course" && total > 1 && (a.sessionIntervalDays ?? 0) > 0) return { session: 1, total };
+  if (a.bookingKind === "course" && total > 1 && ((a.sessionIntervalDays ?? 0) > 0 || (a.sessionsPerWeek ?? 0) > 0)) return { session: 1, total };
   return null;
 }
 

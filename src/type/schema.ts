@@ -218,6 +218,8 @@ export const enquirySchema = z.object({
   // Ad-hoc multi-session tracking + per-session report log.
   totalSessions: z.number().optional(),
   sessionIntervalDays: z.number().optional(),
+  // So many sessions a week (1-4); newer courses use this instead of the interval.
+  sessionsPerWeek: z.number().int().min(1).max(4).optional(),
   sessionNotes: z
     .array(
       z.object({
