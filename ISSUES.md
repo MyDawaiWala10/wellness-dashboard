@@ -639,6 +639,32 @@ The website booking form started asking for gender and age on 2026-10-13, but on
 
 ---
 
+### 25. Checkout Raised a Duplicate Invoice Instead of Updating the Booking's (B1 #11)
+
+**Severity:** High
+**Status:** Fixed (2026-10-16); one stray invoice to void by hand (below)
+**Category:** Money
+**Affected Pages:** Invoices, booking Billing tab
+
+#### Description
+The invoice code treated every booking row as the one holding the money. A course's later sessions and add-on visits keep their money on the booking they belong to (`moneyRowFor`), but completing one synced the invoice against the visit's own row. That row had no invoice and was now "completed", so a brand-new invoice was raised for its share, while the booking's real invoice never updated. Add-ons recommended during a later session were also missing from the booking's invoice. In production this left **INV-2026-0054** ("Therapy ₹1,600, pending") on ENQ-0107, session 4 of ENQ-0104's course, which is already billed and fully paid on INV-2026-0052.
+
+Separately, an invoice with money in but a balance left read "Pending", because the stored status is only paid or pending.
+
+#### Fix
+- Every invoice trigger (checkout, payment, booking save, add-on lock) resolves the booking that holds the money and updates its one invoice. That invoice bills add-ons from all of its visits; a visit never gets an invoice of its own.
+- "Part paid" when money is in but a balance remains: dashboard list, drawer, Billing tab (one helper) and the PDF.
+- Download button (B1 #10): top right of the invoice drawer, and next to Location and Call on the booking panel. Opens the PDF, made fresh when the numbers changed.
+
+#### To do by hand
+Void **INV-2026-0054** on the Invoices page, reason "Duplicate: session 4 of ENQ-0104 is billed on INV-2026-0052". Voiding keeps the GST invoice number on record; deleting would leave a gap.
+
+#### Affected Code
+- Backend: `lib/invoiceGeneration.ts` (`billedBooking`), `lib/invoicePdf.ts`, `lib/invoiceBilling.test.ts`
+- Dashboard: `src/lib/invoice-status.ts`, `src/components/invoice-download-button.tsx`, invoice drawer, invoices list, Billing tab, booking summary strip
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -667,3 +693,4 @@ The website booking form started asking for gender and age on 2026-10-13, but on
 | 22 | Patient website OTP: 4-digit codes, no verify rate limit | High | Open (website) |
 | 23 | "Unexpected response from the server" after sleep / Wi-Fi drop | Medium | Fixed |
 | 24 | Website gender and age never reached the customer record | High | Fixed |
+| 25 | Checkout raised a duplicate invoice instead of updating the booking's | High | Fixed (void INV-2026-0054 by hand) |
