@@ -62,8 +62,8 @@ import {
 import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import {
   checkConflict,
+  conflictMessage,
   toMinutes,
-  type ConflictResult,
 } from "@/lib/booking-conflicts";
 import createPaymentLink from "@/actions/appointments/create-payment-link";
 import { useGetServices } from "@/data/service/service";
@@ -221,13 +221,6 @@ export function EnquiryDetailDrawer({
   // Visit length owned by the drawer - the grid is a controlled child. Seeded
   // from the record's saved span on open (see the seed effect below).
   const [assignDuration, setAssignDuration] = useState(60);
-  // A too-close candidate is staged here (with its already-built change and any
-  // reassign reason) until the exec confirms the warn dialog.
-  const [pendingTooClose, setPendingTooClose] = useState<{
-    change: Partial<EnquiryType>;
-    conflict: ConflictResult;
-    reason?: string;
-  } | null>(null);
   // Once assigned the grid collapses to a summary; "Change" re-opens it. Keeps
   // a settled booking from being one stray click away from a reassignment.
   const [editingAssignment, setEditingAssignment] = useState(false);
@@ -292,7 +285,6 @@ export function EnquiryDetailDrawer({
         ? seededDuration
         : 60,
     );
-    setPendingTooClose(null);
     setEditingAssignment(false);
   }, [record?._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -552,10 +544,8 @@ export function EnquiryDetailDrawer({
   }
 
   // Run the conflict check over the FULL candidate span, then gate the save:
-  //   overlap   → blocked with a toast (never reaches the warn dialog),
-  //   too-close → stage it and open the soft-warn dialog,
-  //   ok        → save straight through.
-  // A reassignment `reason` rides along so it survives the warn dialog detour.
+  // an overlap or less than the booking gap is blocked with a toast (no
+  // override; the server refuses it too), otherwise it saves.
   function attemptSave(change: Partial<EnquiryType>, reason?: string) {
     if (!assignPick) return;
     const conflict = checkConflict(
@@ -569,14 +559,9 @@ export function EnquiryDetailDrawer({
       gapMinutes,
       { excludeId: draft?._id },
     );
-    if (conflict.status === "overlap") {
-      toast.error(
-        `${assignDuration} min from ${assignPick.time} runs into ${conflict.with?.name}'s ${conflict.with?.time} visit - shorten it or pick another start.`,
-      );
-      return;
-    }
-    if (conflict.status === "too-close") {
-      setPendingTooClose({ change, conflict, reason });
+    const blocked = conflictMessage(conflict, assignPick.time, assignDuration, gapMinutes);
+    if (blocked) {
+      toast.error(blocked);
       return;
     }
     save(change, true, reason);
@@ -1595,40 +1580,6 @@ export function EnquiryDetailDrawer({
       </AlertDialogContent>
     </AlertDialog>
 
-    {/* T9: soft-warn when the start is within the booking gap of another visit.
-        Overlap never reaches here - it's blocked at the toast in attemptSave. */}
-    <AlertDialog
-      open={pendingTooClose !== null}
-      onOpenChange={(o) => {
-        if (!o) setPendingTooClose(null);
-      }}
-    >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Within the booking gap</AlertDialogTitle>
-          <AlertDialogDescription>
-            This start is within {gapMinutes} min of{" "}
-            {pendingTooClose?.conflict.with?.name}&apos;s{" "}
-            {pendingTooClose?.conflict.with?.time} visit. Book anyway?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setPendingTooClose(null)}>
-            Cancel
-          </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault();
-              const p = pendingTooClose;
-              setPendingTooClose(null);
-              if (p) save(p.change, true, p.reason);
-            }}
-          >
-            Book anyway
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
     </>
   );
 }

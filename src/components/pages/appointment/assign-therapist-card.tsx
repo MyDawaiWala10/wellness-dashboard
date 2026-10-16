@@ -11,7 +11,7 @@ import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { slotBookingZodType } from "@/type/schema";
 import { TherapistAvailabilityGrid } from "@/components/pages/enquiries/therapist-availability-grid";
-import { checkConflict, toMinutes } from "@/lib/booking-conflicts";
+import { checkConflict, conflictMessage, toMinutes } from "@/lib/booking-conflicts";
 import { toDayKey } from "@/components/pages/enquiries/booking";
 
 /**
@@ -89,10 +89,9 @@ export function AssignTherapistCard({
       gapMinutes,
       { excludeId: appointment._id },
     );
-    if (conflict.status === "overlap") {
-      toast.error(
-        `${durationMin} min from ${pick.startTime} runs into ${conflict.with?.name}'s ${conflict.with?.time} visit - shorten it or pick another start.`,
-      );
+    const blocked = conflictMessage(conflict, pick.startTime, durationMin, gapMinutes);
+    if (blocked) {
+      toast.error(blocked);
       return;
     }
 

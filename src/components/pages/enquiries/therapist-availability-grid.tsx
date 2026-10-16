@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { addDays, format, parseISO } from "date-fns";
 
@@ -27,6 +27,7 @@ import { useAuthStore } from "@/providers/permission-provider";
 import type { TherapistformType } from "@/type/schema";
 import {
   checkConflict,
+  conflictMessage,
   toMinutes,
   type ConflictResult,
 } from "@/lib/booking-conflicts";
@@ -71,11 +72,11 @@ interface TherapistAvailabilityGridProps {
 }
 
 /**
- * Free/busy for every active therapist at each slot on one day, plus who is off.
- * Shared by the all-therapists grid and the one-therapist day picker so both
- * read availability the same way.
+ * Whether a visit of `durationMin` can START at each slot, for every active
+ * therapist on one day, plus who is off. Shared by the all-therapists grid and
+ * the one-therapist day picker so both read availability the same way.
  */
-function useDayAvailability(date: string, excludeRecordId?: string) {
+function useDayAvailability(date: string, durationMin: number, excludeRecordId?: string) {
   const { data: therapists } = useGetAllTherapist();
   const authUser = useAuthStore((s) => s.user);
   const { data: appointments = [] } = useGetAllAppointments({
@@ -95,10 +96,10 @@ function useDayAvailability(date: string, excludeRecordId?: string) {
     [therapists],
   );
 
-  // Colour every cell by the therapist's EXISTING occupancy, independent of the
-  // chosen duration: probe a minimal visit at each slot with the same span logic
-  // the confirm step uses. "overlap" = busy (can't start here), "too-close" =
-  // within the booking gap (still clickable, soft-warn), "ok" = free.
+  // Probe a visit of the chosen length at each slot, with the same check the
+  // confirm step uses. "overlap" = it would run into a visit, "too-close" = it
+  // would leave less than the booking gap; both are blocked (client rule, no
+  // override). "ok" = free.
   const occupancy = useMemo(() => {
     const map = new Map<string, ConflictResult>();
     for (const t of all) {
@@ -107,7 +108,7 @@ function useDayAvailability(date: string, excludeRecordId?: string) {
         map.set(
           `${doctorId}|${cell}`,
           checkConflict(
-            { doctorId, date, startTime: cell, durationMin: 1 },
+            { doctorId, date, startTime: cell, durationMin },
             appointments,
             gap,
             { excludeId: excludeRecordId },
@@ -116,7 +117,7 @@ function useDayAvailability(date: string, excludeRecordId?: string) {
       }
     }
     return map;
-  }, [all, appointments, date, gap, excludeRecordId]);
+  }, [all, appointments, date, durationMin, gap, excludeRecordId]);
 
   // Who is off on this date (weekly off-days + leave blocks).
   const offDayDoctorIds = useMemo(() => {
@@ -131,7 +132,7 @@ function useDayAvailability(date: string, excludeRecordId?: string) {
     return ids;
   }, [all, allLeaves, date]);
 
-  return { all, occupancy, offDayDoctorIds, gap };
+  return { all, occupancy, offDayDoctorIds, gap, appointments };
 }
 
 /**
@@ -151,7 +152,7 @@ export function TherapistAvailabilityGrid({
   onDurationChange,
   onPick,
 }: TherapistAvailabilityGridProps) {
-  const { all, occupancy, offDayDoctorIds, gap } = useDayAvailability(date, excludeRecordId);
+  const { all, occupancy, offDayDoctorIds, gap } = useDayAvailability(date, durationMin, excludeRecordId);
   const [query, setQuery] = useState("");
 
   // Search matches name OR specialization, so an executive can find "who does
@@ -268,14 +269,14 @@ export function TherapistAvailabilityGrid({
                         <td key={cell} className="p-0.5 text-center">
                           <button
                             type="button"
-                            disabled={isBusy || isOffDay}
+                            disabled={isBusy || isTooClose || isOffDay}
                             title={
                               isOffDay
                                 ? `${therapist.name} is off on this day`
                                 : isBusy
                                   ? `Booked - ${probe?.with?.name ?? "existing visit"}`
                                   : isTooClose
-                                    ? `${therapist.name} · ${cell} - within the ${gap}-min booking gap`
+                                    ? `${therapist.name} · ${cell} - needs the ${gap}-min gap to ${probe?.with?.name ?? "another"}'s ${probe?.with?.time ?? ""} visit`
                                     : `${therapist.name} · ${cell}`
                             }
                             aria-label={`${therapist.name} at ${cell}${
@@ -284,7 +285,7 @@ export function TherapistAvailabilityGrid({
                                 : isBusy
                                   ? " (booked)"
                                   : isTooClose
-                                    ? " (within booking gap)"
+                                    ? " (too close to another visit)"
                                     : ""
                             }`}
                             aria-pressed={isSelected}
@@ -303,7 +304,7 @@ export function TherapistAvailabilityGrid({
                                 : isBusy
                                   ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/40"
                                   : isTooClose
-                                    ? "border-amber-500/40 bg-amber-500/15 text-amber-700 hover:bg-amber-500/30 dark:text-amber-400"
+                                    ? "cursor-not-allowed border-transparent bg-amber-500/10 text-amber-700/60 dark:text-amber-400/60"
                                     : "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/25",
                               isCovered &&
                                 !isSelected &&
@@ -333,8 +334,8 @@ export function TherapistAvailabilityGrid({
         </div>
         <p className="border-t px-2 py-1.5 text-[10px] text-muted-foreground">
           Click a free slot to set the therapist and start time. × = booked, ! =
-          within the {gap}-min booking gap, - = day off. Click a name for their
-          specializations.
+          too close to another visit (needs a {gap}-min gap), - = day off. Click a
+          name for their specializations.
         </p>
       </div>
     </div>
@@ -369,14 +370,51 @@ export function TherapistDayPicker({
   /** Gets "HH:MM" (zero-padded). */
   onPick: (startTime: string) => void;
 }) {
-  const { occupancy, offDayDoctorIds } = useDayAvailability(date, excludeRecordId);
+  const { occupancy, offDayDoctorIds, gap, appointments } = useDayAvailability(
+    date,
+    durationMin,
+    excludeRecordId,
+  );
   const now = new Date();
   const today = format(now, "yyyy-MM-dd");
   // Earlier today can't be picked.
   const nowMin = date === today ? now.getHours() * 60 + now.getMinutes() : -1;
   const startMin = selectedStart ? toMinutes(selectedStart) : NaN;
+
+  // The chosen time can stop fitting (the length went up, or it was a default):
+  // say why, and clear it so nothing can be booked until a free time is tapped.
+  const [warning, setWarning] = useState<string | null>(null);
+  const problem = !selectedStart
+    ? null
+    : startMin <= nowMin
+      ? `${selectedStart} has already passed. Pick another time.`
+      : conflictMessage(
+          checkConflict(
+            { doctorId, date, startTime: selectedStart, durationMin },
+            appointments,
+            gap,
+            { excludeId: excludeRecordId },
+          ),
+          selectedStart,
+          durationMin,
+          gap,
+        );
+  useEffect(() => {
+    if (!problem) return;
+    setWarning(problem);
+    onPick("");
+  }, [problem]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pick = (startTime: string) => {
+    setWarning(null);
+    onPick(startTime);
+  };
+  const changeDay = (next: string) => {
+    setWarning(null);
+    onDateChange(next);
+  };
   const moveDay = (days: number) =>
-    onDateChange(format(addDays(parseISO(date), days), "yyyy-MM-dd"));
+    changeDay(format(addDays(parseISO(date), days), "yyyy-MM-dd"));
 
   return (
     <div className="space-y-2">
@@ -398,7 +436,7 @@ export function TherapistDayPicker({
           className="h-8 w-auto"
           min={today}
           value={date}
-          onChange={(e) => e.target.value && onDateChange(e.target.value)}
+          onChange={(e) => e.target.value && changeDay(e.target.value)}
         />
         <Button
           type="button"
@@ -431,7 +469,7 @@ export function TherapistDayPicker({
           {TIME_SLOTS.map((cell) => {
             const status = occupancy.get(`${doctorId}|${cell}`)?.status ?? "ok";
             const cellMin = toMinutes(cell);
-            const taken = status === "overlap" || cellMin <= nowMin;
+            const taken = status !== "ok" || cellMin <= nowMin;
             const picked = cellMin === startMin;
             const covered = cellMin > startMin && cellMin < startMin + durationMin;
             return (
@@ -440,15 +478,22 @@ export function TherapistDayPicker({
                 type="button"
                 disabled={taken}
                 aria-pressed={picked}
-                aria-label={`${cell}${taken ? " (not available)" : status === "too-close" ? " (close to another visit)" : ""}`}
-                onClick={() => onPick(cell.padStart(5, "0"))}
+                aria-label={`${cell}${taken ? " (not available)" : ""}`}
+                title={
+                  cellMin <= nowMin
+                    ? "Already passed"
+                    : status === "overlap"
+                      ? "Runs into another visit"
+                      : status === "too-close"
+                        ? `Needs a ${gap}-min gap to another visit`
+                        : undefined
+                }
+                onClick={() => pick(cell.padStart(5, "0"))}
                 className={cn(
                   "h-8 rounded-md border px-2.5 text-xs tabular-nums transition-colors",
                   taken
                     ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/50 line-through"
-                    : status === "too-close"
-                      ? "border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400"
-                      : "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/25",
+                    : "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/25",
                   covered && !picked && "border-primary/40 bg-primary/20",
                   picked && "border-primary bg-primary text-primary-foreground hover:bg-primary",
                 )}
@@ -459,8 +504,13 @@ export function TherapistDayPicker({
           })}
         </div>
       )}
+      {warning && (
+        <p role="alert" className="text-xs text-destructive">
+          {warning}
+        </p>
+      )}
       <p className="text-[10px] text-muted-foreground">
-        Tap a time. Crossed out = taken, amber = close to another visit.
+        Tap a time. Crossed out = taken, or too close to another visit (needs a {gap}-min gap).
       </p>
     </div>
   );

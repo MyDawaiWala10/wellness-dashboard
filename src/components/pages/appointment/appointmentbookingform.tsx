@@ -20,16 +20,6 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { slotBookingZodSchema } from "@/type/schema";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -52,8 +42,8 @@ import { CustomerSearchField } from "@/components/pages/invoices/customer-search
 import { sessionRate, sessionTotal, addonPrice, recommendedAddonTotal } from "@/lib/service-pricing";
 import {
   checkConflict,
+  conflictMessage,
   toMinutes,
-  type ConflictResult,
 } from "@/lib/booking-conflicts";
 import { useGetSessionRates } from "@/data/session-rate/session-rate";
 import { useAuthStore } from "@/providers/permission-provider";
@@ -79,12 +69,6 @@ export default function AppointmentBookingForm() {
   // Visit length that drives the therapy span (therapyStartTime/EndTime) and
   // the conflict check below - same control + default as the enquiry side.
   const [durationMin, setDurationMin] = useState(60);
-  // A too-close candidate is staged here (with its already-built payload)
-  // until the exec confirms the soft-warn dialog.
-  const [pendingTooClose, setPendingTooClose] = useState<{
-    payload: z.infer<typeof slotBookingZodSchema>;
-    conflict: ConflictResult;
-  } | null>(null);
 
   const mutation = useBookAppointment();
   const queryClient = useQueryClient();
@@ -446,10 +430,8 @@ export default function AppointmentBookingForm() {
   }
 
   // Run the conflict check over the FULL candidate span, then gate the save:
-  //   overlap   → blocked with a toast (never reaches the warn dialog),
-  //   too-close → stage the payload and open the soft-warn dialog,
-  //   ok        → submit straight through.
-  // Mirrors enquiry-detail-drawer.tsx's attemptSave.
+  // an overlap or less than the booking gap is blocked with a toast (no
+  // override; the server refuses it too). Mirrors enquiry-detail-drawer.tsx.
   function onSubmit(values: z.infer<typeof slotBookingZodSchema>) {
     // Branch rules live here, not in slotBookingZodSchema: that schema is shared
     // with the enquiry funnel and the drawer's edit form, where a missing price
@@ -471,19 +453,12 @@ export default function AppointmentBookingForm() {
       gapMinutes,
     );
 
-    if (conflict.status === "overlap") {
-      toast.error(
-        `${durationMin} min from ${values.slot?.time} runs into ${conflict.with?.name}'s ${conflict.with?.time} visit - shorten it or pick another start.`,
-      );
+    const conflictBlocked = conflictMessage(conflict, values.slot?.time ?? "", durationMin, gapMinutes);
+    if (conflictBlocked) {
+      toast.error(conflictBlocked);
       return;
     }
-
-    const payload = buildPayload(values);
-    if (conflict.status === "too-close") {
-      setPendingTooClose({ payload, conflict });
-      return;
-    }
-    submitBooking(payload);
+    submitBooking(buildPayload(values));
   }
 
   function handleDialogChange(open: boolean) {
@@ -494,12 +469,10 @@ export default function AppointmentBookingForm() {
       setStacked([]);
       setDurationMin(60);
       setSkipReason("");
-      setPendingTooClose(null);
     }
   }
 
   return (
-    <>
     <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
       <DialogTrigger asChild>
         <Button className="flex justify-center items-center gap-1">
@@ -1176,44 +1149,5 @@ export default function AppointmentBookingForm() {
         </Form>
       </DialogContent>
     </Dialog>
-
-    {/* Soft-warn when the start is within the booking gap of another visit.
-        Overlap never reaches here - it's blocked with a toast in onSubmit.
-        Rendered as a sibling of Dialog (not nested in DialogContent) so it
-        isn't caught in the Dialog overlay's pointer-events trap - same
-        pattern as enquiry-detail-drawer.tsx. */}
-    <AlertDialog
-      open={pendingTooClose !== null}
-      onOpenChange={(o) => {
-        if (!o) setPendingTooClose(null);
-      }}
-    >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Within the booking gap</AlertDialogTitle>
-          <AlertDialogDescription>
-            This start is within {gapMinutes} min of{" "}
-            {pendingTooClose?.conflict.with?.name}&apos;s{" "}
-            {pendingTooClose?.conflict.with?.time} visit. Book anyway?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setPendingTooClose(null)}>
-            Cancel
-          </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault();
-              const p = pendingTooClose;
-              setPendingTooClose(null);
-              if (p) submitBooking(p.payload);
-            }}
-          >
-            Book anyway
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-    </>
   );
 }

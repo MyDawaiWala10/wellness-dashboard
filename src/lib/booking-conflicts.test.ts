@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toMinutes, checkConflict } from "./booking-conflicts";
+import { toMinutes, checkConflict, conflictMessage } from "./booking-conflicts";
 import type { EnquiryType } from "@/type/schema";
 
 const visit = (over: Partial<EnquiryType>): EnquiryType =>
@@ -100,5 +100,18 @@ describe("checkConflict - appointment data filter logic", () => {
         r.appointmentKind !== "recommended",
     );
     expect(filtered).toHaveLength(2); // first and third records
+  });
+});
+
+describe("conflictMessage - the gap is a hard block", () => {
+  const visit = { name: "Asha", time: "14:30" };
+  it("explains an overlap and a too-close start; a free start has none", () => {
+    expect(conflictMessage({ status: "overlap", with: visit }, "14:00", 60, 60)).toBe(
+      "60 min from 14:00 runs into Asha's 14:30 visit. Pick another time.",
+    );
+    expect(conflictMessage({ status: "too-close", with: visit }, "13:30", 60, 60)).toBe(
+      "13:30 for 60 min leaves less than the 60-min gap to Asha's 14:30 visit. Pick another time.",
+    );
+    expect(conflictMessage({ status: "ok" }, "12:30", 60, 60)).toBeNull();
   });
 });
