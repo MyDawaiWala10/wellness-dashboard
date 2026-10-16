@@ -172,8 +172,17 @@ export function useCompleteSession() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: async ({ appointmentId, note }: { appointmentId: string; note?: string }) => {
-      const result = await completeSession(appointmentId, note);
+    mutationFn: async ({
+      appointmentId,
+      note,
+      performed,
+    }: {
+      appointmentId: string;
+      note?: string;
+      /** "Service performed" is ticked (its own save may still be on the way). */
+      performed?: boolean;
+    }) => {
+      const result = await completeSession(appointmentId, note, performed);
       if (!result.success) throw new Error(result.message);
       return { ...result, appointmentId };
     },

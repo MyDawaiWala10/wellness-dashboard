@@ -30,6 +30,7 @@ import { SendVisitOtpButton, visitCodeStatus } from "@/components/send-visit-otp
 import { AssignTherapistCard } from "./assign-therapist-card";
 import { RecordPaymentForm } from "@/components/record-payment-form";
 import { formatINR } from "@/components/pages/services/services-columns";
+import { format } from "date-fns";
 
 function Step({
   n,
@@ -64,6 +65,33 @@ function Step({
   );
 }
 
+type SessionRecord = NonNullable<slotBookingZodType["sessionNotes"]>[number];
+
+/**
+ * What was recorded for a completed visit. Completing clears the checklist
+ * and note for the next visit (the note is filed in History), so the empty
+ * boxes said nothing about what happened; this reads the filed record.
+ */
+function RecordedVisit({ entry }: { entry?: SessionRecord }) {
+  const when = (iso?: string) => (iso ? format(new Date(iso), "d MMM yyyy, h:mm a") : "");
+  return (
+    <div className="space-y-1.5 rounded-md border bg-muted/30 px-3 py-2.5 text-[13px]">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">What was recorded</p>
+      {entry?.verifiedAt && <p>Code verified {when(entry.verifiedAt)}</p>}
+      {entry?.performed !== undefined && (
+        <p>Service performed: {entry.performed ? "Yes" : "Not ticked"}</p>
+      )}
+      <p className="whitespace-pre-wrap">
+        Note: {entry?.note?.trim() ? entry.note : <span className="text-muted-foreground">none written</span>}
+      </p>
+      {entry?.at && (
+        <p className="text-[11px] text-muted-foreground">
+          Completed {when(entry.at)}{entry.by ? ` by ${entry.by}` : ""}
+        </p>
+      )}
+    </div>
+  );
+}
 /**
  * The therapist's half of the panel, in the order the visit actually happens:
  * mark arrival, verify you are with the customer, write the note, complete.
@@ -113,6 +141,8 @@ export function VisitTab({
   const done = new Set(draft.workChecklist ?? []);
   const actor =
     `${user?.userfName ?? ""} ${user?.userlName ?? ""}`.trim() || "Someone";
+  // A therapist finishes once the work is recorded (the server refuses it too).
+  const workRecorded = done.has("performed") && note.trim().length > 0;
   const progress = getPackageProgressForAppointment(draft, [draft], services);
   const isMulti = !!progress;
   const packageDone = !!progress && progress.completed >= progress.total;
@@ -174,7 +204,11 @@ export function VisitTab({
     // endpoint, which snapshots the therapist's note into sessionNotes.
     if (appointment._id) {
       markSessionComplete(
-        { appointmentId: appointment._id, note: note.trim() || undefined },
+        {
+          appointmentId: appointment._id,
+          note: note.trim() || undefined,
+          performed: done.has("performed"),
+        },
         {
           onSuccess: (result) => {
             if (result.data) setDraft(result.data as slotBookingZodType);
@@ -206,13 +240,17 @@ export function VisitTab({
 
       {/* There is no visit to run until someone is assigned to it. */}
       {!appointment.doctorId ? null : (
-    <div className={`space-y-4 rounded-lg border p-3 ${draft.status === "completed" ? "opacity-50 pointer-events-none" : ""}`}>
+    <div className="space-y-4 rounded-lg border p-3">
       {packageDone && (
         <p className="rounded-md border border-emerald-200 bg-emerald-50/50 px-2.5 py-2 text-xs font-medium text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
           All {progress?.total} sessions are done. Nothing left to record.
         </p>
       )}
 
+      {draft.status === "completed" ? (
+        <RecordedVisit entry={draft.sessionNotes?.at(-1)} />
+      ) : (
+      <>
       <Step
         n={1}
         done={verified}
@@ -356,6 +394,8 @@ export function VisitTab({
         />
         )}
       </Step>
+      </>
+      )}
 
       <Step n={4} title="Finish">
         {draft.status === "completed" ? (
@@ -374,11 +414,12 @@ export function VisitTab({
             The therapist completes the visit.
           </p>
         ) : (
+          <>
           <Button
             type="button"
             size="sm"
             className="w-full"
-            disabled={isCompleting || packageDone || !verified}
+            disabled={isCompleting || packageDone || !verified || (isTherapist && !workRecorded)}
             onClick={() => (isTherapist ? complete() : setConfirmAdminComplete(true))}
           >
             {isCompleting ? (
@@ -390,6 +431,16 @@ export function VisitTab({
               label
             )}
           </Button>
+          {isTherapist && verified && !workRecorded && (
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              {done.has("performed")
+                ? "Write the session note to finish."
+                : note.trim()
+                  ? "Tick Service performed to finish."
+                  : "Tick Service performed and write the session note to finish."}
+            </p>
+          )}
+          </>
         )}
       </Step>
 

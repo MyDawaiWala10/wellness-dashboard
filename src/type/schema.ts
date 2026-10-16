@@ -228,6 +228,9 @@ export const enquirySchema = z.object({
         note: z.string().optional(),
         therapist: z.string().optional(),
         by: z.string().optional(),
+        // What was recorded: Service performed, and when the code was verified.
+        performed: z.boolean().optional(),
+        verifiedAt: z.string().optional(),
       }),
     )
     .optional(),
