@@ -227,47 +227,47 @@ export default function AppointmentDetailsPage({
           </div>
         </div>
 
-        {/* Actions sit under the fields they act on. */}
-        <div className="mt-4 flex items-center justify-between gap-2">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="text-muted-foreground"
-                disabled={isCancelling || isUpdating}
-              >
-                {isCancelling ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Cancelling...
-                  </>
-                ) : (
-                  "Cancel appointment"
-                )}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Cancel this appointment?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  It will be marked as cancelled and kept on record. Sessions,
-                  add-ons, and customer details all stay saved. It won&apos;t be
-                  deleted.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Keep it</AlertDialogCancel>
-                <AlertDialogAction onClick={handleCancelAppointment}>
-                  Cancel appointment
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+        {/* Actions sit under the fields they act on. A therapist has none here:
+            no reschedule, no customer edits, and only the office cancels. */}
+        {!isTherapist && (
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="text-muted-foreground"
+                  disabled={isCancelling || isUpdating}
+                >
+                  {isCancelling ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Cancelling...
+                    </>
+                  ) : (
+                    "Cancel appointment"
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancel this appointment?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    It will be marked as cancelled and kept on record. Sessions,
+                    add-ons, and customer details all stay saved. It won&apos;t be
+                    deleted.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep it</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleCancelAppointment}>
+                    Cancel appointment
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
 
-          {/* A therapist has nothing to save here (no reschedule, no customer edits). */}
-          {!isTherapist && (
             <Button type="submit" size="sm" disabled={isUpdating || isCancelling}>
               {isUpdating ? (
                 <>
@@ -278,8 +278,8 @@ export default function AppointmentDetailsPage({
                 "Save changes"
               )}
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </form>
     </Form>
   );
