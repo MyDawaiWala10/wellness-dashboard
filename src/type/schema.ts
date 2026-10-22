@@ -407,6 +407,44 @@ export const sessionTierSchema = z.object({
 });
 export type SessionRateTier = z.infer<typeof sessionTierSchema>;
 
+// ── Discount / Offer catalog ─────────────────────────────────────────────────
+// One entity (per qoder-discount.md §2.2A) that covers both what the earlier
+// plan called "coupons" and "discounts". The frontend mirror of the backend
+// `offerModel`; the server is authoritative for money (see src/lib/offers.ts).
+export const offerRoleFloorSchema = z.enum(["STAFF", "ADMIN", "SUPER_ADMIN"]);
+export const offerAppliesToSchema = z.enum([
+  "all",
+  "services",
+  "courses",
+  "add_ons",
+]);
+export const offerSchema = z.object({
+  _id: z.string().optional(),
+  name: z.string().min(1, "Name required"),
+  // Optional code enables the "type a code" path; unique+sparse on the backend.
+  code: z.string().optional().or(z.literal("")),
+  kind: z.enum(["fixed", "percent"]),
+  amount: z.number().nonnegative(),
+  // Cap, in ₹. Required for percent so nothing can go 100% (see plan §6).
+  maxOff: z.number().nonnegative().nullable().optional(),
+  appliesTo: offerAppliesToSchema.optional(),
+  serviceIds: z.array(z.string()).optional(),
+  // Lowest role that may apply this offer; default STAFF.
+  minRole: offerRoleFloorSchema.optional(),
+  // Whose cut shrinks (plan §3.2). Backend-only day 1, default "company".
+  absorbedBy: z.enum(["company", "therapist"]).optional(),
+  validFrom: z.string().nullable().optional(),
+  validUntil: z.string().nullable().optional(),
+  // null totalUses = unlimited; usedCount bumped atomically on the server.
+  totalUses: z.number().int().nonnegative().nullable().optional(),
+  usedCount: z.number().int().nonnegative().optional(),
+  oncePerPhone: z.boolean().optional(),
+  noteRequired: z.boolean().optional(),
+  active: z.boolean().optional(),
+  createdBy: z.object({ name: z.string(), at: z.string() }).optional(),
+});
+export type Offer = z.infer<typeof offerSchema>;
+
 export type UserType = {
   id: string | undefined;
   role: string | undefined;
