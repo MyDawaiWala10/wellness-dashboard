@@ -420,6 +420,8 @@ export const offerAppliesToSchema = z.enum([
 ]);
 export const offerSchema = z.object({
   _id: z.string().optional(),
+  // Human-readable server-allocated id (OFF-0001); the update/delete path param.
+  offerId: z.string().optional(),
   name: z.string().min(1, "Name required"),
   // Optional code enables the "type a code" path; unique+sparse on the backend.
   code: z.string().optional().or(z.literal("")),
