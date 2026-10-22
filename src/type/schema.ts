@@ -149,6 +149,31 @@ export const enquirySchema = z.object({
     )
     .optional(),
 
+  // ── Offers applied to priced lines of this booking (server-written audit).
+  // The `appliedOffers` endpoint pushes one entry per line; `base` is kept so a
+  // removal can restore the pre-offer price. lineKind is "main" (the booking's
+  // own fee) or "add_on" (paired with addonKey = serviceId|recommendedAt).
+  appliedOffers: z
+    .array(
+      z.object({
+        offerId: z.string().optional(),
+        offerName: z.string().optional(),
+        code: z.string().optional(),
+        kind: z.enum(["fixed", "percent"]).optional(),
+        amount: z.number().optional(),
+        off: z.number().optional(),
+        base: z.number().optional(),
+        lineKind: z.enum(["main", "course", "add_on"]).optional(),
+        addonKey: z.string().optional(),
+        absorbedBy: z.enum(["company", "therapist"]).optional(),
+        note: z.string().optional(),
+        appliedBy: z
+          .object({ name: z.string().optional(), at: z.string().optional() })
+          .optional(),
+      }),
+    )
+    .optional(),
+
   // ── Therapist work checklist - completed item keys
   // ("arrived" | "performed" | "payment" | "completed"). ──
   workChecklist: z.array(z.string()).optional(),

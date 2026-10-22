@@ -18,6 +18,7 @@ import {
 } from "@/lib/payment-messages";
 import createPaymentLink from "@/actions/appointments/create-payment-link";
 import { AddonsVisitSection } from "./visit-sections";
+import { OfferApplyBox } from "./offer-apply-box";
 import { InvoiceSection } from "./invoice-section";
 import { parentIdOf } from "@/lib/visit-groups";
 
@@ -290,6 +291,9 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
           </div>
         )}
       </section>
+
+      {/* Role-filtered offers the office can apply to each priced line. */}
+      <OfferApplyBox appointment={appointment} />
 
       <AddonsVisitSection appointment={appointment} />
       {/* A course session or add-on visit is billed on its booking's invoice. */}
