@@ -3,7 +3,7 @@
 import Avatar from '@/assests/avatars/avatar2.svg'
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BarChart3,
   CalendarClock,
@@ -136,12 +136,21 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
       ? navLinks.filter((l) => THERAPIST_NAV.has(l.href))
       : navLinks;
 
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (role === "THERAPIST" && !THERAPIST_ALLOWED.has(pathname)) {
       router.replace("/dashboard/appointments");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, pathname]);
+
+  // The content area below is a persistent scroll container (this is the layout,
+  // so it survives client-side navigation). Without this, a new page mounts still
+  // scrolled to the previous page's offset, hiding its top until a hard refresh.
+  useEffect(() => {
+    contentScrollRef.current?.scrollTo({ top: 0 });
+  }, [pathname]);
 
   return (
     <>
@@ -302,7 +311,7 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <div className='px-5 overflow-y-auto' >
+        <div ref={contentScrollRef} className='px-5 overflow-y-auto' >
         {children}
         </div>
       </div>

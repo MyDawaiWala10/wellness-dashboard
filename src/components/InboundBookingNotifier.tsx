@@ -62,13 +62,20 @@ function OfficeBookingNotifier() {
         const service = rec.service || rec.typeOfappointment || "New Booking";
         const phone = rec.phonenumber ? String(rec.phonenumber) : "";
 
-        toast("🔔 New Inbound Booking Received!", {
+        // A new record is either a lead (still an "enquiry") or an actual booking
+        // (scheduled/ongoing/completed). They live on different pages, so the CTA
+        // must route accordingly - a booking should not send you to Enquiries.
+        const isBooking = !!rec.status && rec.status !== "enquiry";
+
+        toast(isBooking ? "🔔 New Booking Received!" : "🔔 New Enquiry Received!", {
           description: `${name} · ${service}${phone ? ` (${phone})` : ""}`,
           duration: 8000,
           action: {
-            label: "View Enquiries",
+            label: isBooking ? "View Bookings" : "View Enquiries",
             onClick: () => {
-              window.location.href = "/dashboard/enquiries";
+              window.location.href = isBooking
+                ? "/dashboard/appointments"
+                : "/dashboard/enquiries";
             },
           },
         });
