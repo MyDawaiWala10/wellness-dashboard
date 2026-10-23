@@ -940,14 +940,17 @@ export default function AppointmentBookingForm() {
                       <Select
                         value={offerId}
                         onValueChange={(v) => {
-                          setOfferId(v === offerId ? "" : v);
+                          setOfferId(v === "__none__" ? "" : v);
                           setOfferNote("");
                         }}
                       >
                         <SelectTrigger className="h-8 w-full text-[13px]">
-                          <SelectValue placeholder="Add an offer…" />
+                          <SelectValue placeholder="No offer (pay full price)" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="__none__">
+                            No offer (pay full price)
+                          </SelectItem>
                           {eligibleOffers.map((o) => (
                             <SelectItem
                               key={o.offerId ?? o._id}
@@ -986,9 +989,18 @@ export default function AppointmentBookingForm() {
                     </div>
                   )}
 
-                  <div className="flex items-baseline justify-between pt-0.5">
+                  <div className="flex items-baseline justify-between gap-3 pt-0.5">
                     <span className="font-semibold">Total</span>
-                    <Money value={payableTotal} className="text-base font-bold" />
+                    <span className="text-right">
+                      {offerOff > 0 && (
+                        <Money
+                          value={grandTotal}
+                          struck
+                          className="block text-[12px] font-normal"
+                        />
+                      )}
+                      <Money value={payableTotal} className="block text-base font-bold" />
+                    </span>
                   </div>
                   {paidNow > 0 && (
                     <>
