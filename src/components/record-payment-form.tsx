@@ -25,6 +25,7 @@ export function RecordPaymentForm({
   suggested = due,
   onRecorded,
   addon,
+  companyPayee,
 }: {
   appointmentId: string;
   /** Pay one add-on ("serviceId|recommendedAt") instead of the booking. */
@@ -34,6 +35,8 @@ export function RecordPaymentForm({
   /** Pre-filled amount (defaults to the whole balance). */
   suggested?: number;
   onRecorded?: () => void;
+  /** Spell out that a UPI payment settles to the company, not the therapist. */
+  companyPayee?: boolean;
 }) {
   const [amount, setAmount] = useState(String(suggested > 0 ? suggested : ""));
   const [method, setMethod] = useState("");
@@ -57,13 +60,19 @@ export function RecordPaymentForm({
           onChange={(e) => setAmount(e.target.value)}
         />
         <Select value={method} onValueChange={setMethod}>
-          <SelectTrigger className="h-8 w-28 shrink-0">
+          <SelectTrigger
+            className={`h-8 shrink-0 ${companyPayee ? "w-40" : "w-28"}`}
+          >
             <SelectValue placeholder="Method" />
           </SelectTrigger>
           <SelectContent>
             {METHODS.map((m) => (
               <SelectItem key={m} value={m} className="capitalize">
-                {m === "upi" ? "UPI" : m[0].toUpperCase() + m.slice(1)}
+                {m === "upi"
+                  ? companyPayee
+                    ? "UPI (to company)"
+                    : "UPI"
+                  : m[0].toUpperCase() + m.slice(1)}
               </SelectItem>
             ))}
           </SelectContent>

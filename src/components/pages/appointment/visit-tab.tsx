@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, QrCode } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,8 @@ import { verifyVisitOtp } from "@/actions/appointments/visit-otp";
 import { SendVisitOtpButton, visitCodeStatus } from "@/components/send-visit-otp";
 import { AssignTherapistCard } from "./assign-therapist-card";
 import { RecordPaymentForm } from "@/components/record-payment-form";
+import createPaymentLink from "@/actions/appointments/create-payment-link";
+import { BRAND, publicOrigin } from "@/lib/brand";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { format } from "date-fns";
 import { firstBookableDay } from "@/lib/booking-conflicts";
@@ -126,6 +128,8 @@ export function VisitTab({
   const [short, setShort] = useState(0);
   const [owed, setOwed] = useState(0);
   const [verified, setVerified] = useState(!!appointment.visitOtpVerified);
+  // Opening the customer pay link (company QR) from the collect box.
+  const [openingPay, setOpeningPay] = useState(false);
   const [nextDate, setNextDate] = useState("");
   const [nextTime, setNextTime] = useState("");
 
@@ -341,7 +345,45 @@ export function VisitTab({
               due={owed}
               suggested={short}
               onRecorded={() => setShort(0)}
+              companyPayee
             />
+            {/* One way to actually collect: the customer scans the company QR
+                (same /pay/<token> page the WhatsApp link uses) - the amount is
+                filled in by the server, so nobody types a price. */}
+            <div className="flex flex-wrap items-center gap-2 border-t border-amber-500/30 pt-1.5">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 gap-1.5"
+                disabled={openingPay}
+                onClick={async () => {
+                  if (!appointment._id) return;
+                  setOpeningPay(true);
+                  const link = await createPaymentLink(appointment._id);
+                  setOpeningPay(false);
+                  if (!link.success || !link.data?.payToken) {
+                    toast.error(link.message ?? "Couldn't create the payment link");
+                    return;
+                  }
+                  window.open(
+                    `${publicOrigin()}/pay/${link.data.payToken}`,
+                    "_blank",
+                    "noopener,noreferrer",
+                  );
+                }}
+              >
+                {openingPay ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <QrCode className="h-3.5 w-3.5" />
+                )}
+                Show payment QR
+              </Button>
+              <span className="text-[11px] text-muted-foreground">
+                Customer scans to pay {BRAND.name} - amount is filled in.
+              </span>
+            </div>
           </div>
         )}
       </Step>
