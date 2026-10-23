@@ -905,31 +905,21 @@ export default function AppointmentBookingForm() {
                 )}
               />
 
-              {/* Invoice preview + offer picker, payment-gateway style: line
-                  items, an offer row, then the total with the pre-discount price
-                  struck through. Nothing here sends a price — the offer is
-                  applied for real by the server once the booking is saved. */}
+              {/* Invoice preview + offer picker. Each priced line shows its
+                  full price; an offer becomes a single named discount row, then
+                  the total. The saving is never shown twice. Nothing here sends
+                  a price — the offer is applied for real by the server once the
+                  booking is saved. */}
               {offerBase > 0 && (
                 <div className="rounded-md border p-3 text-sm space-y-1">
                   <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Invoice
                   </p>
 
-                  {/* Fee line - shows the struck price above the net when an
-                      offer came off it, mirroring the Billing tab ladder. */}
                   <div className="flex items-baseline justify-between gap-3">
                     <span className="truncate">{itemLabel}</span>
-                    <span className="text-right">
-                      {offerOff > 0 && (
-                        <Money value={offerBase} struck className="block text-[11px]" />
-                      )}
-                      <Money
-                        value={offerBase - offerOff}
-                        className={cn("block", offerOff > 0 && "font-semibold")}
-                      />
-                    </span>
+                    <Money value={offerBase} />
                   </div>
-
                   {stackedPriced
                     .filter((r) => r.svc)
                     .map((r, i) => (
@@ -941,11 +931,9 @@ export default function AppointmentBookingForm() {
                           {r.svc?.name}
                           {r.sessions && r.sessions > 1 ? ` × ${r.sessions}` : ""}
                         </span>
-                        <Money value={r.price} prefix="+" className="text-foreground" />
+                        <Money value={r.price} />
                       </div>
                     ))}
-
-                  <div className="my-1 border-t" />
 
                   {isOffice && eligibleOffers.length > 0 && (
                     <div className="space-y-1.5 py-1">
@@ -981,34 +969,35 @@ export default function AppointmentBookingForm() {
                     </div>
                   )}
 
-                  {/* Totals ladder - only worth the arithmetic when a discount
-                      came off, otherwise it's the same number printed twice. */}
-                  {offerOff > 0 && (
-                    <>
-                      <div className="flex items-baseline justify-between text-[12px]">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <Money value={grandTotal} className="text-muted-foreground" />
-                      </div>
-                      <div className="flex items-baseline justify-between text-[12px] text-emerald-600 dark:text-emerald-400">
-                        <span>Discount</span>
-                        <Money value={offerOff} prefix="−" />
-                      </div>
-                    </>
+                  <div className="my-1 border-t" />
+
+                  {/* Subtotal only when there's more than one line to add up -
+                      otherwise it just repeats the single line above. */}
+                  {stackedPriced.some((r) => r.svc) && (
+                    <div className="flex items-baseline justify-between text-muted-foreground">
+                      <span>Subtotal</span>
+                      <Money value={grandTotal} />
+                    </div>
+                  )}
+                  {offerOff > 0 && chosenOffer && (
+                    <div className="flex items-baseline justify-between text-emerald-600 dark:text-emerald-400">
+                      <span className="truncate">{chosenOffer.name} discount</span>
+                      <Money value={offerOff} prefix="−" />
+                    </div>
                   )}
 
-                  <div className="my-1 border-t" />
-                  <div className="flex items-baseline justify-between">
+                  <div className="flex items-baseline justify-between pt-0.5">
                     <span className="font-semibold">Total</span>
                     <Money value={payableTotal} className="text-base font-bold" />
                   </div>
                   {paidNow > 0 && (
                     <>
                       <div className="flex items-baseline justify-between text-[12px] text-muted-foreground">
-                        <span>Paid now</span>
+                        <span>Collected now</span>
                         <Money value={paidNow} />
                       </div>
                       <div className="flex items-baseline justify-between text-[12px]">
-                        <span className="font-medium">Due</span>
+                        <span className="font-medium">Balance due</span>
                         <Money value={dueAfter} className="font-semibold" />
                       </div>
                     </>
@@ -1022,13 +1011,13 @@ export default function AppointmentBookingForm() {
               <div className="rounded-md border p-3 space-y-3">
                 <p className="text-sm font-medium">Payment</p>
                 <p className="text-xs text-muted-foreground">
-                  Enter what the customer paid now, if anything - part or full.
-                  The rest stays due on the booking.
+                  Record what you&apos;ve collected now, if anything - part or
+                  full. The rest stays due on the booking.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-muted-foreground">
-                      Amount received (₹)
+                      Amount collected now (₹)
                     </label>
                     <Input
                       type="number"
@@ -1045,9 +1034,9 @@ export default function AppointmentBookingForm() {
                       }
                     />
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Total {formatINR(payableTotal)}
+                      Collectable total {formatINR(payableTotal)}
                       {(form.watch("paymentAmount") ?? 0) > 0 &&
-                        ` · due after this ${formatINR(Math.max(0, payableTotal - (form.watch("paymentAmount") ?? 0)))}`}
+                        ` · balance after this ${formatINR(Math.max(0, payableTotal - (form.watch("paymentAmount") ?? 0)))}`}
                     </p>
                   </div>
                   <div>

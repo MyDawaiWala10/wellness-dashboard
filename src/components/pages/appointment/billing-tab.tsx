@@ -175,19 +175,12 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
                   </span>
                   <span className="block text-[11px] text-muted-foreground">
                     {l.meta}
-                    {l.original && (
-                      <span className="ml-1.5 text-emerald-600 dark:text-emerald-400">
-                        Save <Money value={l.original - l.amount} />
-                      </span>
-                    )}
                   </span>
                 </span>
-                <span className="text-right">
-                  {l.original && (
-                    <Money value={l.original} struck className="block text-[11px]" />
-                  )}
-                  <Money value={l.amount} className="block text-[13px] font-semibold" />
-                </span>
+                <Money
+                  value={l.original ?? l.amount}
+                  className="shrink-0 text-[13px] font-semibold"
+                />
               </li>
             ))}
           </ul>
@@ -198,7 +191,11 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
             {/* Only worth showing the arithmetic when something came off. */}
             {totals.discount > 0 && (
               <>
-                <Row label="Subtotal" value={totals.subtotal} muted />
+                {/* Subtotal only when there's more than one line - otherwise it
+                    just repeats the single line above. */}
+                {lines.length > 1 && (
+                  <Row label="Subtotal" value={totals.subtotal} muted />
+                )}
                 <Row
                   label="Discount"
                   value={totals.discount}
