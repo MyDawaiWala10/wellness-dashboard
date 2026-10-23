@@ -50,6 +50,7 @@ import {
 import { useGetSessionRates } from "@/data/session-rate/session-rate";
 import { useAuthStore } from "@/providers/permission-provider";
 import { formatINR } from "@/components/pages/services/services-columns";
+import { Money } from "@/components/money";
 import { useQueryClient } from "@tanstack/react-query";
 import addAppointments from "@/actions/appointments/book-appointment";
 import { useGetOffers, useApplyOffer } from "@/data/offer/offer";
@@ -887,6 +888,7 @@ export default function AppointmentBookingForm() {
                         min={0}
                         placeholder="Auto-filled from sessions × tier rate"
                         readOnly
+                        className="text-right tabular-nums"
                         {...field}
                         value={field.value ?? ""}
                         onChange={(e) =>
@@ -912,30 +914,38 @@ export default function AppointmentBookingForm() {
                   <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Invoice
                   </p>
-                  <div className="flex justify-between">
+
+                  {/* Fee line - shows the struck price above the net when an
+                      offer came off it, mirroring the Billing tab ladder. */}
+                  <div className="flex items-baseline justify-between gap-3">
                     <span className="truncate">{itemLabel}</span>
-                    <span className="font-mono tabular-nums">{formatINR(offerBase)}</span>
+                    <span className="text-right">
+                      {offerOff > 0 && (
+                        <Money value={offerBase} struck className="block text-[11px]" />
+                      )}
+                      <Money
+                        value={offerBase - offerOff}
+                        className={cn("block", offerOff > 0 && "font-semibold")}
+                      />
+                    </span>
                   </div>
+
                   {stackedPriced
                     .filter((r) => r.svc)
                     .map((r, i) => (
                       <div
                         key={i}
-                        className="flex justify-between text-muted-foreground"
+                        className="flex items-baseline justify-between gap-3 text-muted-foreground"
                       >
                         <span className="truncate">
                           {r.svc?.name}
                           {r.sessions && r.sessions > 1 ? ` × ${r.sessions}` : ""}
                         </span>
-                        <span className="font-mono tabular-nums">+ {formatINR(r.price)}</span>
+                        <Money value={r.price} prefix="+" className="text-foreground" />
                       </div>
                     ))}
 
                   <div className="my-1 border-t" />
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Subtotal</span>
-                    <span className="font-mono tabular-nums">{formatINR(grandTotal)}</span>
-                  </div>
 
                   {isOffice && eligibleOffers.length > 0 && (
                     <div className="space-y-1.5 py-1">
@@ -955,7 +965,7 @@ export default function AppointmentBookingForm() {
                               key={o.offerId ?? o._id}
                               value={o.offerId ?? o._id ?? ""}
                             >
-                              {o.name} − {formatINR(computeOfferOff(o, offerBase).off)}
+                              {o.name} − <Money value={computeOfferOff(o, offerBase).off} />
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -971,36 +981,35 @@ export default function AppointmentBookingForm() {
                     </div>
                   )}
 
-                  {offerOff > 0 && chosenOffer && (
-                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                      <span className="truncate">Offer · {chosenOffer.name}</span>
-                      <span className="font-mono tabular-nums">− {formatINR(offerOff)}</span>
-                    </div>
+                  {/* Totals ladder - only worth the arithmetic when a discount
+                      came off, otherwise it's the same number printed twice. */}
+                  {offerOff > 0 && (
+                    <>
+                      <div className="flex items-baseline justify-between text-[12px]">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <Money value={grandTotal} className="text-muted-foreground" />
+                      </div>
+                      <div className="flex items-baseline justify-between text-[12px] text-emerald-600 dark:text-emerald-400">
+                        <span>Discount</span>
+                        <Money value={offerOff} prefix="−" />
+                      </div>
+                    </>
                   )}
 
                   <div className="my-1 border-t" />
                   <div className="flex items-baseline justify-between">
                     <span className="font-semibold">Total</span>
-                    <span className="font-mono tabular-nums">
-                      {offerOff > 0 && (
-                        <span className="mr-2 text-muted-foreground line-through">
-                          {formatINR(grandTotal)}
-                        </span>
-                      )}
-                      <span className="text-base font-bold">{formatINR(payableTotal)}</span>
-                    </span>
+                    <Money value={payableTotal} className="text-base font-bold" />
                   </div>
                   {paidNow > 0 && (
                     <>
-                      <div className="flex justify-between text-muted-foreground">
+                      <div className="flex items-baseline justify-between text-[12px] text-muted-foreground">
                         <span>Paid now</span>
-                        <span className="font-mono tabular-nums">{formatINR(paidNow)}</span>
+                        <Money value={paidNow} />
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex items-baseline justify-between text-[12px]">
                         <span className="font-medium">Due</span>
-                        <span className="font-mono font-semibold tabular-nums">
-                          {formatINR(dueAfter)}
-                        </span>
+                        <Money value={dueAfter} className="font-semibold" />
                       </div>
                     </>
                   )}
@@ -1026,6 +1035,7 @@ export default function AppointmentBookingForm() {
                       min={0}
                       max={payableTotal}
                       placeholder="0"
+                      className="text-right tabular-nums"
                       value={form.watch("paymentAmount") ?? ""}
                       onChange={(e) =>
                         form.setValue(
