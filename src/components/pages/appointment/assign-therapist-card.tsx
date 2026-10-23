@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { format } from "date-fns";
+import { addDays, format, parseISO } from "date-fns";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -152,14 +153,37 @@ export function AssignTherapistCard({
           </Button>
         )}
       </div>
-      <Input
-        type="date"
-        className="h-8 w-full sm:w-44"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-        min={firstBookableDay()}
-        aria-label="Visit date"
-      />
+      <div className="flex items-center gap-1.5">
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          className="h-8 w-8 shrink-0"
+          aria-label="Previous day"
+          disabled={date <= firstBookableDay()}
+          onClick={() => setDate(format(addDays(parseISO(date), -1), "yyyy-MM-dd"))}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Input
+          type="date"
+          className="h-8 w-auto"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          min={firstBookableDay()}
+          aria-label="Visit date"
+        />
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          className="h-8 w-8 shrink-0"
+          aria-label="Next day"
+          onClick={() => setDate(format(addDays(parseISO(date), 1), "yyyy-MM-dd"))}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
       <TherapistAvailabilityGrid
         date={date}
         selectedDoctorId={appointment.doctorId}

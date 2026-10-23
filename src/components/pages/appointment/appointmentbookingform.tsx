@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 import {
   CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
   CirclePlus,
   Loader2,
   Plus,
@@ -644,31 +646,65 @@ export default function AppointmentBookingForm() {
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Select Date</FormLabel>
-                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                      <PopoverTrigger asChild>
-                        <FormControl>
+                    {(() => {
+                      const dayValue = field.value
+                        ? new Date(field.value)
+                        : new Date(`${firstBookableDay()}T00:00:00`);
+                      const stepDay = (n: number) =>
+                        field.onChange(format(addDays(dayValue, n), "yyyy-MM-dd"));
+                      const atFirstDay =
+                        format(dayValue, "yyyy-MM-dd") <= firstBookableDay();
+                      return (
+                        <div className="flex items-center gap-1.5">
                           <Button
                             type="button"
+                            size="icon"
                             variant="outline"
-                            className={cn("w-full sm:w-[240px] justify-start text-left font-normal")}
+                            className="h-9 w-9 shrink-0"
+                            aria-label="Previous day"
+                            disabled={atFirstDay}
+                            onClick={() => stepDay(-1)}
                           >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {field.value ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}
+                            <ChevronLeft className="h-4 w-4" />
                           </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value ? new Date(field.value) : undefined}
-                          onSelect={(date) => {
-                            field.onChange(date ? format(date, "yyyy-MM-dd") : "");
-                            setIsCalendarOpen(false);
-                          }}
-                          disabled={(date) => date < new Date(`${firstBookableDay()}T00:00:00`)}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className={cn("flex-1 justify-start text-left font-normal")}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {field.value ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value ? new Date(field.value) : undefined}
+                                onSelect={(date) => {
+                                  field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                                  setIsCalendarOpen(false);
+                                }}
+                                disabled={(date) => date < new Date(`${firstBookableDay()}T00:00:00`)}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            className="h-9 w-9 shrink-0"
+                            aria-label="Next day"
+                            onClick={() => stepDay(1)}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      );
+                    })()}
                     <FormMessage />
                   </FormItem>
                 )}
