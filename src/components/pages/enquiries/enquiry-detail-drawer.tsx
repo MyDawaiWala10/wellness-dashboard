@@ -50,7 +50,6 @@ import { cn, tidyActivityText } from "@/lib/utils";
 import { RecordIds } from "@/components/pages/appointment/record-ids";
 import { BookingIdBadge } from "@/components/booking-id-badge";
 import { BookingSourceEditor } from "@/components/booking-source-editor";
-import { formatTimeRange } from "./time-range";
 import { RecordPaymentForm } from "@/components/record-payment-form";
 import { SendVisitOtpButton, visitCodeStatus } from "@/components/send-visit-otp";
 
@@ -743,7 +742,6 @@ export function EnquiryDetailDrawer({
                     ["Age", draft.age ? String(draft.age) : ""],
                     ["Gender", genderLabel(draft.gender)],
                     ["Location", draft.location],
-                    ["Preferred call", formatTimeRange(draft.preferredReachOutTime)],
                   ] as [string, string | undefined][]
                 ).map(([label, value]) => (
                   <div key={label} className="min-w-0">
@@ -811,47 +809,12 @@ export function EnquiryDetailDrawer({
                 onChange={(v) => patch({ location: v })}
                 onBlur={() => save()}
               />
-              <div className="col-span-1">
-                <label className="text-xs text-muted-foreground">
-                  Preferred reach-out
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <Input
-                    type="time"
-                    aria-label="Preferred reach-out from"
-                    value={draft.preferredReachOutTime?.from ?? ""}
-                    onChange={(e) =>
-                      patch({
-                        preferredReachOutTime: {
-                          from: e.target.value,
-                          to: draft.preferredReachOutTime?.to ?? "",
-                        },
-                      })
-                    }
-                    onBlur={() => save()}
-                  />
-                  <Input
-                    type="time"
-                    aria-label="Preferred reach-out to"
-                    value={draft.preferredReachOutTime?.to ?? ""}
-                    onChange={(e) =>
-                      patch({
-                        preferredReachOutTime: {
-                          from: draft.preferredReachOutTime?.from ?? "",
-                          to: e.target.value,
-                        },
-                      })
-                    }
-                    onBlur={() => save()}
-                  />
-                </div>
-              </div>
             </div>
 
             {(draft.service || (draft.vitals && draft.vitals.length > 0)) && (
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-md border bg-muted/30 px-2.5 py-1.5">
                 <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Offering
+                  Asking for
                 </span>
                 <span className="text-sm font-medium">
                   {draft.service ?? "-"}

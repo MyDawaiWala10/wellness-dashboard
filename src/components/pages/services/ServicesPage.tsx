@@ -45,6 +45,7 @@ import { ServiceColumns } from "./services-columns";
 import { AddServiceForm } from "./add-service-form";
 import { ServiceDetailDrawer } from "./service-detail-drawer";
 import { SessionRatesCard } from "./session-rates-card";
+import { OffersCard } from "./offers-card";
 import { MetricCard } from "@/components/metric-card";
 
 export default function ServicesPage() {
@@ -127,6 +128,8 @@ export default function ServicesPage() {
       </QueryWrapper>
 
       <SessionRatesCard />
+
+      <OffersCard />
 
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">

@@ -53,3 +53,9 @@ scripts/*.cjs
 
 # Graphify generated knowledge graph (regenerate offline with `graphify update .`)
 graphify-out/
+
+# Local run logs, browser-test artifacts, ad-hoc screenshots
+.playwright-mcp/
+/desktop-home.png
+fe.log
+frontend.log

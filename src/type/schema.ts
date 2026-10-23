@@ -82,11 +82,9 @@ export const enquirySchema = z.object({
     .optional(),
 
   // ── Optional / collected as the funnel progresses ──
-  // preferredReachOutTime is a structured time window the client wants to
-  // be reached in. Required at the intake form level (see the intake
-  // modal's mini-schema) but optional here so legacy records and mid-funnel
-  // records that omit it still validate. Stored as 24h "HH:MM" strings;
-  // formatted for display via formatTimeRange in ./components/pages/enquiries/time-range.
+  // preferredReachOutTime: a call window older leads were asked for (24h
+  // "HH:MM"). No longer asked for or shown (client asked to remove it); kept
+  // so those records still validate.
   preferredReachOutTime: z
     .object({ from: z.string(), to: z.string() })
     .optional(),
@@ -147,6 +145,31 @@ export const enquirySchema = z.object({
         confirmedBy: z.string().optional(),
         paymentCollected: z.boolean().optional(),
         paymentCollectedAt: z.string().optional(),
+      }),
+    )
+    .optional(),
+
+  // ── Offers applied to priced lines of this booking (server-written audit).
+  // The `appliedOffers` endpoint pushes one entry per line; `base` is kept so a
+  // removal can restore the pre-offer price. lineKind is "main" (the booking's
+  // own fee) or "add_on" (paired with addonKey = serviceId|recommendedAt).
+  appliedOffers: z
+    .array(
+      z.object({
+        offerId: z.string().optional(),
+        offerName: z.string().optional(),
+        code: z.string().optional(),
+        kind: z.enum(["fixed", "percent"]).optional(),
+        amount: z.number().optional(),
+        off: z.number().optional(),
+        base: z.number().optional(),
+        lineKind: z.enum(["main", "course", "add_on"]).optional(),
+        addonKey: z.string().optional(),
+        absorbedBy: z.enum(["company", "therapist"]).optional(),
+        note: z.string().optional(),
+        appliedBy: z
+          .object({ name: z.string().optional(), at: z.string().optional() })
+          .optional(),
       }),
     )
     .optional(),
@@ -408,6 +431,46 @@ export const sessionTierSchema = z.object({
   rate: z.number().nonnegative(),
 });
 export type SessionRateTier = z.infer<typeof sessionTierSchema>;
+
+// ── Discount / Offer catalog ─────────────────────────────────────────────────
+// One entity (per qoder-discount.md §2.2A) that covers both what the earlier
+// plan called "coupons" and "discounts". The frontend mirror of the backend
+// `offerModel`; the server is authoritative for money (see src/lib/offers.ts).
+export const offerRoleFloorSchema = z.enum(["STAFF", "ADMIN", "SUPER_ADMIN"]);
+export const offerAppliesToSchema = z.enum([
+  "all",
+  "services",
+  "courses",
+  "add_ons",
+]);
+export const offerSchema = z.object({
+  _id: z.string().optional(),
+  // Human-readable server-allocated id (OFF-0001); the update/delete path param.
+  offerId: z.string().optional(),
+  name: z.string().min(1, "Name required"),
+  // Optional code enables the "type a code" path; unique+sparse on the backend.
+  code: z.string().optional().or(z.literal("")),
+  kind: z.enum(["fixed", "percent"]),
+  amount: z.number().nonnegative(),
+  // Cap, in ₹. Required for percent so nothing can go 100% (see plan §6).
+  maxOff: z.number().nonnegative().nullable().optional(),
+  appliesTo: offerAppliesToSchema.optional(),
+  serviceIds: z.array(z.string()).optional(),
+  // Lowest role that may apply this offer; default STAFF.
+  minRole: offerRoleFloorSchema.optional(),
+  // Whose cut shrinks (plan §3.2). Backend-only day 1, default "company".
+  absorbedBy: z.enum(["company", "therapist"]).optional(),
+  validFrom: z.string().nullable().optional(),
+  validUntil: z.string().nullable().optional(),
+  // null totalUses = unlimited; usedCount bumped atomically on the server.
+  totalUses: z.number().int().nonnegative().nullable().optional(),
+  usedCount: z.number().int().nonnegative().optional(),
+  oncePerPhone: z.boolean().optional(),
+  noteRequired: z.boolean().optional(),
+  active: z.boolean().optional(),
+  createdBy: z.object({ name: z.string(), at: z.string() }).optional(),
+});
+export type Offer = z.infer<typeof offerSchema>;
 
 export type UserType = {
   id: string | undefined;

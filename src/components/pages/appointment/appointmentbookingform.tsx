@@ -50,8 +50,11 @@ import {
 import { useGetSessionRates } from "@/data/session-rate/session-rate";
 import { useAuthStore } from "@/providers/permission-provider";
 import { formatINR } from "@/components/pages/services/services-columns";
+import { Money } from "@/components/money";
 import { useQueryClient } from "@tanstack/react-query";
 import addAppointments from "@/actions/appointments/book-appointment";
+import { useGetOffers, useApplyOffer } from "@/data/offer/offer";
+import { applicableOffers, computeOfferOff } from "@/lib/offers";
 import createPaymentLink from "@/actions/appointments/create-payment-link";
 import { whatsAppLink, toWhatsAppNumber } from "@/lib/whatsapp";
 import { publicOrigin } from "@/lib/brand";
@@ -61,6 +64,9 @@ import {
 } from "@/lib/payment-messages";
 
 type StackedService = { serviceId: string; discount: boolean; sessions?: number };
+
+/** Roles that may apply an offer — the office, never a Therapist. */
+const OFFICE_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "STAFF", "CUSTOMER_CARE"]);
 
 export default function AppointmentBookingForm() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -218,6 +224,31 @@ export default function AppointmentBookingForm() {
     typeOfappointment: deliveryType,
   });
 
+  // ── Offers on the booking's own line ──────────────────────────────────────
+  // Role-filtered with the SAME pure rules the server re-checks (lib/offers.ts).
+  // Picking an offer here only PREVIEWs the cut — the browser never sends a
+  // price. The rupees are applied for real by the server right after the booking
+  // is saved (apply-after-create), so usedCount / once-per-phone / the below-paid
+  // guard are all enforced authoritatively.
+  const { data: offers = [] } = useGetOffers();
+  const applyOffer = useApplyOffer();
+  const [offerId, setOfferId] = useState("");
+  const [offerNote, setOfferNote] = useState("");
+  const isOffice = !!authUser?.role && OFFICE_ROLES.has(authUser.role);
+  const offerBase = quotedPrice ?? 0;
+  const eligibleOffers = isOffice
+    ? applicableOffers(offers, offerBase, {
+        userRole: authUser?.role ?? "",
+        lineKind: isCourse ? "course" : "main",
+        serviceId: form.watch("packageServiceId"),
+      })
+    : [];
+  const chosenOffer = eligibleOffers.find((o) => (o.offerId ?? o._id) === offerId);
+  const offerOff = chosenOffer ? computeOfferOff(chosenOffer, offerBase).off : 0;
+  const payableTotal = Math.max(0, grandTotal - offerOff);
+  const paidNow = form.watch("paymentAmount") ?? 0;
+  const dueAfter = Math.max(0, payableTotal - paidNow);
+
   // Everything that makes a booking unsaveable, in one place - both save paths
   // (Confirm, and "Request payment on WhatsApp") run it. An unpriced record
   // generates no invoice at all, so a missing price is a hard stop, not a nag.
@@ -242,8 +273,11 @@ export default function AppointmentBookingForm() {
         ? "No price yet - set a rate tier for this session count"
         : "No price yet - add this service to the Services page";
     }
-    if ((v.paymentAmount ?? 0) > grandTotal) {
-      return `The amount received can't be more than ${formatINR(grandTotal)}`;
+    if ((v.paymentAmount ?? 0) > payableTotal) {
+      return `The amount received can't be more than ${formatINR(payableTotal)}`;
+    }
+    if (chosenOffer?.noteRequired && !offerNote.trim()) {
+      return "Add a reason for the offer you're applying";
     }
     if (needsSkipReason && !skipReason.trim()) {
       return "Give a reason for skipping the consultation";
@@ -304,7 +338,7 @@ export default function AppointmentBookingForm() {
     }
     if (attachServices) {
       const now = new Date().toISOString();
-      const paymentDone = (values.paymentAmount ?? 0) >= grandTotal;
+      const paymentDone = (values.paymentAmount ?? 0) >= payableTotal;
       payload.recommendedServices = stacked
         .filter((r) => r.serviceId)
         .map((r) => {
@@ -345,7 +379,7 @@ export default function AppointmentBookingForm() {
   async function requestPaymentWa() {
     const v = form.getValues();
     // A request is not a payment: ask for the total, record nothing as paid.
-    const amount = grandTotal;
+    const amount = payableTotal;
     // This path bypasses the resolver entirely (it saves directly, as an
     // enquiry), so it needs the same gate as Confirm - otherwise it is exactly
     // where an unbillable record slips through.
@@ -373,6 +407,18 @@ export default function AppointmentBookingForm() {
       setRequesting(false);
       toast.error(saved.message ?? "Couldn't save the booking");
       return;
+    }
+    // Apply the chosen offer for real before minting the pay-link, so the
+    // WhatsApp amount matches the discounted total.
+    if (offerId && saved.data._id) {
+      await applyOffer
+        .mutateAsync({
+          bookingId: saved.data._id,
+          offerId,
+          lineKind: "main",
+          ...(offerNote.trim() ? { note: offerNote.trim() } : {}),
+        })
+        .catch(() => {});
     }
     const link = await createPaymentLink(saved.data._id);
     setRequesting(false);
@@ -424,13 +470,31 @@ export default function AppointmentBookingForm() {
   }
 
   function submitBooking(payload: z.infer<typeof slotBookingZodSchema>) {
+    const pickedOfferId = offerId;
+    const pickedNote = offerNote.trim();
     mutation.mutate(payload, {
-      onSuccess: () => {
+      onSuccess: async (result) => {
+        const newId = result?.data?._id as string | undefined;
+        if (pickedOfferId && newId) {
+          // Server does the money math + re-checks every rule. The hook toasts
+          // the outcome; a rejection (e.g. once-per-phone) leaves the booking
+          // saved at full price to fix on its Billing tab.
+          await applyOffer
+            .mutateAsync({
+              bookingId: newId,
+              offerId: pickedOfferId,
+              lineKind: "main",
+              ...(pickedNote ? { note: pickedNote } : {}),
+            })
+            .catch(() => {});
+        }
         setIsDialogOpen(false);
         form.reset();
         setAttachServices(false);
         setStacked([]);
         setDurationMin(60);
+        setOfferId("");
+        setOfferNote("");
       },
     });
   }
@@ -475,6 +539,8 @@ export default function AppointmentBookingForm() {
       setStacked([]);
       setDurationMin(60);
       setSkipReason("");
+      setOfferId("");
+      setOfferNote("");
     }
   }
 
@@ -822,6 +888,7 @@ export default function AppointmentBookingForm() {
                         min={0}
                         placeholder="Auto-filled from sessions × tier rate"
                         readOnly
+                        className="text-right tabular-nums"
                         {...field}
                         value={field.value ?? ""}
                         onChange={(e) =>
@@ -838,25 +905,138 @@ export default function AppointmentBookingForm() {
                 )}
               />
 
+              {/* Invoice preview + offer picker. Each priced line shows its
+                  full price; an offer becomes a single named discount row, then
+                  the total. The saving is never shown twice. Nothing here sends
+                  a price — the offer is applied for real by the server once the
+                  booking is saved. */}
+              {offerBase > 0 && (
+                <div className="rounded-md border p-3 text-sm space-y-1">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Invoice
+                  </p>
+
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="truncate">{itemLabel}</span>
+                    <Money value={offerBase} />
+                  </div>
+                  {stackedPriced
+                    .filter((r) => r.svc)
+                    .map((r, i) => (
+                      <div
+                        key={i}
+                        className="flex items-baseline justify-between gap-3 text-muted-foreground"
+                      >
+                        <span className="truncate">
+                          {r.svc?.name}
+                          {r.sessions && r.sessions > 1 ? ` × ${r.sessions}` : ""}
+                        </span>
+                        <Money value={r.price} />
+                      </div>
+                    ))}
+
+                  {isOffice && eligibleOffers.length > 0 && (
+                    <div className="space-y-1.5 py-1">
+                      <Select
+                        value={offerId}
+                        onValueChange={(v) => {
+                          setOfferId(v === "__none__" ? "" : v);
+                          setOfferNote("");
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-full text-[13px]">
+                          <SelectValue placeholder="No offer (pay full price)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">
+                            No offer (pay full price)
+                          </SelectItem>
+                          {eligibleOffers.map((o) => (
+                            <SelectItem
+                              key={o.offerId ?? o._id}
+                              value={o.offerId ?? o._id ?? ""}
+                            >
+                              {o.name} − <Money value={computeOfferOff(o, offerBase).off} />
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {chosenOffer?.noteRequired && (
+                        <Input
+                          value={offerNote}
+                          onChange={(e) => setOfferNote(e.target.value)}
+                          placeholder="Reason (required for this offer)"
+                          className="h-8 text-[13px]"
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  <div className="my-1 border-t" />
+
+                  {/* Subtotal only when there's more than one line to add up -
+                      otherwise it just repeats the single line above. */}
+                  {stackedPriced.some((r) => r.svc) && (
+                    <div className="flex items-baseline justify-between text-muted-foreground">
+                      <span>Subtotal</span>
+                      <Money value={grandTotal} />
+                    </div>
+                  )}
+                  {offerOff > 0 && chosenOffer && (
+                    <div className="flex items-baseline justify-between text-emerald-600 dark:text-emerald-400">
+                      <span className="truncate">{chosenOffer.name} discount</span>
+                      <Money value={offerOff} prefix="−" />
+                    </div>
+                  )}
+
+                  <div className="flex items-baseline justify-between gap-3 pt-0.5">
+                    <span className="font-semibold">Total</span>
+                    <span className="text-right">
+                      {offerOff > 0 && (
+                        <Money
+                          value={grandTotal}
+                          struck
+                          className="block text-[12px] font-normal"
+                        />
+                      )}
+                      <Money value={payableTotal} className="block text-base font-bold" />
+                    </span>
+                  </div>
+                  {paidNow > 0 && (
+                    <>
+                      <div className="flex items-baseline justify-between text-[12px] text-muted-foreground">
+                        <span>Collected now</span>
+                        <Money value={paidNow} />
+                      </div>
+                      <div className="flex items-baseline justify-between text-[12px]">
+                        <span className="font-medium">Balance due</span>
+                        <Money value={dueAfter} className="font-semibold" />
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* Payment - optional at booking, part or full. Each visit is
                   paid for before it starts; the server records this as the
                   first payment and never more than the price. */}
               <div className="rounded-md border p-3 space-y-3">
                 <p className="text-sm font-medium">Payment</p>
                 <p className="text-xs text-muted-foreground">
-                  Enter what the customer paid now, if anything - part or full.
-                  The rest stays due on the booking.
+                  Record what you&apos;ve collected now, if anything - part or
+                  full. The rest stays due on the booking.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-muted-foreground">
-                      Amount received (₹)
+                      Amount collected now (₹)
                     </label>
                     <Input
                       type="number"
                       min={0}
-                      max={grandTotal}
+                      max={payableTotal}
                       placeholder="0"
+                      className="text-right tabular-nums"
                       value={form.watch("paymentAmount") ?? ""}
                       onChange={(e) =>
                         form.setValue(
@@ -866,9 +1046,9 @@ export default function AppointmentBookingForm() {
                       }
                     />
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Total {formatINR(grandTotal)}
+                      Collectable total {formatINR(payableTotal)}
                       {(form.watch("paymentAmount") ?? 0) > 0 &&
-                        ` · due after this ${formatINR(Math.max(0, grandTotal - (form.watch("paymentAmount") ?? 0)))}`}
+                        ` · balance after this ${formatINR(Math.max(0, payableTotal - (form.watch("paymentAmount") ?? 0)))}`}
                     </p>
                   </div>
                   <div>
@@ -1016,37 +1196,6 @@ export default function AppointmentBookingForm() {
                   </div>
                 )}
               </div>
-
-              {/* Live price breakdown when services are stacked on the session */}
-              {attachServices && stackedPriced.some((r) => r.svc) && (
-                <div className="rounded-md border p-3 text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span>Session ×{sessions ?? 0}</span>
-                    <span className="tabular-nums">{formatINR(quotedPrice ?? 0)}</span>
-                  </div>
-                  {stackedPriced
-                    .filter((r) => r.svc)
-                    .map((r, i) => (
-                      <div
-                        key={i}
-                        className="flex justify-between text-muted-foreground"
-                      >
-                        <span>
-                          {r.svc?.name}
-                          {r.discount && !r.usesTiers ? " (disc)" : ""}
-                          {r.sessions && r.sessions > 1
-                            ? ` (${formatINR(r.unitPrice)}/session × ${r.sessions})`
-                            : ""}
-                        </span>
-                        <span className="tabular-nums">+ {formatINR(r.price)}</span>
-                      </div>
-                    ))}
-                  <div className="flex justify-between font-medium border-t pt-1">
-                    <span>Total</span>
-                    <span className="tabular-nums">{formatINR(grandTotal)}</span>
-                  </div>
-                </div>
-              )}
 
               <FormField
                 control={form.control}

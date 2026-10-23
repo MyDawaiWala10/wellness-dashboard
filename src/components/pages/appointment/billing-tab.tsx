@@ -10,6 +10,8 @@ import type { slotBookingZodType } from "@/type/schema";
 import { bookingLedger } from "@/lib/booking-money";
 import { bookingLabel } from "@/components/pages/enquiries/booking";
 import { formatINR } from "@/components/pages/services/services-columns";
+import { Money } from "@/components/money";
+import { cn } from "@/lib/utils";
 import { whatsAppLink, toWhatsAppNumber } from "@/lib/whatsapp";
 import { publicOrigin } from "@/lib/brand";
 import {
@@ -18,6 +20,7 @@ import {
 } from "@/lib/payment-messages";
 import createPaymentLink from "@/actions/appointments/create-payment-link";
 import { AddonsVisitSection } from "./visit-sections";
+import { OfferApplyBox } from "./offer-apply-box";
 import { InvoiceSection } from "./invoice-section";
 import { parentIdOf } from "@/lib/visit-groups";
 
@@ -31,26 +34,26 @@ const DOT: Record<string, string> = {
 function Row({
   label,
   value,
+  prefix,
   muted,
   strong,
   className = "",
 }: {
   label: string;
-  value: string;
+  value: number;
+  prefix?: string;
   muted?: boolean;
   strong?: boolean;
   className?: string;
 }) {
   return (
-    <div className={`flex items-baseline justify-between text-[12px] ${className}`}>
+    <div className={cn("flex items-baseline justify-between text-[12px]", className)}>
       <span className={muted ? "text-muted-foreground" : ""}>{label}</span>
-      <span
-        className={`font-mono tabular-nums ${strong ? "font-semibold" : ""} ${
-          muted ? "text-muted-foreground" : ""
-        }`}
-      >
-        {value}
-      </span>
+      <Money
+        value={value}
+        prefix={prefix}
+        className={cn(strong && "font-semibold", muted && "text-muted-foreground")}
+      />
     </div>
   );
 }
@@ -172,23 +175,12 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
                   </span>
                   <span className="block text-[11px] text-muted-foreground">
                     {l.meta}
-                    {l.original && (
-                      <span className="ml-1.5 text-emerald-600 dark:text-emerald-400">
-                        Save {formatINR(l.original - l.amount)}
-                      </span>
-                    )}
                   </span>
                 </span>
-                <span className="text-right">
-                  {l.original && (
-                    <span className="block font-mono text-[11px] text-muted-foreground line-through tabular-nums">
-                      {formatINR(l.original)}
-                    </span>
-                  )}
-                  <span className="block font-mono text-[13px] font-semibold tabular-nums">
-                    {formatINR(l.amount)}
-                  </span>
-                </span>
+                <Money
+                  value={l.original ?? l.amount}
+                  className="shrink-0 text-[13px] font-semibold"
+                />
               </li>
             ))}
           </ul>
@@ -199,10 +191,15 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
             {/* Only worth showing the arithmetic when something came off. */}
             {totals.discount > 0 && (
               <>
-                <Row label="Subtotal" value={formatINR(totals.subtotal)} muted />
+                {/* Subtotal only when there's more than one line - otherwise it
+                    just repeats the single line above. */}
+                {lines.length > 1 && (
+                  <Row label="Subtotal" value={totals.subtotal} muted />
+                )}
                 <Row
                   label="Discount"
-                  value={`- ${formatINR(totals.discount)}`}
+                  value={totals.discount}
+                  prefix="−"
                   className="text-emerald-600 dark:text-emerald-400"
                 />
               </>
@@ -210,25 +207,25 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
             {/* Only worth a line when it differs from what's due - otherwise
                 it's the same number printed twice, which is the common case. */}
             {totals.total !== due && (
-              <Row label="Total" value={formatINR(totals.total)} strong />
+              <Row label="Total" value={totals.total} strong />
             )}
             {totals.paid > 0 && (
-              <Row label="Paid" value={formatINR(totals.paid)} muted />
+              <Row label="Paid" value={totals.paid} muted />
             )}
 
             <div className="flex items-baseline justify-between pt-1.5">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {due > 0 ? "Total due" : "Collected"}
               </span>
-              <span
-                className={`font-mono text-base font-bold tabular-nums ${
+              <Money
+                value={due > 0 ? due : paid}
+                className={cn(
+                  "text-base font-bold",
                   due > 0
                     ? "text-amber-600 dark:text-amber-400"
-                    : "text-emerald-600"
-                }`}
-              >
-                {formatINR(due > 0 ? due : paid)}
-              </span>
+                    : "text-emerald-600",
+                )}
+              />
             </div>
           </div>
         )}
@@ -283,13 +280,16 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
                     {p.by ? ` · by ${p.by}` : ""}
                     {p.for ? ` · for ${p.for}` : ""}
                   </span>
-                  <span className="font-mono tabular-nums">{formatINR(p.amount)}</span>
+                  <Money value={p.amount} />
                 </li>
               ))}
             </ul>
           </div>
         )}
       </section>
+
+      {/* Role-filtered offers the office can apply to each priced line. */}
+      <OfferApplyBox appointment={appointment} />
 
       <AddonsVisitSection appointment={appointment} />
       {/* A course session or add-on visit is billed on its booking's invoice. */}

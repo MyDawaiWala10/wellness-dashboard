@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, QrCode } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import { verifyVisitOtp } from "@/actions/appointments/visit-otp";
 import { SendVisitOtpButton, visitCodeStatus } from "@/components/send-visit-otp";
 import { AssignTherapistCard } from "./assign-therapist-card";
 import { RecordPaymentForm } from "@/components/record-payment-form";
+import { PaymentQrDialog } from "@/components/payment-qr-dialog";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { format } from "date-fns";
 import { firstBookableDay } from "@/lib/booking-conflicts";
@@ -122,10 +123,15 @@ export function VisitTab({
   const [draft, setDraft] = useState<slotBookingZodType>(appointment);
   const [note, setNote] = useState("");
   const [otp, setOtp] = useState("");
-  // Cash still to collect before this session can start (from Verify).
+  // Cash still to collect before this session can start (from Verify): the
+  // session's own share, plus any same-day add-on (settled in Billing).
   const [short, setShort] = useState(0);
-  const [owed, setOwed] = useState(0);
+  const [bookingDue, setBookingDue] = useState(0);
+  const [addonShort, setAddonShort] = useState(0);
+  const [addonNames, setAddonNames] = useState<string[]>([]);
   const [verified, setVerified] = useState(!!appointment.visitOtpVerified);
+  // Uber-style "show the QR" popup for collecting at the door.
+  const [payQrOpen, setPayQrOpen] = useState(false);
   const [nextDate, setNextDate] = useState("");
   const [nextTime, setNextTime] = useState("");
 
@@ -315,9 +321,11 @@ export function VisitTab({
                       startSession();
                       toast.success("Session started");
                     } else if (r.short) {
-                      // Today's session isn't paid for: collect, then verify again.
+                      // Today's work isn't paid for: collect, then verify again.
                       setShort(r.short);
-                      setOwed(Math.max(r.short, r.due ?? 0));
+                      setBookingDue(r.due ?? 0);
+                      setAddonShort(r.addonShort ?? 0);
+                      setAddonNames(r.addons ?? []);
                     } else {
                       toast.error(r.message ?? "Incorrect code");
                     }
@@ -332,15 +340,53 @@ export function VisitTab({
         {isTherapist && !verified && short > 0 && appointment._id && (
           <div className="mt-2 space-y-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
             <p className="text-[12px] font-medium text-amber-800 dark:text-amber-300">
-              Collect at least {formatINR(short)} before starting this session
-              {owed > short ? ` (${formatINR(owed)} is due in total)` : ""}. Record what
-              the customer paid, then verify the code again.
+              Collect {formatINR(short)} for today before starting this session.
+              {addonShort > 0 && (
+                <>
+                  {" "}
+                  {formatINR(addonShort)} of it is add-ons
+                  {addonNames.length ? ` (${addonNames.join(", ")})` : ""} - record
+                  those on the Billing tab.
+                </>
+              )}
+              {bookingDue > 0
+                ? " Record the session payment below, then verify the code again."
+                : " Then verify the code again."}
             </p>
-            <RecordPaymentForm
-              appointmentId={appointment._id}
-              due={owed}
-              suggested={short}
-              onRecorded={() => setShort(0)}
+            {bookingDue > 0 && (
+              <RecordPaymentForm
+                appointmentId={appointment._id}
+                due={bookingDue}
+                suggested={Math.max(0, short - addonShort)}
+                onRecorded={() => {
+                  // Keep the box up while add-ons are still owed in Billing.
+                  if (addonShort <= 0) setShort(0);
+                }}
+                companyPayee
+              />
+            )}
+            {/* One way to actually collect: a quick QR popup the customer scans
+                with any UPI app - it pays the company, amount baked in. */}
+            <div className="flex flex-wrap items-center gap-2 border-t border-amber-500/30 pt-1.5">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 gap-1.5"
+                onClick={() => setPayQrOpen(true)}
+              >
+                <QrCode className="h-3.5 w-3.5" />
+                Show payment QR
+              </Button>
+              <span className="text-[11px] text-muted-foreground">
+                Customer scans to pay the company - amount is baked in.
+              </span>
+            </div>
+            <PaymentQrDialog
+              open={payQrOpen}
+              onOpenChange={setPayQrOpen}
+              amount={short}
+              reference={appointment.enquiryId}
             />
           </div>
         )}

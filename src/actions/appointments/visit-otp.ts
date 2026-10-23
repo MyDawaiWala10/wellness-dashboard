@@ -29,7 +29,11 @@ export async function verifyVisitOtp(id: string, code: string) {
     success: res.ok,
     message: body?.message as string | undefined,
     short: typeof body?.short === "number" ? (body.short as number) : undefined,
-    // due: everything still owed on the booking (the most that can be paid now).
+    // due: everything still owed on this visit's own money (the most that can
+    // be paid now). Same-day add-ons are in `short` but settled in Billing, so
+    // the server reports them separately for the collect box.
     due: typeof body?.due === "number" ? (body.due as number) : undefined,
+    addonShort: typeof body?.addonShort === "number" ? (body.addonShort as number) : undefined,
+    addons: Array.isArray(body?.addons) ? (body.addons as string[]) : undefined,
   };
 }
