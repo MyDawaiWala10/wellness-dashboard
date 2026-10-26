@@ -267,6 +267,8 @@ export function TherapistAvailabilityGrid({
                       const isTooClose = status === "too-close";
                       // Ends after 8:30 PM, or today after 8:30 PM.
                       const isClosed = status === "after-hours" || status === "closed";
+                      // The start time has already gone for today.
+                      const isPast = status === "past";
                       const isSelected =
                         selectedDoctorId === doctorId &&
                         selectedStart === cell;
@@ -281,7 +283,7 @@ export function TherapistAvailabilityGrid({
                         <td key={cell} className="p-0.5 text-center">
                           <button
                             type="button"
-                            disabled={isBusy || isTooClose || isClosed || isOffDay}
+                            disabled={isBusy || isTooClose || isClosed || isPast || isOffDay}
                             title={
                               isOffDay
                                 ? `${therapist.name} is off on this day`
@@ -289,6 +291,8 @@ export function TherapistAvailabilityGrid({
                                   ? status === "closed"
                                     ? "Bookings for today closed at 8:30 PM"
                                     : `Visits must finish by 8:30 PM - ${durationMin} min from ${cell} runs past it`
+                                : isPast
+                                  ? `${cell} has already passed today`
                                 : isBusy
                                   ? `Booked - ${probe?.with?.name ?? "existing visit"}`
                                   : isTooClose
@@ -302,7 +306,9 @@ export function TherapistAvailabilityGrid({
                                   ? " (booked)"
                                   : isTooClose
                                     ? " (too close to another visit)"
-                                    : ""
+                                    : isPast
+                                      ? " (already passed)"
+                                      : ""
                             }`}
                             aria-pressed={isSelected}
                             onClick={() =>
@@ -317,7 +323,7 @@ export function TherapistAvailabilityGrid({
                               "h-6 w-full min-w-[2.25rem] rounded-sm border transition-colors",
                               isOffDay
                                 ? SLOT_STYLE.off
-                                : isBusy || isClosed
+                                : isBusy || isClosed || isPast
                                   ? SLOT_STYLE.busy
                                   : isTooClose
                                     ? SLOT_STYLE.tooClose
@@ -348,7 +354,7 @@ export function TherapistAvailabilityGrid({
         <p className="border-t px-2 py-1.5 text-[10px] text-muted-foreground">
           Click a free slot to set the therapist and start time. × = booked, ! =
           too close to another visit (needs a {gap}-min gap), - = day off, grey =
-          past 8:30 PM. Click a name for their specializations.
+          already passed or past 8:30 PM. Click a name for their specializations.
         </p>
       </div>
     </div>
