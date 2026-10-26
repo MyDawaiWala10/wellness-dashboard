@@ -264,7 +264,7 @@ export default function AppointmentBookingForm() {
     });
     if (sourceProblem) return sourceProblem;
     if (isCourse && !(v.sessionNumber && v.sessionNumber >= 1)) {
-      return "Enter how many sessions this course is";
+      return "Enter how many sessions this package is";
     }
     // Without it only session 1 would be booked.
     if (isCourse && (v.sessionNumber ?? 0) > 1 && !v.sessionsPerWeek) {
@@ -588,7 +588,7 @@ export default function AppointmentBookingForm() {
                     {
                       kind: "course" as const,
                       title: "Therapy sessions",
-                      hint: "A course of home visits",
+                      hint: "A package of home visits",
                     },
                   ].map((opt) => (
                     <button
@@ -915,7 +915,7 @@ export default function AppointmentBookingForm() {
                   <FormItem>
                     <FormLabel>
                       {isCourse
-                        ? "Course price (₹) - auto from the rate table"
+                        ? "Package price (₹) - auto from the rate table"
                         : "Fee (₹) - auto from the services catalogue"}
                     </FormLabel>
                     <FormControl>

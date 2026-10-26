@@ -156,6 +156,16 @@ function discountLabel(o: Offer): string {
   return `${money(o.amount)} off`;
 }
 
+// Friendly text for the appliesTo scope. The stored value stays the enum
+// ("courses" etc.); only what the admin sees uses the "package" wording.
+const APPLIES_TO_LABEL: Record<string, string> = {
+  all: "All lines",
+  services: "Services",
+  courses: "Packages",
+  add_ons: "Add-ons",
+};
+const appliesToLabel = (v?: string) => APPLIES_TO_LABEL[v ?? "all"] ?? v ?? "All lines";
+
 export function OffersCard() {
   const { data: offers = [], isLoading, isError, error, refetch } = useGetOffers();
   const role = useAuthStore((s) => s.user?.role);
@@ -264,7 +274,7 @@ export function OffersCard() {
                       <TableCell className="font-medium">{o.name}</TableCell>
                       <TableCell className="uppercase">{o.code || "—"}</TableCell>
                       <TableCell>{discountLabel(o)}</TableCell>
-                      <TableCell>{o.appliesTo ?? "all"}</TableCell>
+                      <TableCell>{appliesToLabel(o.appliesTo)}</TableCell>
                       <TableCell>{o.minRole ?? "STAFF"}</TableCell>
                       <TableCell>
                         {o.usedCount ?? 0}
@@ -419,7 +429,7 @@ export function OffersCard() {
                     <SelectContent>
                       <SelectItem value="all">All lines</SelectItem>
                       <SelectItem value="services">Services</SelectItem>
-                      <SelectItem value="courses">Courses only</SelectItem>
+                      <SelectItem value="courses">Packages only</SelectItem>
                       <SelectItem value="add_ons">Add-ons only</SelectItem>
                     </SelectContent>
                   </Select>
