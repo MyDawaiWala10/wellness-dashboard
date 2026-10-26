@@ -130,10 +130,24 @@ describe("the day ends at 8:30 PM (B2 #7)", () => {
   });
 
   it("from 8:30 PM today is closed, and the first bookable day is tomorrow", () => {
-    expect(checkConflict(visit("2026-10-16", "17:30"), [], 60, { now: at("20:29") }).status).toBe("ok");
+    // A still-future time today, before close, is bookable.
+    expect(checkConflict(visit("2026-10-16", "17:30"), [], 60, { now: at("17:00") }).status).toBe("ok");
+    // Once it's 8:30 PM, nothing more can be booked for today.
     expect(checkConflict(visit("2026-10-16", "17:30"), [], 60, { now: at("20:30") }).status).toBe("closed");
     expect(firstBookableDay(at("20:29"))).toBe("2026-10-16");
     expect(firstBookableDay(at("20:30"))).toBe("2026-10-17");
     expect(nowInIndia(at("09:05"))).toEqual({ day: "2026-10-16", min: 545 });
+  });
+
+  it("a start time already gone today is 'past'", () => {
+    // It's 6 PM, so a noon slot today can no longer be booked.
+    expect(checkConflict(visit("2026-10-16", "12:00"), [], 60, { now: at("18:00") }).status).toBe("past");
+    // Touching "now" counts as gone.
+    expect(checkConflict(visit("2026-10-16", "18:00"), [], 60, { now: at("18:00") }).status).toBe("past");
+    // A future day is unaffected by today's clock.
+    expect(checkConflict(visit("2026-10-20", "12:00"), [], 60, { now: at("18:00") }).status).toBe("ok");
+    expect(conflictMessage({ status: "past" }, "12:00", 60, 60)).toBe(
+      "12:00 has already passed today - pick a later time.",
+    );
   });
 });

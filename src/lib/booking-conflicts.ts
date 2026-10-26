@@ -16,8 +16,9 @@ export type CandidateVisit = {
 };
 
 export type ConflictResult = {
-  // "after-hours": it would end after 8:30 PM; "closed": today, from 8:30 PM.
-  status: "ok" | "overlap" | "too-close" | "after-hours" | "closed";
+  // "after-hours": ends after 8:30 PM; "closed": today, from 8:30 PM;
+  // "past": the start time has already gone for today.
+  status: "ok" | "overlap" | "too-close" | "after-hours" | "closed" | "past";
   with?: { name: string; time: string };
 };
 
@@ -89,7 +90,11 @@ export function checkConflict(
   const candEnd = candStart + candidate.durationMin;
   if (candEnd > LAST_END_MIN) return { status: "after-hours" };
   const india = nowInIndia(opts?.now);
-  if (candidate.date === india.day && india.min >= LAST_END_MIN) return { status: "closed" };
+  if (candidate.date === india.day) {
+    if (india.min >= LAST_END_MIN) return { status: "closed" };
+    // A slot that starts at or before "now" has already gone.
+    if (candStart <= india.min) return { status: "past" };
+  }
 
   let tooClose: ConflictResult | null = null;
 
@@ -142,6 +147,9 @@ export function conflictMessage(
   }
   if (conflict.status === "closed") {
     return "Bookings for today closed at 8:30 PM - pick tomorrow or later.";
+  }
+  if (conflict.status === "past") {
+    return `${startTime} has already passed today - pick a later time.`;
   }
   return null;
 }
