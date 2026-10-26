@@ -70,7 +70,7 @@ export function VisitsTab({
                   v.status === "completed"
                     ? "Done"
                     : short > 0
-                      ? `${formatINR(short)} to collect before it starts${short > share ? ` (${formatINR(share)}/session, incl. earlier sessions)` : ""}`
+                      ? `${formatINR(short)} to collect before completing${short > share ? ` (${formatINR(share)}/session, incl. earlier sessions)` : ""}`
                       : "Paid for"
                 }
                 moneyDue={v.status !== "completed" && short > 0}

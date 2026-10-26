@@ -25,6 +25,7 @@ import { useGetServices } from "@/data/service/service";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { ActivityEntry, slotBookingZodType } from "@/type/schema";
 import { getPackageProgressForAppointment } from "@/lib/package-progress";
+import { bookingLedger } from "@/lib/booking-money";
 import { verifyVisitOtp } from "@/actions/appointments/visit-otp";
 import { SendVisitOtpButton, visitCodeStatus } from "@/components/send-visit-otp";
 import { AssignTherapistCard } from "./assign-therapist-card";
@@ -123,12 +124,6 @@ export function VisitTab({
   const [draft, setDraft] = useState<slotBookingZodType>(appointment);
   const [note, setNote] = useState("");
   const [otp, setOtp] = useState("");
-  // Cash still to collect before this session can start (from Verify): the
-  // session's own share, plus any same-day add-on (settled in Billing).
-  const [short, setShort] = useState(0);
-  const [bookingDue, setBookingDue] = useState(0);
-  const [addonShort, setAddonShort] = useState(0);
-  const [addonNames, setAddonNames] = useState<string[]>([]);
   const [verified, setVerified] = useState(!!appointment.visitOtpVerified);
   // Uber-style "show the QR" popup for collecting at the door.
   const [payQrOpen, setPayQrOpen] = useState(false);
@@ -142,7 +137,6 @@ export function VisitTab({
     setNote("");
     setVerified(!!appointment.visitOtpVerified);
     setOtp("");
-    setShort(0);
   }, [appointment._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const done = new Set(draft.workChecklist ?? []);
@@ -153,6 +147,17 @@ export function VisitTab({
   const progress = getPackageProgressForAppointment(draft, [draft], services);
   const isMulti = !!progress;
   const packageDone = !!progress && progress.completed >= progress.total;
+
+  // This visit's own money, from the shared ledger. Payment is now the last
+  // gate before a visit can be closed (not a precondition for starting). The
+  // server stays the authority at completion; add-ons show here but settle on
+  // the Billing tab, so they don't block completing.
+  const ledger = bookingLedger(appointment);
+  const bookingDue = ledger.lines.find((l) => l.key === "booking")?.due ?? 0;
+  const addonDue = ledger.lines
+    .filter((l) => l.key !== "booking" && l.state === "due")
+    .reduce((t, l) => t + l.due, 0);
+  const paymentCleared = bookingDue <= 0;
 
   function toggle(key: string, label: string, checked: boolean) {
     const next = new Set(done);
@@ -204,8 +209,12 @@ export function VisitTab({
     }
     if (packageDone) return;
 
-    // No payment check here: each session is paid for before it starts
-    // (the code can't be verified until it is).
+    // Payment is the last gate before a visit closes: the therapist can start,
+    // work and note freely, but completing needs this visit's payment cleared.
+    if (!paymentCleared) {
+      toast.error("Collect this visit's payment before completing.");
+      return;
+    }
 
     // Both single visits and courses count through the atomic complete-session
     // endpoint, which snapshots the therapist's note into sessionNotes.
@@ -260,7 +269,6 @@ export function VisitTab({
       <>
       <Step
         n={1}
-        done={verified}
         title="Start the session"
         sub={
           verified
@@ -320,12 +328,6 @@ export function VisitTab({
                       // arrival is proven - no need to also tick it by hand.
                       startSession();
                       toast.success("Session started");
-                    } else if (r.short) {
-                      // Today's work isn't paid for: collect, then verify again.
-                      setShort(r.short);
-                      setBookingDue(r.due ?? 0);
-                      setAddonShort(r.addonShort ?? 0);
-                      setAddonNames(r.addons ?? []);
                     } else {
                       toast.error(r.message ?? "Incorrect code");
                     }
@@ -335,59 +337,6 @@ export function VisitTab({
                 </Button>
               </>
             )}
-          </div>
-        )}
-        {isTherapist && !verified && short > 0 && appointment._id && (
-          <div className="mt-2 space-y-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
-            <p className="text-[12px] font-medium text-amber-800 dark:text-amber-300">
-              Collect {formatINR(short)} for today before starting this session.
-              {addonShort > 0 && (
-                <>
-                  {" "}
-                  {formatINR(addonShort)} of it is add-ons
-                  {addonNames.length ? ` (${addonNames.join(", ")})` : ""} - record
-                  those on the Billing tab.
-                </>
-              )}
-              {bookingDue > 0
-                ? " Record the session payment below, then verify the code again."
-                : " Then verify the code again."}
-            </p>
-            {bookingDue > 0 && (
-              <RecordPaymentForm
-                appointmentId={appointment._id}
-                due={bookingDue}
-                suggested={Math.max(0, short - addonShort)}
-                onRecorded={() => {
-                  // Keep the box up while add-ons are still owed in Billing.
-                  if (addonShort <= 0) setShort(0);
-                }}
-                companyPayee
-              />
-            )}
-            {/* One way to actually collect: a quick QR popup the customer scans
-                with any UPI app - it pays the company, amount baked in. */}
-            <div className="flex flex-wrap items-center gap-2 border-t border-amber-500/30 pt-1.5">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8 shrink-0 gap-1.5"
-                onClick={() => setPayQrOpen(true)}
-              >
-                <QrCode className="h-3.5 w-3.5" />
-                Show payment QR
-              </Button>
-              <span className="text-[11px] text-muted-foreground">
-                Customer scans to pay the company - amount is baked in.
-              </span>
-            </div>
-            <PaymentQrDialog
-              open={payQrOpen}
-              onOpenChange={setPayQrOpen}
-              amount={short}
-              reference={appointment.enquiryId}
-            />
           </div>
         )}
       </Step>
@@ -441,10 +390,68 @@ export function VisitTab({
         />
         )}
       </Step>
+
+      <Step
+        n={4}
+        title="Payment"
+        sub={
+          paymentCleared
+            ? undefined
+            : isTherapist
+              ? "Collect this visit's payment to finish. The customer can scan the QR, or record what they paid."
+              : "This visit's payment must be cleared before it can be completed."
+        }
+      >
+        {paymentCleared ? (
+          <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+            Payment cleared - you can complete the visit.
+          </p>
+        ) : (
+          <div className="space-y-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
+            <p className="text-[12px] font-medium text-amber-800 dark:text-amber-300">
+              {formatINR(bookingDue)} due on this visit before completing.
+              {addonDue > 0 && (
+                <> {formatINR(addonDue)} in add-ons is settled on the Billing tab.</>
+              )}
+            </p>
+            {appointment._id && (
+              <RecordPaymentForm
+                appointmentId={appointment._id}
+                due={bookingDue}
+                suggested={bookingDue}
+                companyPayee
+              />
+            )}
+            {/* One way to actually collect: a quick QR popup the customer scans
+                with any UPI app - it pays the company, amount baked in. */}
+            <div className="flex flex-wrap items-center gap-2 border-t border-amber-500/30 pt-1.5">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 gap-1.5"
+                onClick={() => setPayQrOpen(true)}
+              >
+                <QrCode className="h-3.5 w-3.5" />
+                Show payment QR
+              </Button>
+              <span className="text-[11px] text-muted-foreground">
+                Customer scans to pay the company - amount is baked in.
+              </span>
+            </div>
+            <PaymentQrDialog
+              open={payQrOpen}
+              onOpenChange={setPayQrOpen}
+              amount={bookingDue}
+              reference={appointment.enquiryId}
+            />
+          </div>
+        )}
+      </Step>
       </>
       )}
 
-      <Step n={4} title="Finish">
+      <Step n={5} title="Finish">
         {draft.status === "completed" ? (
           <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50/50 px-3 py-2.5 dark:border-emerald-900 dark:bg-emerald-950/30">
             <div className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-100 dark:bg-emerald-900">
@@ -466,7 +473,7 @@ export function VisitTab({
             type="button"
             size="sm"
             className="w-full"
-            disabled={isCompleting || packageDone || !verified || (isTherapist && !workRecorded)}
+            disabled={isCompleting || packageDone || !verified || !paymentCleared || (isTherapist && !workRecorded)}
             onClick={() => (isTherapist ? complete() : setConfirmAdminComplete(true))}
           >
             {isCompleting ? (
@@ -478,13 +485,15 @@ export function VisitTab({
               label
             )}
           </Button>
-          {isTherapist && verified && !workRecorded && (
+          {isTherapist && verified && (!workRecorded || !paymentCleared) && (
             <p className="mt-1.5 text-[11px] text-muted-foreground">
-              {done.has("performed")
-                ? "Write the session note to finish."
-                : note.trim()
-                  ? "Tick Service performed to finish."
-                  : "Tick Service performed and write the session note to finish."}
+              {!paymentCleared
+                ? `Collect ${formatINR(bookingDue)} to finish.`
+                : done.has("performed")
+                  ? "Write the session note to finish."
+                  : note.trim()
+                    ? "Tick Service performed to finish."
+                    : "Tick Service performed and write the session note to finish."}
             </p>
           )}
           </>
@@ -519,7 +528,7 @@ export function VisitTab({
           session never depends on it. Only admins/staff can schedule. */}
       {/* Not on a course with a visit per session: the next one has its own. */}
       {isMulti && !packageDone && !isTherapist && !progress?.split && (
-        <Step n={5} title="Next visit" sub="Optional - book it while you are here.">
+        <Step n={6} title="Next visit" sub="Optional - book it while you are here.">
           <div className="flex gap-1.5">
             <Input
               type="date"
