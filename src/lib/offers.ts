@@ -132,7 +132,7 @@ export function offerIsApplicable(
 
   const appliesTo = offer.appliesTo ?? "all";
   if (appliesTo === "courses" && ctx.lineKind !== "course")
-    return { ok: false, reason: "Applies to courses only" };
+    return { ok: false, reason: "Applies to packages only" };
   if (appliesTo === "add_ons" && ctx.lineKind !== "add_on")
     return { ok: false, reason: "Applies to add-ons only" };
   if (appliesTo === "services" && ctx.lineKind === "add_on")

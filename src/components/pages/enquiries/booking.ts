@@ -62,7 +62,7 @@ export function bookingLabel(record: {
 }): string {
   if (bookingKindOf(record) === "course") {
     const n = record.totalSessions ?? 0;
-    return n > 1 ? `Therapy course (${n} sessions)` : "Therapy session";
+    return n > 1 ? `Therapy package (${n} sessions)` : "Therapy session";
   }
   return bookingTypeLabel(record.typeOfappointment) ?? "Consultation";
 }
