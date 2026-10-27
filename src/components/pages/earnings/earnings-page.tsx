@@ -15,12 +15,22 @@ import {
   Check,
   XCircle,
   Sparkles,
+  CalendarClock,
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -35,11 +45,18 @@ import { useGetAllAppointments, useUpdateAppointment } from "@/data/appointment/
 import {
   buildEarningRows,
   computeEarningsSummary,
+  isEarned,
   therapistSplits,
   type EarningRow,
 } from "@/lib/earnings";
 import { toast } from "sonner";
 import { BookingIdBadge } from "@/components/booking-id-badge";
+import {
+  ColumnCell,
+  ColumnHead,
+  useColumnWidths,
+  type ColumnWidths,
+} from "@/components/tables/resizable-columns";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -89,9 +106,13 @@ function EarningsTableRow({
   isAdmin,
   onToggleTherapistPaid,
   isUpdating,
+  showDiscount,
+  cols,
 }: {
   row: EarningRow;
   isAdmin: boolean;
+  showDiscount: boolean;
+  cols: ColumnWidths;
   onToggleTherapistPaid?: (row: EarningRow) => void;
   isUpdating?: boolean;
 }) {
@@ -106,59 +127,29 @@ function EarningsTableRow({
     : "—";
 
   return (
-    <tr className="border-b hover:bg-muted/30 transition-colors text-sm">
-      <td className="px-3 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
+    <TableRow>
+      <ColumnCell columnId="date" cols={cols} className="text-muted-foreground">
         {dateStr}
-      </td>
-      <td className="px-3 py-3">
+        {!isEarned(row) && (
+          <Badge variant="outline" className="ml-2 text-[11px] font-medium text-sky-700 border-sky-200 dark:text-sky-300 dark:border-sky-800">
+            Upcoming
+          </Badge>
+        )}
+      </ColumnCell>
+      <ColumnCell columnId="booking" cols={cols} >
         {row.enquiryId ? (
           <BookingIdBadge record={row} />
         ) : (
-          <span className="font-mono text-xs font-medium text-foreground">
+          <span className="text-foreground">
             {row.appointmentId.slice(-6)}
           </span>
         )}
-      </td>
-      <td className="px-3 py-3 font-semibold text-foreground">{row.customerName}</td>
+      </ColumnCell>
+      <ColumnCell columnId="customer" cols={cols} className="font-medium text-foreground">{row.customerName}</ColumnCell>
       {isAdmin && (
-        <td className="px-3 py-3 font-medium text-foreground">{row.therapistName}</td>
+        <ColumnCell columnId="therapist" cols={cols} className="font-medium text-foreground">{row.therapistName}</ColumnCell>
       )}
-      <td className="px-3 py-3 max-w-[180px] truncate text-muted-foreground font-medium">
-        {row.service}
-      </td>
-      <td className="px-3 py-3 text-center tabular-nums font-semibold">{row.sessionsCompleted}</td>
-      <td className="px-3 py-3 text-right tabular-nums font-bold text-foreground">
-        <span className={!row.paymentReceived ? "text-amber-600 dark:text-amber-400" : undefined}>
-          {fmt(row.revenue)}
-        </span>
-      </td>
-      <td className="px-3 py-3 text-right tabular-nums text-xs">
-        {row.discountAmount > 0 ? (
-          <span className="text-emerald-600 dark:text-emerald-400">
-            {row.discountType === "percent"
-              ? `${row.discountAmount}%`
-              : fmt(row.discountAmount)}
-            {row.discountCode ? (
-              <span className="text-muted-foreground ml-1">({row.discountCode})</span>
-            ) : null}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        )}
-      </td>
-      <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 font-bold">
-        {row.splitPercent == null ? (
-          <span className="text-muted-foreground font-normal">-</span>
-        ) : (
-          fmt(row.therapistCut)
-        )}
-      </td>
-      {isAdmin && (
-        <td className="px-3 py-3 text-right tabular-nums text-indigo-700 dark:text-indigo-300 font-bold">
-          {fmt(row.companyCut)}
-        </td>
-      )}
-      <td className="px-3 py-3 text-center">
+      <ColumnCell columnId="custPayment" cols={cols} className="text-center">
         {row.paymentReceived ? (
           <Badge variant="outline" className="text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 text-[11px] font-semibold px-2 py-0.5">
             Customer Paid
@@ -168,8 +159,8 @@ function EarningsTableRow({
             Customer Pending
           </Badge>
         )}
-      </td>
-      <td className="px-3 py-3 text-center">
+      </ColumnCell>
+      <ColumnCell columnId="therapistPayout" cols={cols} className="text-center">
         {isAdmin ? (
           <Button
             variant="outline"
@@ -199,8 +190,43 @@ function EarningsTableRow({
             </Badge>
           )
         )}
-      </td>
-    </tr>
+      </ColumnCell>
+      <ColumnCell columnId="service" cols={cols} className="max-w-[180px] truncate text-muted-foreground font-medium">
+        {row.service}
+      </ColumnCell>
+      <ColumnCell columnId="sessions" cols={cols} className="text-center tabular-nums">{row.sessionsCompleted}</ColumnCell>
+      <ColumnCell columnId="revenue" cols={cols} className="text-right tabular-nums font-medium text-foreground">
+        <span className={!row.paymentReceived ? "text-amber-600 dark:text-amber-400" : undefined}>
+          {fmt(row.revenue)}
+        </span>
+      </ColumnCell>
+      {showDiscount && <ColumnCell columnId="discount" cols={cols} className="text-right tabular-nums text-xs">
+        {row.discountAmount > 0 ? (
+          <span className="text-emerald-600 dark:text-emerald-400">
+            {row.discountType === "percent"
+              ? `${row.discountAmount}%`
+              : fmt(row.discountAmount)}
+            {row.discountCode ? (
+              <span className="text-muted-foreground ml-1">({row.discountCode})</span>
+            ) : null}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        )}
+      </ColumnCell>}
+      <ColumnCell columnId="cut" cols={cols} className="text-right tabular-nums text-emerald-700 dark:text-emerald-400 font-medium">
+        {row.splitPercent == null ? (
+          <span className="text-muted-foreground font-normal">-</span>
+        ) : (
+          fmt(row.therapistCut)
+        )}
+      </ColumnCell>
+      {isAdmin && (
+        <ColumnCell columnId="company" cols={cols} className="text-right tabular-nums text-indigo-700 dark:text-indigo-300 font-medium">
+          {fmt(row.companyCut)}
+        </ColumnCell>
+      )}
+    </TableRow>
   );
 }
 
@@ -337,6 +363,11 @@ export default function EarningsPage() {
   }, [allRows, dateFrom, dateTo, therapistFilter, serviceFilter, paymentFilter, payoutFilter, sortKey, sortAsc, isAdmin]);
 
   const summary = useMemo(() => computeEarningsSummary(filtered), [filtered]);
+  // Drag a header edge to resize; remembered per table in this browser.
+  const cols = useColumnWidths("earnings");
+  // Discount is "-" on almost every row; drop the column when nothing in view has one.
+  const showDiscount = filtered.some((r) => r.discountAmount > 0);
+  const columnCount = (isAdmin ? 12 : 10) - (showDiscount ? 0 : 1);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortAsc((v) => !v);
@@ -422,7 +453,7 @@ export default function EarningsPage() {
           />
         )}
         <KpiCard
-          title="Therapist Payout"
+          title={isAdmin ? "Therapist Payout" : "Earned"}
           value={fmt(summary.totalTherapistPayout)}
           icon={<Wallet className="h-4 w-4 text-sky-600 dark:text-sky-400 stroke-[2.5]" />}
           accent="bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800"
@@ -437,6 +468,13 @@ export default function EarningsPage() {
             sub={`${summary.totalRevenue > 0 ? Math.round((summary.totalCompanyEarnings / summary.totalRevenue) * 100) : 0}% margin`}
           />
         )}
+        <KpiCard
+          title="Upcoming"
+          value={fmt(isAdmin ? summary.upcomingRevenue : summary.upcomingTherapistCut)}
+          icon={<CalendarClock className="h-4 w-4 text-sky-600 dark:text-sky-400 stroke-[2.5]" />}
+          accent="bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800"
+          sub={`${summary.upcomingSessions} visit${summary.upcomingSessions === 1 ? "" : "s"} not done yet`}
+        />
         <KpiCard
           title="Payout Owed"
           value={fmt(summary.therapistUnpaidPayout)}
@@ -465,7 +503,7 @@ export default function EarningsPage() {
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap gap-3.5 items-end">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">From</label>
+              <Label className="text-muted-foreground">From</Label>
               <Input
                 type="date"
                 className="h-9 w-36 text-xs font-medium"
@@ -474,7 +512,7 @@ export default function EarningsPage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">To</label>
+              <Label className="text-muted-foreground">To</Label>
               <Input
                 type="date"
                 className="h-9 w-36 text-xs font-medium"
@@ -484,7 +522,7 @@ export default function EarningsPage() {
             </div>
             {isAdmin && (
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Therapist</label>
+                <Label className="text-muted-foreground">Therapist</Label>
                 <Select value={therapistFilter} onValueChange={setTherapistFilter}>
                   <SelectTrigger className="h-9 w-40 text-xs font-medium">
                     <SelectValue placeholder="All therapists" />
@@ -501,7 +539,7 @@ export default function EarningsPage() {
               </div>
             )}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Service</label>
+              <Label className="text-muted-foreground">Service</Label>
               <Select value={serviceFilter} onValueChange={setServiceFilter}>
                 <SelectTrigger className="h-9 w-44 text-xs font-medium">
                   <SelectValue placeholder="All services" />
@@ -515,7 +553,7 @@ export default function EarningsPage() {
               </Select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cust. Payment</label>
+              <Label className="text-muted-foreground">Cust. Payment</Label>
               <Select
                 value={paymentFilter}
                 onValueChange={(v) => setPaymentFilter(v as typeof paymentFilter)}
@@ -531,7 +569,7 @@ export default function EarningsPage() {
               </Select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Therapist Payout</label>
+              <Label className="text-muted-foreground">Therapist Payout</Label>
               <Select
                 value={payoutFilter}
                 onValueChange={(v) => setPayoutFilter(v as typeof payoutFilter)}
@@ -575,60 +613,60 @@ export default function EarningsPage() {
       >
         <Card className="overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-xs uppercase tracking-wider font-semibold text-muted-foreground">
-                  <th
-                    className="px-3 py-3 text-left cursor-pointer select-none whitespace-nowrap hover:text-foreground"
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <ColumnHead columnId="date" cols={cols}
+                    className="text-left cursor-pointer select-none whitespace-nowrap hover:text-foreground"
                     onClick={() => toggleSort("date")}
                   >
                     Date <SortIcon k="date" />
-                  </th>
-                  <th className="px-3 py-3 text-left">Booking</th>
-                  <th className="px-3 py-3 text-left">Customer</th>
-                  {isAdmin && <th className="px-3 py-3 text-left">Therapist</th>}
-                  <th className="px-3 py-3 text-left">Service</th>
-                  <th
-                    className="px-3 py-3 text-center cursor-pointer select-none hover:text-foreground"
+                  </ColumnHead>
+                  <ColumnHead columnId="booking" cols={cols} className="text-left">Booking</ColumnHead>
+                  <ColumnHead columnId="customer" cols={cols} className="text-left">Customer</ColumnHead>
+                  {isAdmin && <ColumnHead columnId="therapist" cols={cols} className="text-left">Therapist</ColumnHead>}
+                  <ColumnHead columnId="custPayment" cols={cols} className="text-center">Cust. Payment</ColumnHead>
+                  <ColumnHead columnId="therapistPayout" cols={cols} className="text-center">Therapist Payout</ColumnHead>
+                  <ColumnHead columnId="service" cols={cols} className="text-left">Service</ColumnHead>
+                  <ColumnHead columnId="sessions" cols={cols}
+                    className="text-center cursor-pointer select-none hover:text-foreground"
                     onClick={() => toggleSort("sessionsCompleted")}
                   >
                     Sessions <SortIcon k="sessionsCompleted" />
-                  </th>
-                  <th
-                    className="px-3 py-3 text-right cursor-pointer select-none whitespace-nowrap hover:text-foreground"
+                  </ColumnHead>
+                  <ColumnHead columnId="revenue" cols={cols}
+                    className="text-right cursor-pointer select-none whitespace-nowrap hover:text-foreground"
                     onClick={() => toggleSort("revenue")}
                   >
                     Revenue <SortIcon k="revenue" />
-                  </th>
-                  <th className="px-3 py-3 text-right">Discount</th>
-                  <th
-                    className="px-3 py-3 text-right cursor-pointer select-none whitespace-nowrap hover:text-foreground"
+                  </ColumnHead>
+                  {showDiscount && <ColumnHead columnId="discount" cols={cols} className="text-right">Discount</ColumnHead>}
+                  <ColumnHead columnId="cut" cols={cols}
+                    className="text-right cursor-pointer select-none whitespace-nowrap hover:text-foreground"
                     onClick={() => toggleSort("therapistCut")}
                   >
                     {isAdmin ? "Therapist Cut" : "Your Earnings"} <SortIcon k="therapistCut" />
-                  </th>
+                  </ColumnHead>
                   {isAdmin && (
-                    <th
-                      className="px-3 py-3 text-right cursor-pointer select-none whitespace-nowrap hover:text-foreground"
+                    <ColumnHead columnId="company" cols={cols}
+                      className="text-right cursor-pointer select-none whitespace-nowrap hover:text-foreground"
                       onClick={() => toggleSort("companyCut")}
                     >
                       Company Cut <SortIcon k="companyCut" />
-                    </th>
+                    </ColumnHead>
                   )}
-                  <th className="px-3 py-3 text-center">Cust. Payment</th>
-                  <th className="px-3 py-3 text-center">Therapist Payout</th>
-                </tr>
-              </thead>
-              <tbody>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filtered.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={isAdmin ? 12 : 10}
-                      className="px-3 py-12 text-center text-muted-foreground font-medium"
+                  <TableRow>
+                    <TableCell
+                      colSpan={columnCount}
+                      className="py-12 text-center text-muted-foreground font-medium"
                     >
                       No earnings data matching the selected filters.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   filtered.map((row) => (
                     <EarningsTableRow
@@ -637,33 +675,35 @@ export default function EarningsPage() {
                       isAdmin={isAdmin}
                       onToggleTherapistPaid={handleToggleTherapistPaid}
                       isUpdating={updatingId === row.appointmentId}
+                      showDiscount={showDiscount}
+                      cols={cols}
                     />
                   ))
                 )}
-              </tbody>
+              </TableBody>
               {filtered.length > 0 && (
-                <tfoot>
-                  <tr className="border-t bg-muted/40 font-bold text-sm">
-                    <td colSpan={isAdmin ? 6 : 5} className="px-3 py-3 text-muted-foreground uppercase text-xs tracking-wider">
-                      Totals ({filtered.length} rows)
-                    </td>
-                    <td className="px-3 py-3 text-right tabular-nums text-foreground font-extrabold">
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={isAdmin ? 8 : 7} className="text-muted-foreground">
+                      Earned totals ({summary.completedSessions} completed)
+                    </TableCell>
+                    <ColumnCell columnId="revenue" cols={cols} className="text-right tabular-nums text-foreground font-semibold">
                       {fmt(summary.totalRevenue)}
-                    </td>
-                    <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 font-extrabold">
+                    </ColumnCell>
+                    {/* Discount has no total; the cell keeps later totals under their columns. */}
+                    {showDiscount && <ColumnCell columnId="discount" cols={cols} />}
+                    <ColumnCell columnId="cut" cols={cols} className="text-right tabular-nums text-emerald-700 dark:text-emerald-400 font-semibold">
                       {fmt(summary.totalTherapistPayout)}
-                    </td>
+                    </ColumnCell>
                     {isAdmin && (
-                      <td className="px-3 py-3 text-right tabular-nums text-indigo-700 dark:text-indigo-300 font-extrabold">
+                      <ColumnCell columnId="company" cols={cols} className="text-right tabular-nums text-indigo-700 dark:text-indigo-300 font-semibold">
                         {fmt(summary.totalCompanyEarnings)}
-                      </td>
+                      </ColumnCell>
                     )}
-                    <td />
-                    <td />
-                  </tr>
-                </tfoot>
+                  </TableRow>
+                </TableFooter>
               )}
-            </table>
+            </Table>
           </div>
         </Card>
       </QueryWrapper>
