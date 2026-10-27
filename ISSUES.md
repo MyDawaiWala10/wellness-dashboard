@@ -758,7 +758,7 @@ Therapists open the list sorted by next visit (soonest first, nothing upcoming l
 **Affected Pages:** Enquiry drawer, Enquiries, Appointments
 
 #### Description
-The tick ran the funnel cascade, which flipped status `enquiry` to `scheduled`. The lead jumped to Appointments with no therapist or slot, and unticking only cleared the tick, leaving it off the Enquiries page. Found stuck: ENQ-0150 (launchman01).
+The tick ran the funnel cascade, which flipped status `enquiry` to `scheduled`. The lead jumped to Appointments with no therapist or slot, and unticking only cleared the tick, leaving it off the Enquiries page. Found stuck: ENQ-0150 (launchman01), reset to `enquiry` in production on 2026-10-28 with an activity-log entry.
 
 #### Fix and guard
 `reachedOutPatch` in `stage.ts`: the tick never changes status; unticking a lead an older tick made "scheduled" (nothing booked) puts it back to `enquiry`. Guard: `stage.test.ts` "reachedOutPatch".
@@ -858,7 +858,7 @@ The 15s refresh (#27) paused while the tab was hidden, so a therapist with the d
 | 27 | Newly-assigned appointments didn't appear on an open therapist tab | Medium | Fixed (frontend only; 15s poll) |
 | 28 | Called-but-unreached website leads never reached Follow-ups | High | Fixed |
 | 29 | Therapist list hid today's visits on later pages | Medium | Fixed |
-| 30 | Ticking "Reached out" turned a lead into a scheduled booking | High | Fixed (ENQ-0150 data still stuck) |
+| 30 | Ticking "Reached out" turned a lead into a scheduled booking | High | Fixed (ENQ-0150 data reset 2026-10-28) |
 | 31 | Appointments page listed bookings with no therapist | Medium | Fixed |
 | 32 | Attended section buried a lead right after it was worked on | Medium | Fixed |
 | 33 | Returning customer's details not carried onto a new booking | Medium | Fixed |
