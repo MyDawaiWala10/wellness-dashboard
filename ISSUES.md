@@ -695,6 +695,31 @@ New describe block in `src/lib/visit-groups.test.ts` — *"Visit payment gate (p
 
 ---
 
+### 27. Newly-Assigned Appointments Didn't Appear on an Open Therapist Tab
+
+**Severity:** Medium
+**Status:** Fixed (2026-10-27, branch `feat/visit-otp-roles`; verified on `localhost`)
+**Category:** Data freshness
+**Affected Pages:** Appointments list, therapist dashboard, calendar
+
+#### Description
+The Appointments query was configured with `refetchOnWindowFocus: false` and **no polling** — only a 30s `staleTime`. Enquiries, by contrast, auto-refresh (8s poll). So when an admin (e.g. Kamraan) assigned a booking to a therapist, it did **not** show up on a therapist's already-open tab until a manual reload. The therapist could genuinely see "assigned things missing". (A `localhost` data check could not reproduce a *lost* assignment — all rows were correctly stamped — confirming the fault was the stale view, not the write path.)
+
+#### Fix (frontend only)
+`appointmentsQueryOptions` (`src/data/appointment/appointment.ts`) now mirrors the enquiries list: `refetchOnWindowFocus: true` plus `refetchInterval: 15 * 1000`. Newly-assigned records appear within ~15s with no reload. The 30s `staleTime` is kept so the drawer's write-ack `updateAppointment` refetch still doesn't re-hit the network on every open — and the live check confirmed the 15s interval is **not** masked by that `staleTime` (it fires well before staleness expires).
+
+#### Verification
+On `/dashboard/appointments` (the only interval query there is appointments; the shared enquiries poll runs alongside from the global notifier), the browser Resource-Timing timeline showed two clean periodicities: ~8.3s (enquiries) and ~15.3s (appointments). The ~0.3s over 15 is the request latency before the next timer starts.
+
+#### Trade-off
+The appointments payload (full list for back-office roles) now re-fetches every 15s instead of never. Accepted per explicit request.
+
+#### Affected Code
+- Dashboard: `src/data/appointment/appointment.ts` (`appointmentsQueryOptions`)
+- No backend change
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -725,3 +750,4 @@ New describe block in `src/lib/visit-groups.test.ts` — *"Visit payment gate (p
 | 24 | Website gender and age never reached the customer record | High | Fixed |
 | 25 | Checkout raised a duplicate invoice instead of updating the booking's | High | Fixed (void INV-2026-0054 by hand) |
 | 26 | Visit tab demanded the whole package price at the first session | High | Fixed (frontend only; pending merge) |
+| 27 | Newly-assigned appointments didn't appear on an open therapist tab | Medium | Fixed (frontend only; 15s poll) |
