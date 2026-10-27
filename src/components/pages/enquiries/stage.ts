@@ -49,6 +49,13 @@ export function reachedOutPatch(
   };
 }
 
+/**
+ * Which page a booking lives on: with a therapist it's on Appointments,
+ * without one it stays on Enquiries until step 5 assigns one - whatever its
+ * status says (the New appointment form can save one as "scheduled").
+ */
+export const hasTherapist = (r: { doctorId?: string | null }): boolean => Boolean(r.doctorId);
+
 /** A lead we've attempted but not yet connected with - surfaced on /dashboard/follow-ups. */
 export const isFollowUp = (r: EnquiryType): boolean => deriveStage(r) === "follow_up";
 

@@ -81,8 +81,13 @@ export function useBookAppointment() {
       if (!result.success) throw new Error(result.message);
       return result;
     },
-    onSuccess: (result) => {
-      toast.success("Appointment booked", { description: result.message });
+    onSuccess: (result, values) => {
+      // Without a therapist it waits on Enquiries (step 5), not Appointments.
+      toast.success("Appointment booked", {
+        description: values.doctorId
+          ? result.message
+          : "No therapist yet - it's on Enquiries until one is assigned.",
+      });
       invalidateAppointmentAndEnquiryQueries(queryClient);
     },
     onError: (err: Error) => {

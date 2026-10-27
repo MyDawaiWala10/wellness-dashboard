@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { topLevelRows } from "@/lib/visit-groups";
+import { hasTherapist } from "@/components/pages/enquiries/stage";
 import { isToday } from "date-fns";
 import AppointmentBookingForm from "./appointmentbookingform";
 import { MetricCard, MetricCardsRow } from "@/components/metric-card";
@@ -54,8 +55,11 @@ export default function SlotBookingPage() {
     [appointments, services, role],
   );
 
+  // Only bookings with a therapist; the rest wait on Enquiries for step 5.
+  const booked = useMemo(() => (appointments ?? []).filter(hasTherapist), [appointments]);
+
   const apptTodayStats = useMemo(() => {
-    const recs = appointments ?? [];
+    const recs = booked;
     return {
       newToday: recs.filter((r) => isTodayISO(readCreatedISO(r))).length,
       sessionsToday: recs.filter((r) => {
@@ -66,7 +70,7 @@ export default function SlotBookingPage() {
       completedToday: recs.filter((r) => isTodayISO(r.completedAt)).length,
       paymentsToday: recs.filter((r) => isTodayISO(r.paymentReceivedAt)).length,
     };
-  }, [appointments]);
+  }, [booked]);
 
   return (
     <>
@@ -113,7 +117,7 @@ export default function SlotBookingPage() {
               live inside it (Sessions tab), not as extra rows. */}
           <AppointmentDataTable
             columns={columns}
-            data={topLevelRows(appointments ?? [])}
+            data={topLevelRows(booked)}
             allAppointments={appointments ?? []}
             // A therapist works by visit date: today's visits first, whenever
             // the lead came in. The office keeps newest booking first.

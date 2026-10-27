@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EnquiryType } from "@/type/schema";
-import { deriveStage, reachedOutPatch } from "./stage";
+import { deriveStage, hasTherapist, reachedOutPatch } from "./stage";
 
 const lead = (r: Partial<EnquiryType>) => ({ status: "enquiry", ...r }) as EnquiryType;
 
@@ -47,5 +47,15 @@ describe("reachedOutPatch", () => {
   it("keeps the existing owner", () => {
     const owner = { userId: "u0", name: "Kamran" };
     expect(reachedOutPatch(lead({ reachedOutBy: owner }), true, me).reachedOutBy).toEqual(owner);
+  });
+});
+
+describe("hasTherapist (which page a booking lives on)", () => {
+  it("a 'scheduled' booking with no therapist stays off Appointments", () => {
+    expect(hasTherapist(lead({ status: "scheduled" }))).toBe(false);
+    expect(hasTherapist(lead({ status: "scheduled", doctorId: "" }))).toBe(false);
+  });
+  it("an assigned booking is on Appointments", () => {
+    expect(hasTherapist(lead({ status: "ongoing", doctorId: "THR-0004" }))).toBe(true);
   });
 });

@@ -53,7 +53,9 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/providers/permission-provider";
 import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
 import getAllAppointments from "@/actions/appointments/get-all-appointments";
-import type { EnquiryType } from "@/type/schema";
+import type { EnquiryType, slotBookingZodType } from "@/type/schema";
+import { parentIdOf } from "@/lib/visit-groups";
+import { matchesSearch } from "@/lib/search";
 
 import { makeEnquiryColumns } from "./enquiries-columns";
 import { EnquiryIntakeModal } from "./enquiry-intake-modal";
@@ -62,6 +64,7 @@ import {
   STAGE_LABELS,
   STAGE_ORDER,
   deriveStage,
+  hasTherapist,
   type FunnelStage,
 } from "./stage";
 import { MetricCard, MetricCardsRow } from "@/components/metric-card";
@@ -91,6 +94,10 @@ function readTimestamp(
   const t = new Date(ts).getTime();
   return Number.isNaN(t) ? 0 : t;
 }
+
+/** When a lead was last worked on (falls back to when it arrived). */
+const lastTouched = (r: EnquiryType) =>
+  readTimestamp(r, "updatedAt") || readTimestamp(r, "createdAt");
 
 /** A "needs first contact" lead is stale if it was created more than 24h ago. */
 function isStaleUntouched(r: EnquiryType): boolean {
@@ -195,13 +202,8 @@ export function SectionTable({
     },
     onGlobalFilterChange: onSearchChange,
     globalFilterFn: (row, _columnId, value) => {
-      const q = String(value).toLowerCase();
-      if (!q) return true;
       const r = row.original as EnquiryType;
-      return (
-        (r.name ?? "").toLowerCase().includes(q) ||
-        String(r.phonenumber ?? "").includes(q)
-      );
+      return matchesSearch(value, [r.name, r.enquiryId, r.phonenumber, r.email, r.doctor]);
     },
   });
 
@@ -383,7 +385,10 @@ export default function EnquiriesPage() {
         r.preferredReachOutTime !== undefined ||
         r.executiveReachedOut === true ||
         r.consultationSlot !== undefined ||
-        r.physioSlot !== undefined;
+        r.physioSlot !== undefined ||
+        // A booking still waiting for a therapist (step 5) belongs here, not
+        // on Appointments. Course/add-on visits stay inside their booking.
+        (!hasTherapist(r) && !parentIdOf(r as slotBookingZodType));
       return isEnquiryFunnel;
     });
   }, [allRecords]);
@@ -420,15 +425,11 @@ export default function EnquiriesPage() {
     [enquiryRecords],
   );
 
-  // Show most-recently-created first in the bottom section.
-  // EnquiryType doesn't declare createdAt (it's a Mongoose-side timestamp),
-  // so we cast through `unknown` to read it.
+  // Most recently worked on first (matching the "Last updated" column), so a
+  // lead you just acted on is on top - sorting by creation buried an older lead
+  // behind "Show all" the moment it left Follow-ups.
   const sortedAttended = useMemo(() => {
-    return [...attendedRecords].sort((a, b) => {
-      const aDate = readTimestamp(a, "createdAt");
-      const bDate = readTimestamp(b, "createdAt");
-      return bDate - aDate;
-    });
+    return [...attendedRecords].sort((a, b) => lastTouched(b) - lastTouched(a));
   }, [attendedRecords]);
 
   // Per-stage counts within attended only - used by the stage filter dropdown.
@@ -447,7 +448,9 @@ export default function EnquiriesPage() {
     return sortedAttended.filter((r) => deriveStage(r) === attendedStageFilter);
   }, [sortedAttended, attendedStageFilter]);
 
-  const displayedAttended = bottomExpanded
+  // A search looks through every attended lead, not just the 5 shown collapsed.
+  const showAllAttended = bottomExpanded || bottomSearch.trim() !== "";
+  const displayedAttended = showAllAttended
     ? filteredAttended
     : filteredAttended.slice(0, COLLAPSED_ATTENDED_ROWS);
 
@@ -685,17 +688,17 @@ export default function EnquiriesPage() {
                     ? `No attended leads in stage "${STAGE_LABELS[attendedStageFilter]}".`
                     : "No leads contacted yet."
                 }
-                paginated={bottomExpanded}
+                paginated={showAllAttended}
                 onRowClick={setOpenDetail}
                 rowClassName={(r) =>
                   isStaleAttended(r) ? STALE_ROW_CLASS : ""
                 }
                 hideSearch
               />
-              {!bottomExpanded &&
+              {!showAllAttended &&
                 filteredAttended.length > COLLAPSED_ATTENDED_ROWS && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    Showing {COLLAPSED_ATTENDED_ROWS} most recent of{" "}
+                    Showing the {COLLAPSED_ATTENDED_ROWS} most recently updated of{" "}
                     {filteredAttended.length}. Click &ldquo;Show all&rdquo; to
                     see history with pagination.
                   </p>
