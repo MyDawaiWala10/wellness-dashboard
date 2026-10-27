@@ -38,7 +38,8 @@ export function childVisitsOf(parent: Row, all: Row[]): Row[] {
     .sort((a, b) => visitStartMs(a) - visitStartMs(b));
 }
 
-const visitStartMs = (r: Row) => {
+/** When a visit starts (its own slot), in ms; Infinity when it has no date. */
+export const visitStartMs = (r: Row) => {
   const day = toDayKey(r.slot?.date || r.physioSlot?.date);
   return day ? new Date(`${day}T${(r.slot?.time || r.physioSlot?.time || "00:00").padStart(5, "0")}:00`).getTime() : Infinity;
 };
