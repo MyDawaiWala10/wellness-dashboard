@@ -30,6 +30,25 @@ export function deriveStage(r: EnquiryType): FunnelStage {
   return "enquiry";
 }
 
+/**
+ * The "Reached out" tick. Reaching a customer is not a booking, so this never
+ * moves a lead to "scheduled" (that sent it to Appointments with no therapist
+ * or slot). Older ticks did; unticking such a lead puts it back to "enquiry".
+ */
+export function reachedOutPatch(
+  r: EnquiryType,
+  checked: boolean,
+  actor?: { userId: string; name: string },
+): Partial<EnquiryType> {
+  const booked = Boolean(r.doctorId || r.slot?.date || r.physioSlot?.date || r.consultationSlot?.date);
+  return {
+    executiveReachedOut: checked,
+    executiveReachedOutAt: checked ? new Date().toISOString() : undefined,
+    reachedOutBy: r.reachedOutBy ?? (checked ? actor : undefined),
+    ...(!checked && r.status === "scheduled" && !booked ? { status: "enquiry" as const } : {}),
+  };
+}
+
 /** A lead we've attempted but not yet connected with - surfaced on /dashboard/follow-ups. */
 export const isFollowUp = (r: EnquiryType): boolean => deriveStage(r) === "follow_up";
 

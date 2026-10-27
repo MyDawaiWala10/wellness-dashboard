@@ -89,6 +89,7 @@ import {
   type BookingType,
 } from "./booking";
 import { TherapistAvailabilityGrid } from "./therapist-availability-grid";
+import { reachedOutPatch } from "./stage";
 
 const STATUS_LABELS: Record<string, string> = {
   enquiry: "Enquiry",
@@ -446,13 +447,8 @@ export function EnquiryDetailDrawer({
   }
 
   function toggleReachedOut(checked: boolean) {
-    save(
-      {
-        executiveReachedOut: checked,
-        executiveReachedOutAt: checked ? new Date().toISOString() : undefined,
-      },
-      checked, // ticking ON is a funnel advance (captures reachedOutBy etc.)
-    );
+    const actor = currentUser ? { userId: currentUser.id, name: currentActorName() } : undefined;
+    save(reachedOutPatch(draft!, checked, actor));
   }
 
   // Log a failed call attempt ("no answer"). Deliberately NOT a funnel advance:
