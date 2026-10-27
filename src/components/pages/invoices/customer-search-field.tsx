@@ -15,6 +15,7 @@ import {
 import { useSearchCustomers } from "@/data/customer/customer-api";
 import type { PersistedCustomer } from "@/type/customer-record";
 import { cn } from "@/lib/utils";
+import { personAge } from "@/lib/person";
 
 export type CustomerSelection = {
   customer_id?: string;
@@ -22,6 +23,8 @@ export type CustomerSelection = {
   customer_phone?: number;
   email?: string;
   address?: string;
+  /** From the customer record (birth year / date of birth); unset when unknown. */
+  age?: number;
 };
 
 interface CustomerSearchFieldProps {
@@ -71,6 +74,7 @@ export function CustomerSearchField({
       customer_phone: c.phone,
       email: c.email ?? "",
       address: c.address ?? "",
+      age: personAge(c),
     });
     setQuery(c.name);
     setOpen(false);

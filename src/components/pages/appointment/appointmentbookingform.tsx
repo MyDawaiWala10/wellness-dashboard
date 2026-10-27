@@ -767,6 +767,7 @@ export default function AppointmentBookingForm() {
                   if (sel.customer_id) {
                     form.setValue("location", sel.address ?? "");
                     form.setValue("email", sel.email ?? "");
+                    form.setValue("age", sel.age);
                     if (typeof sel.customer_phone === "number") {
                       form.setValue("phonenumber", sel.customer_phone, {
                         shouldValidate: true,
