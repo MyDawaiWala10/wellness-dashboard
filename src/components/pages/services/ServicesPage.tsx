@@ -1,8 +1,8 @@
 "use client";
 
+import { ResizableCell, ResizableHead, useColumnWidths } from "@/components/tables/resizable-columns";
 import { useMemo, useState } from "react";
 import {
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
@@ -28,7 +28,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -64,6 +63,10 @@ export default function ServicesPage() {
   const [openService, setOpenService] = useState<ServiceType | null>(null);
 
   const stats = useMemo(() => computeServiceStats(services), [services]);
+
+  // Drag a header edge to resize; remembered per table in this browser.
+
+  const cols = useColumnWidths("services");
 
   const table = useReactTable({
     data: services,
@@ -190,14 +193,7 @@ export default function ServicesPage() {
                   {table.getHeaderGroups().map((hg) => (
                     <TableRow key={hg.id}>
                       {hg.headers.map((header) => (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext(),
-                              )}
-                        </TableHead>
+                        <ResizableHead key={header.id} header={header} cols={cols} />
                       ))}
                     </TableRow>
                   ))}
@@ -211,12 +207,7 @@ export default function ServicesPage() {
                         onClick={() => setOpenService(row.original)}
                       >
                         {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id}>
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                          </TableCell>
+                          <ResizableCell key={cell.id} cell={cell} cols={cols} />
                         ))}
                       </TableRow>
                     ))

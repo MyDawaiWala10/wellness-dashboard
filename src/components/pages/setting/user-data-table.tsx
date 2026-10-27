@@ -1,12 +1,12 @@
 "use client";
 
+import { ResizableCell, ResizableHead, useColumnWidths } from "@/components/tables/resizable-columns";
 import * as React from "react";
 import {
   ColumnDef,
   ColumnFiltersState, // for filtering
   SortingState, // for sorting
   VisibilityState,
-  flexRender,
   getCoreRowModel,
   getPaginationRowModel, // for pagination
   getSortedRowModel, // for sorting
@@ -19,7 +19,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -40,6 +39,10 @@ export function UserDataTable<TData, TValue>({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+
+  // Drag a header edge to resize; remembered per table in this browser.
+
+  const cols = useColumnWidths("users");
 
   const table = useReactTable({
     data,
@@ -81,14 +84,7 @@ export function UserDataTable<TData, TValue>({
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => {
                       return (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
+                        <ResizableHead key={header.id} header={header} cols={cols} />
                       );
                     })}
                   </TableRow>
@@ -102,12 +98,7 @@ export function UserDataTable<TData, TValue>({
                       data-state={row.getIsSelected() && "selected"}
                     >
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
+                        <ResizableCell key={cell.id} cell={cell} cols={cols} />
                       ))}
                     </TableRow>
                   ))

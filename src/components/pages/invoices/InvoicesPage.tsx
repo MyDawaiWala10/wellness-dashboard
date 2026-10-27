@@ -1,8 +1,8 @@
 "use client";
 
+import { ResizableCell, ResizableHead, useColumnWidths } from "@/components/tables/resizable-columns";
 import { useMemo, useState } from "react";
 import {
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
@@ -26,7 +26,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -84,6 +83,10 @@ export default function InvoicesPage() {
       }),
     [],
   );
+
+  // Drag a header edge to resize; remembered per table in this browser.
+
+  const cols = useColumnWidths("invoices");
 
   const table = useReactTable({
     data: invoices,
@@ -172,14 +175,7 @@ export default function InvoicesPage() {
                     {table.getHeaderGroups().map((headerGroup) => (
                       <TableRow key={headerGroup.id}>
                         {headerGroup.headers.map((header) => (
-                          <TableHead key={header.id}>
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext(),
-                                )}
-                          </TableHead>
+                          <ResizableHead key={header.id} header={header} cols={cols} />
                         ))}
                       </TableRow>
                     ))}
@@ -193,18 +189,13 @@ export default function InvoicesPage() {
                           onClick={() => setOpenInvoiceId(row.original.invoice_id)}
                         >
                           {row.getVisibleCells().map((cell) => (
-                            <TableCell
+                            <ResizableCell
                               key={cell.id}
                               onClick={(e) => {
                                 // Keep action-cell button click from bubbling twice.
                                 if (cell.column.id === "action") e.stopPropagation();
                               }}
-                            >
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext(),
-                              )}
-                            </TableCell>
+                             cell={cell} cols={cols} />
                           ))}
                         </TableRow>
                       ))

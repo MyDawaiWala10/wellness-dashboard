@@ -1,9 +1,9 @@
 "use client";
 
+import { ResizableCell, ResizableHead, useColumnWidths } from "@/components/tables/resizable-columns";
 import { matchesSearch } from "@/lib/search";
 import { useMemo, useState } from "react";
 import {
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
@@ -27,7 +27,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -117,6 +116,10 @@ export default function CustomersPage() {
       }),
     [],
   );
+
+  // Drag a header edge to resize; remembered per table in this browser.
+
+  const cols = useColumnWidths("customers");
 
   const table = useReactTable({
     data: customers,
@@ -208,14 +211,7 @@ export default function CustomersPage() {
                     {table.getHeaderGroups().map((headerGroup) => (
                       <TableRow key={headerGroup.id}>
                         {headerGroup.headers.map((header) => (
-                          <TableHead key={header.id}>
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext(),
-                                )}
-                          </TableHead>
+                          <ResizableHead key={header.id} header={header} cols={cols} />
                         ))}
                       </TableRow>
                     ))}
@@ -229,19 +225,14 @@ export default function CustomersPage() {
                           onClick={() => setOpenCustomer(row.original)}
                         >
                           {row.getVisibleCells().map((cell) => (
-                            <TableCell
+                            <ResizableCell
                               key={cell.id}
                               onClick={(e) => {
                                 if (cell.column.id === "action") {
                                   e.stopPropagation();
                                 }
                               }}
-                            >
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext(),
-                              )}
-                            </TableCell>
+                             cell={cell} cols={cols} />
                           ))}
                         </TableRow>
                       ))
