@@ -72,7 +72,7 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
       {splitEditor}
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Total sessions" value={String(summary.completedSessions)} />
+        <StatCard label="Completed sessions" value={String(summary.completedSessions)} />
         <StatCard
           label="Total revenue"
           value={`₹${summary.totalRevenue.toLocaleString()}`}
@@ -107,6 +107,10 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
         <StatCard
           label="Avg / session"
           value={`₹${summary.avgPerSession.toLocaleString()}`}
+        />
+        <StatCard
+          label={`Upcoming (${summary.upcomingSessions} not done yet)`}
+          value={`₹${summary.upcomingTherapistCut.toLocaleString()}`}
         />
       </div>
 

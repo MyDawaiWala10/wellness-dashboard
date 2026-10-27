@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 
-import { buildEarningRows, canManageSplit, splitFor, therapistSplits } from "./earnings";
+import {
+  buildEarningRows,
+  canManageSplit,
+  computeEarningsSummary,
+  splitFor,
+  therapistSplits,
+} from "./earnings";
 import type { slotBookingZodType } from "@/type/schema";
 
 const splits = therapistSplits([
@@ -51,5 +57,38 @@ describe("canManageSplit", () => {
     expect(canManageSplit("ADMIN")).toBe(true);
     expect(canManageSplit("THERAPIST")).toBe(false);
     expect(canManageSplit("STAFF")).toBe(false);
+  });
+});
+
+describe("computeEarningsSummary: earned vs upcoming", () => {
+  const booking = (over: Partial<slotBookingZodType>) =>
+    ({ name: "x", phonenumber: 1, doctorId: "THR-1", paymentAmount: 1000, paymentReceived: true, ...over }) as slotBookingZodType;
+
+  it("totals only completed sessions; a paid visit still to come is upcoming", () => {
+    const rows = buildEarningRows(
+      [
+        booking({ _id: "a", status: "completed" }),
+        booking({ _id: "b", status: "scheduled" }), // a package session, paid up front
+        booking({ _id: "c", status: "ongoing", paymentReceived: false }),
+      ],
+      splits,
+    );
+    const s = computeEarningsSummary(rows);
+
+    expect(s.completedSessions).toBe(1);
+    expect(s.totalRevenue).toBe(1000);
+    expect(s.totalTherapistPayout).toBe(700);
+    expect(s.therapistUnpaidPayout).toBe(700);
+    expect(s.upcomingSessions).toBe(2);
+    expect(s.upcomingRevenue).toBe(2000);
+    expect(s.upcomingTherapistCut).toBe(1400);
+  });
+
+  it("nothing completed yet: every total is zero", () => {
+    const s = computeEarningsSummary(buildEarningRows([booking({ status: "scheduled" })], splits));
+    expect(s.completedSessions).toBe(0);
+    expect(s.totalTherapistPayout).toBe(0);
+    expect(s.avgPerSession).toBe(0);
+    expect(s.upcomingSessions).toBe(1);
   });
 });

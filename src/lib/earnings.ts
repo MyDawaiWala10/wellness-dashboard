@@ -39,7 +39,18 @@ export type EarningsSummary = {
   avgPerSession: number;
   therapistPaidPayout: number;
   therapistUnpaidPayout: number;
+  /** Visits not done yet: listed, but kept out of every total above. */
+  upcomingSessions: number;
+  upcomingRevenue: number;
+  upcomingTherapistCut: number;
 };
+
+/**
+ * A session counts as earned once it's completed. Anything else still listed
+ * (scheduled, ongoing) is "upcoming": shown, but never summed into earnings,
+ * payouts or the session count.
+ */
+export const isEarned = (r: { status: string }): boolean => r.status === "completed";
 
 /** Only Admin / Super Admin see or set split percentages. */
 export function canManageSplit(role: string | undefined): boolean {
@@ -134,8 +145,10 @@ export function buildEarningRows(
 }
 
 export function computeEarningsSummary(rows: EarningRow[]): EarningsSummary {
-  const paid = rows.filter((r) => r.paymentReceived);
-  const pending = rows.filter((r) => !r.paymentReceived);
+  const earned = rows.filter(isEarned);
+  const upcoming = rows.filter((r) => !isEarned(r));
+  const paid = earned.filter((r) => r.paymentReceived);
+  const pending = earned.filter((r) => !r.paymentReceived);
 
   const totalRevenue = paid.reduce((s, r) => s + r.revenue, 0);
   const totalOriginalRevenue = paid.reduce((s, r) => s + r.originalPrice, 0);
@@ -143,11 +156,9 @@ export function computeEarningsSummary(rows: EarningRow[]): EarningsSummary {
   const totalTherapistPayout = paid.reduce((s, r) => s + r.therapistCut, 0);
   const totalCompanyEarnings = paid.reduce((s, r) => s + r.companyCut, 0);
   const totalPending = pending.reduce((s, r) => s + r.revenue, 0);
-  // Count sessions by rows, not by sessionsCompleted field (which defaults to 0
-  // and doesn't reliably reflect completion for legacy/ad-hoc records).
-  // Each row in the earnings table IS one session. Use all rows (not just paid)
-  // so the KPI matches the session list table.
-  const completedSessions = rows.length;
+  // Count sessions by rows, not by the sessionsCompleted field (which defaults
+  // to 0 and isn't reliable on legacy/ad-hoc records). Each row is one session.
+  const completedSessions = earned.length;
   const paidCount = paid.length;
   const avgPerSession =
     paidCount > 0 ? Math.round(totalRevenue / paidCount) : 0;
@@ -166,5 +177,8 @@ export function computeEarningsSummary(rows: EarningRow[]): EarningsSummary {
     avgPerSession,
     therapistPaidPayout,
     therapistUnpaidPayout,
+    upcomingSessions: upcoming.length,
+    upcomingRevenue: upcoming.reduce((s, r) => s + r.revenue, 0),
+    upcomingTherapistCut: upcoming.reduce((s, r) => s + r.therapistCut, 0),
   };
 }
