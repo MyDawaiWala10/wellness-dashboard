@@ -116,8 +116,10 @@ export function visitShare(r: Row, parent: Row): number {
 }
 
 /**
- * Still to collect before this visit can start (0 = covered). Mirrors the
- * backend's shortBeforeStart (lib/payments.ts) - KEEP IN SYNC.
+ * Still to collect for this visit (0 = covered): its own paced share. Mirrors
+ * the backend's shortBeforeStart booking term (lib/payments.ts) - KEEP IN SYNC.
+ * For a multi-session package this is ONE session's share, never the whole
+ * package price - session N owes N/total cumulative minus what is already paid.
  */
 export function visitShort(r: Row, parent: Row): number {
   if (r.addonOf?.bookingId) {
@@ -128,8 +130,34 @@ export function visitShort(r: Row, parent: Row): number {
     const per = Math.round(rec.quotedPrice / (rec.sessions ?? 1));
     return Math.max(0, Math.min(rec.quotedPrice, per * r.addonOf.session) - addonPaid(rec));
   }
+  // Mirror the backend's paidNeededBeforeVisit exactly: the current session comes
+  // from the split-course position, else the completing row's counter - NOT
+  // sessionNumber (which the completion flow repurposes as a moving pointer).
   const price = parent.quotedPrice ?? 0;
   const total = parent.totalSessions ?? 1;
-  const needed = total <= 1 ? price : Math.min(price, Math.round((price / total) * (r.sessionNumber ?? 1)));
+  const session = courseSessionOf(r)?.session ?? (r.sessionsCompleted ?? 0) + 1;
+  const needed = total <= 1 ? price : Math.min(price, Math.round((price / total) * session));
   return Math.max(0, needed - (parent.paymentAmount ?? 0));
+}
+
+/**
+ * Unpaid same-visit add-ons (confirmed, not deferred to a later visit). Mirrors
+ * the backend's unpaidAddonsThisVisit (lib/payments.ts) - KEEP IN SYNC. These
+ * settle on the Billing tab, but the server still blocks completing the visit
+ * until they are paid, so the visit's payment gate must count them too.
+ */
+export function visitAddonShort(r: Row): { amount: number; addons: string[] } {
+  let amount = 0;
+  const addons: string[] = [];
+  for (const rec of r.recommendedServices ?? []) {
+    if (rec.status !== "confirmed" || rec.firstInVisit === false) continue;
+    const needed =
+      (rec.sessions ?? 1) > 1 ? Math.round(rec.quotedPrice / (rec.sessions ?? 1)) : rec.quotedPrice;
+    const short = Math.max(0, needed - addonPaid(rec));
+    if (short > 0) {
+      amount += short;
+      addons.push(rec.serviceName);
+    }
+  }
+  return { amount, addons };
 }

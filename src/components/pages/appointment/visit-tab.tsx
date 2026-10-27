@@ -25,7 +25,7 @@ import { useGetServices } from "@/data/service/service";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { ActivityEntry, slotBookingZodType } from "@/type/schema";
 import { getPackageProgressForAppointment } from "@/lib/package-progress";
-import { bookingLedger } from "@/lib/booking-money";
+import { parentIdOf, visitAddonShort, visitShort } from "@/lib/visit-groups";
 import { verifyVisitOtp } from "@/actions/appointments/visit-otp";
 import { SendVisitOtpButton, visitCodeStatus } from "@/components/send-visit-otp";
 import { AssignTherapistCard } from "./assign-therapist-card";
@@ -148,16 +148,18 @@ export function VisitTab({
   const isMulti = !!progress;
   const packageDone = !!progress && progress.completed >= progress.total;
 
-  // This visit's own money, from the shared ledger. Payment is now the last
-  // gate before a visit can be closed (not a precondition for starting). The
-  // server stays the authority at completion; add-ons show here but settle on
-  // the Billing tab, so they don't block completing.
-  const ledger = bookingLedger(appointment);
-  const bookingDue = ledger.lines.find((l) => l.key === "booking")?.due ?? 0;
-  const addonDue = ledger.lines
-    .filter((l) => l.key !== "booking" && l.state === "due")
-    .reduce((t, l) => t + l.due, 0);
-  const paymentCleared = bookingDue <= 0;
+  // This visit's own payment, paced per session - the single source of truth that
+  // mirrors the backend (visitShort / visitAddonShort). Payment is the last gate
+  // before a visit closes (not a precondition for starting). On a multi-session
+  // package this is ONE session's share, never the whole package price. The
+  // booking share is collected here; same-visit add-ons settle on Billing, but the
+  // server blocks completion until both are clear, so both gate this step.
+  const parentId = parentIdOf(appointment);
+  const moneyParent =
+    (parentId ? allAppointments.find((r) => r._id === parentId) : undefined) ?? appointment;
+  const bookingDue = visitShort(appointment, moneyParent);
+  const addonDue = visitAddonShort(appointment).amount;
+  const paymentCleared = bookingDue + addonDue <= 0;
 
   function toggle(key: string, label: string, checked: boolean) {
     const next = new Set(done);
@@ -409,12 +411,15 @@ export function VisitTab({
         ) : (
           <div className="space-y-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
             <p className="text-[12px] font-medium text-amber-800 dark:text-amber-300">
-              {formatINR(bookingDue)} due on this visit before completing.
+              {bookingDue > 0 && <>{formatINR(bookingDue)} due for this session before completing.</>}
               {addonDue > 0 && (
-                <> {formatINR(addonDue)} in add-ons is settled on the Billing tab.</>
+                <>
+                  {bookingDue > 0 ? " " : ""}
+                  {formatINR(addonDue)} in add-ons is settled on the Billing tab.
+                </>
               )}
             </p>
-            {appointment._id && (
+            {bookingDue > 0 && appointment._id && (
               <RecordPaymentForm
                 appointmentId={appointment._id}
                 due={bookingDue}
@@ -424,21 +429,23 @@ export function VisitTab({
             )}
             {/* One way to actually collect: a quick QR popup the customer scans
                 with any UPI app - it pays the company, amount baked in. */}
-            <div className="flex flex-wrap items-center gap-2 border-t border-amber-500/30 pt-1.5">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8 shrink-0 gap-1.5"
-                onClick={() => setPayQrOpen(true)}
-              >
-                <QrCode className="h-3.5 w-3.5" />
-                Show payment QR
-              </Button>
-              <span className="text-[11px] text-muted-foreground">
-                Customer scans to pay the company - amount is baked in.
-              </span>
-            </div>
+            {bookingDue > 0 && (
+              <div className="flex flex-wrap items-center gap-2 border-t border-amber-500/30 pt-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 shrink-0 gap-1.5"
+                  onClick={() => setPayQrOpen(true)}
+                >
+                  <QrCode className="h-3.5 w-3.5" />
+                  Show payment QR
+                </Button>
+                <span className="text-[11px] text-muted-foreground">
+                  Customer scans to pay the company - amount is baked in.
+                </span>
+              </div>
+            )}
             <PaymentQrDialog
               open={payQrOpen}
               onOpenChange={setPayQrOpen}
@@ -488,7 +495,9 @@ export function VisitTab({
           {isTherapist && verified && (!workRecorded || !paymentCleared) && (
             <p className="mt-1.5 text-[11px] text-muted-foreground">
               {!paymentCleared
-                ? `Collect ${formatINR(bookingDue)} to finish.`
+                ? bookingDue > 0
+                  ? `Collect ${formatINR(bookingDue)} to finish.`
+                  : `Settle ${formatINR(addonDue)} in add-ons on Billing to finish.`
                 : done.has("performed")
                   ? "Write the session note to finish."
                   : note.trim()
