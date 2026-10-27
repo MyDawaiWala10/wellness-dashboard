@@ -768,7 +768,7 @@ The tick ran the funnel cascade, which flipped status `enquiry` to `scheduled`. 
 ### 31. Appointments Page Listed Bookings with No Therapist
 
 **Severity:** Medium
-**Status:** Fixed (2026-10-27, uncommitted, verified on `localhost` as therapist only)
+**Status:** Fixed (2026-10-27, `fd7e2d0`; verified on `localhost` as therapist only)
 **Category:** Lead funnel
 **Affected Pages:** Appointments, Enquiries, New appointment form
 
@@ -783,7 +783,7 @@ One rule, `hasTherapist` in `stage.ts`: Appointments shows only bookings with a 
 ### 32. Attended Section Buried a Lead Right After It Was Worked On
 
 **Severity:** Medium
-**Status:** Fixed (2026-10-27, uncommitted)
+**Status:** Fixed (2026-10-27, `fd7e2d0`)
 **Category:** Visibility
 **Affected Pages:** Enquiries, Attended section
 
@@ -798,7 +798,7 @@ Attended sorts by last update (matching its "Last updated" column), and a search
 ### 33. Returning Customer's Details Not Carried onto a New Booking
 
 **Severity:** Medium
-**Status:** Fixed (2026-10-27, uncommitted; unit-tested, not run against a real database)
+**Status:** Fixed (2026-10-28, backend `17bcaa0`, dashboard `6a8a0cf`; unit-tested, not run against a real database)
 **Category:** Data entry
 **Affected Pages:** New Enquiry, Book new session, New appointment, website
 
@@ -859,7 +859,7 @@ The 15s refresh (#27) paused while the tab was hidden, so a therapist with the d
 | 28 | Called-but-unreached website leads never reached Follow-ups | High | Fixed |
 | 29 | Therapist list hid today's visits on later pages | Medium | Fixed |
 | 30 | Ticking "Reached out" turned a lead into a scheduled booking | High | Fixed (ENQ-0150 data still stuck) |
-| 31 | Appointments page listed bookings with no therapist | Medium | Fixed (uncommitted) |
-| 32 | Attended section buried a lead right after it was worked on | Medium | Fixed (uncommitted) |
-| 33 | Returning customer's details not carried onto a new booking | Medium | Fixed (uncommitted) |
+| 31 | Appointments page listed bookings with no therapist | Medium | Fixed |
+| 32 | Attended section buried a lead right after it was worked on | Medium | Fixed |
+| 33 | Returning customer's details not carried onto a new booking | Medium | Fixed |
 | 34 | Appointments stopped refreshing in a background tab | Low | Fixed |
