@@ -3,6 +3,7 @@ import { useState } from "react";
 import { TherapistformType } from "@/type/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/tables/data-table-column-header";
+import { ChipList } from "@/components/chip-list";
 import { useUpdateTherapist } from "@/data/therapist/therapist";
 import { Loader2, User, CheckCircle2 } from "lucide-react";
 import type { TherapistSessionCount } from "@/actions/appointments/get-therapist-session-counts";
@@ -124,18 +125,7 @@ export function getDoctorsListColumns(
         const filters = Array.isArray(filterValue) ? filterValue : [filterValue];
         return filters.some((f) => specs.some((s) => s.toLowerCase() === String(f).toLowerCase()));
       },
-      cell: ({ row }) => {
-        const list = row.getValue("specialization") as string[];
-        return (
-          <>
-            {list?.map((val, index) => (
-              <div key={index}>
-                <span>{val}</span>
-              </div>
-            ))}
-          </>
-        );
-      },
+      cell: ({ row }) => <ChipList items={row.getValue("specialization") as string[]} />,
     },
     {
       id: "sessionsCompleted",
