@@ -828,7 +828,7 @@ The 15s refresh (#27) paused while the tab was hidden, so a therapist with the d
 ### 35. Earnings Totals Row Sat One Column to the Left
 
 **Severity:** Medium
-**Status:** Fixed (2026-10-28, uncommitted; verified on `localhost` as therapist)
+**Status:** Fixed (2026-10-28, `d8e3aa0`; verified on `localhost` as therapist)
 **Category:** Money display
 **Affected Pages:** Earnings (therapist and admin)
 
@@ -843,7 +843,7 @@ An empty Discount cell keeps each total under its column. Checked in the browser
 ### 36. Earnings Counts Visits That Haven't Happened Yet
 
 **Severity:** High
-**Status:** Fixed (2026-10-28, uncommitted; verified on `localhost` as therapist)
+**Status:** Fixed (2026-10-28, `9dccc19` rule, `d8e3aa0` page; verified on `localhost` as therapist)
 **Category:** Money display
 **Affected Pages:** Earnings, therapist drawer Earnings tab (both use `computeEarningsSummary`)
 
@@ -893,5 +893,5 @@ One rule, `isEarned` in `src/lib/earnings.ts`: only completed sessions count. Ev
 | 32 | Attended section buried a lead right after it was worked on | Medium | Fixed |
 | 33 | Returning customer's details not carried onto a new booking | Medium | Fixed |
 | 34 | Appointments stopped refreshing in a background tab | Low | Fixed |
-| 35 | Earnings totals row sat one column to the left | Medium | Fixed (uncommitted) |
-| 36 | Earnings counts visits that haven't happened yet | High | Fixed (uncommitted) |
+| 35 | Earnings totals row sat one column to the left | Medium | Fixed |
+| 36 | Earnings counts visits that haven't happened yet | High | Fixed |
