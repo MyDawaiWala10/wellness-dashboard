@@ -22,10 +22,11 @@ export function deriveStage(r: EnquiryType): FunnelStage {
   if (r.status === "completed") return "completed";
   if (r.doctorId && r.slot?.time) return "assigned";
   if (r.paymentReceived) return "paid";
+  // Tried to call but couldn't connect yet → needs a follow-up. Checked before
+  // "booked": website leads always arrive with a type, so they'd never get here.
+  if (!r.executiveReachedOut && (r.reachAttempts ?? 0) > 0) return "follow_up";
   if (r.typeOfappointment) return "booked";
   if (r.executiveReachedOut) return "reached_out";
-  // Tried to call but couldn't connect yet → needs a follow-up.
-  if ((r.reachAttempts ?? 0) > 0) return "follow_up";
   return "enquiry";
 }
 
