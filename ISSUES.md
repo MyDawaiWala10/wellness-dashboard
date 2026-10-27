@@ -665,6 +665,36 @@ Void **INV-2026-0054** on the Invoices page, reason "Duplicate: session 4 of ENQ
 
 ---
 
+### 26. Visit Tab Demanded the Whole Package Price at the First Session
+
+**Severity:** High
+**Status:** Fixed (2026-10-22, branch `feat/visit-otp-roles`; verified on `localhost`, pending merge to `main`)
+**Category:** Money
+**Affected Pages:** booking drawer → Visit tab, step 4 "Payment"
+
+#### Description
+A multi-session package is billed per session (the backend only requires each session's paced share before that session can complete). But the Visit tab's Payment step pulled the **booking-wide** remaining due (`bookingLedger` → `price − paid`) instead of the **per-session share**. So on session 1 of a 4×₹1,600 course with nothing paid yet, it demanded the entire ₹6,400, not one ₹1,600 share. Frontend and backend disagreed: even if staff collected the full amount, the completion gate (`unpaidBeforeComplete`) only ever needed the single session's share.
+
+Caught from a production report. The earlier `localhost` check used a partly-paid *later* session (session 3 of 3, ₹3,200 due = the 2 unpaid shares), which coincidentally equalled the whole remaining, masking the bug — the classic failure of only testing the happy/middle case.
+
+#### Fix (frontend only)
+Step 4 now derives its amount from the same source of truth as the collapsed visits-list header:
+- `visitShort(visit, moneyParent)` — the paced per-session share (mirrors the backend's `paidNeededBeforeVisit` / `shortBeforeStart`: cumulative share owed up to this session − already paid, with the session index from the split-course position else the `sessionsCompleted` counter, **not** the repurposed `sessionNumber`).
+- `visitAddonShort(visit)` — same-visit unpaid add-ons (add-ons are settled on the Billing tab, so the step only points there rather than rendering a ₹0 collect box when just add-ons remain).
+
+The Record-payment cap, the QR amount, `paymentCleared`, the Finish hint and the disabled Complete button all use `bookingDue + addonDue`. `visit-tab.tsx` no longer imports `bookingLedger`.
+
+Verified against ENQ-0129 (Therapy package, 4 sessions, ₹6,400 due, session 1, nothing paid): Step 4 now shows **₹1,600 due for this session**, the record form caps at ₹1,600, the QR bakes ₹1,600, and Complete stays disabled while unpaid.
+
+#### Regression guard
+New describe block in `src/lib/visit-groups.test.ts` — *"Visit payment gate (paced) — FE/BE parity"* — pins the session-1-unpaid case (1 share ≠ whole package) plus the counter-based, single-visit and add-on edge cases. Fixtures mirror the backend tests (`payments.realdoc.test.ts`, `addonVisits.test.ts`) with `KEEP IN SYNC` comments, since there's no automated cross-repo parity test.
+
+#### Affected Code
+- Dashboard: `src/components/pages/appointment/visit-tab.tsx` (step 4), `src/lib/visit-groups.ts` (`visitShort`, new `visitAddonShort`), `src/lib/visit-groups.test.ts`
+- No backend change (already paced)
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -694,3 +724,4 @@ Void **INV-2026-0054** on the Invoices page, reason "Duplicate: session 4 of ENQ
 | 23 | "Unexpected response from the server" after sleep / Wi-Fi drop | Medium | Fixed |
 | 24 | Website gender and age never reached the customer record | High | Fixed |
 | 25 | Checkout raised a duplicate invoice instead of updating the booking's | High | Fixed (void INV-2026-0054 by hand) |
+| 26 | Visit tab demanded the whole package price at the first session | High | Fixed (frontend only; pending merge) |
