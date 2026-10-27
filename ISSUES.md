@@ -720,6 +720,108 @@ The appointments payload (full list for back-office roles) now re-fetches every 
 
 ---
 
+### 28. Called-but-Unreached Website Leads Never Reached Follow-ups
+
+**Severity:** High
+**Status:** Fixed (2026-10-27, `9f6afc9`, on `main`)
+**Category:** Lead funnel
+**Affected Pages:** Follow-ups, Enquiries, dashboard follow-up count
+
+#### Description
+`deriveStage` checked "has a booking type" (`booked`) before "tried to call, not reached" (`follow_up`). Website leads always arrive with a type, so a "no answer" on one never made it a follow-up. It also left "Needs first contact" (it had an attempt), so it vanished from every list. Found stuck: ENQ-0081, ENQ-0135. Present since 6797a0e (2026-07-17).
+
+#### Fix and guard
+Follow-up is checked before booked in `stage.ts`. Guard: `stage.test.ts` "deriveStage: follow-ups" (a lead with a type and an attempt is a follow-up).
+
+---
+
+### 29. Therapist's Appointments List Hid Today's Visits on Later Pages
+
+**Severity:** Medium
+**Status:** Fixed (2026-10-27, `097403e`, on `main`)
+**Category:** Visibility
+**Affected Pages:** Appointments (therapist)
+
+#### Description
+The list was sorted by when the booking was created. An older lead assigned today (ENQ-0081, created 23 Sep, visit tomorrow) sat on page 3, so the therapist reported "assigned sessions are missing". The data was correct; the order hid it.
+
+#### Fix
+Therapists open the list sorted by next visit (soonest first, nothing upcoming last). The office keeps newest first. "Next visit" is sortable for everyone.
+
+---
+
+### 30. Ticking "Reached out" Turned a Lead into a Scheduled Booking
+
+**Severity:** High
+**Status:** Fixed (2026-10-27, `4418a83`, on `main`)
+**Category:** Lead funnel
+**Affected Pages:** Enquiry drawer, Enquiries, Appointments
+
+#### Description
+The tick ran the funnel cascade, which flipped status `enquiry` to `scheduled`. The lead jumped to Appointments with no therapist or slot, and unticking only cleared the tick, leaving it off the Enquiries page. Found stuck: ENQ-0150 (launchman01).
+
+#### Fix and guard
+`reachedOutPatch` in `stage.ts`: the tick never changes status; unticking a lead an older tick made "scheduled" (nothing booked) puts it back to `enquiry`. Guard: `stage.test.ts` "reachedOutPatch".
+
+---
+
+### 31. Appointments Page Listed Bookings with No Therapist
+
+**Severity:** Medium
+**Status:** Fixed (2026-10-27, uncommitted, verified on `localhost` as therapist only)
+**Category:** Lead funnel
+**Affected Pages:** Appointments, Enquiries, New appointment form
+
+#### Description
+The New appointment form can save a booking as `scheduled` with no therapist. The Appointments page listed every non-`enquiry` record, so ENQ-0152 showed there with "No therapist", contradicting the Enquiries drawer ("step 5 puts it on Appointments"). Affected: ENQ-0083, 0090, 0133, 0150, 0152. ENQ-0150 was on neither page.
+
+#### Fix and guard
+One rule, `hasTherapist` in `stage.ts`: Appointments shows only bookings with a therapist; Enquiries keeps every booking without one (package/add-on visits stay inside their booking). Saving without a therapist now says it went to Enquiries. Guard: `stage.test.ts` "hasTherapist". Not checked: office view (no office login).
+
+---
+
+### 32. Attended Section Buried a Lead Right After It Was Worked On
+
+**Severity:** Medium
+**Status:** Fixed (2026-10-27, uncommitted)
+**Category:** Visibility
+**Affected Pages:** Enquiries, Attended section
+
+#### Description
+Ticking "Reached out" on a Follow-up correctly moves it to Attended. But Attended was sorted by creation date and collapsed to the 5 newest, so an older lead (ENQ-0082 from 23 Sep, ENQ-0085 from 5 Oct) landed around row 50, behind "Show all". Its search box also only searched the 5 visible rows, so typing the name found nothing. Reported as "it vanished from everywhere".
+
+#### Fix
+Attended sorts by last update (matching its "Last updated" column), and a search looks through every attended lead. Checked against production data, read-only: ENQ-0082 row 52 to 1, ENQ-0085 row 50 to 2. Not checked in the browser (no office login).
+
+---
+
+### 33. Returning Customer's Details Not Carried onto a New Booking
+
+**Severity:** Medium
+**Status:** Open (fix planned, on hold by request)
+**Category:** Data entry
+**Affected Pages:** New Enquiry, Book new session, New appointment, website
+
+#### Description
+The backend copies gender and age from the customer record onto a new booking only when it links the customer for the first time (`ensureCustomerForAppointment`). The New appointment form sends `customer_id` up front, so the copy is skipped (ENQ-0139 missed its customer's gender). Email and location are never copied. The New appointment form also never fills Age on screen.
+
+#### Planned fix
+Server fills a new booking's blank email, location, gender and age from that person's customer record (same phone and name), on every create path; the New appointment form fills Age when a customer is picked.
+
+---
+
+### 34. Appointments Stopped Refreshing in a Background Tab
+
+**Severity:** Low
+**Status:** Fixed (2026-10-27, `4b2b7dc`, on `main`)
+**Category:** Data freshness
+**Affected Pages:** Appointments, therapist new-booking alert
+
+#### Description
+The 15s refresh (#27) paused while the tab was hidden, so a therapist with the dashboard in a background tab would not hear a new assignment. Fixed with `refetchIntervalInBackground: true`, the same setting the office's new-lead sound uses.
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -751,3 +853,10 @@ The appointments payload (full list for back-office roles) now re-fetches every 
 | 25 | Checkout raised a duplicate invoice instead of updating the booking's | High | Fixed (void INV-2026-0054 by hand) |
 | 26 | Visit tab demanded the whole package price at the first session | High | Fixed (frontend only; pending merge) |
 | 27 | Newly-assigned appointments didn't appear on an open therapist tab | Medium | Fixed (frontend only; 15s poll) |
+| 28 | Called-but-unreached website leads never reached Follow-ups | High | Fixed |
+| 29 | Therapist list hid today's visits on later pages | Medium | Fixed |
+| 30 | Ticking "Reached out" turned a lead into a scheduled booking | High | Fixed (ENQ-0150 data still stuck) |
+| 31 | Appointments page listed bookings with no therapist | Medium | Fixed (uncommitted) |
+| 32 | Attended section buried a lead right after it was worked on | Medium | Fixed (uncommitted) |
+| 33 | Returning customer's details not carried onto a new booking | Medium | Open |
+| 34 | Appointments stopped refreshing in a background tab | Low | Fixed |
