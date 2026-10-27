@@ -825,6 +825,36 @@ The 15s refresh (#27) paused while the tab was hidden, so a therapist with the d
 
 ---
 
+### 35. Earnings Totals Row Sat One Column to the Left
+
+**Severity:** Medium
+**Status:** Fixed (2026-10-28, uncommitted; verified on `localhost` as therapist)
+**Category:** Money display
+**Affected Pages:** Earnings (therapist and admin)
+
+#### Description
+The Totals row had one cell fewer than the table has columns (no cell under Discount), so every total after Revenue sat one column left. A therapist's "Your Earnings" total (₹9,327 for therapist1234) showed under **Discount**; for admins the therapist total sat under Discount and the company total under Therapist Cut.
+
+#### Fix
+An empty Discount cell keeps each total under its column. Checked in the browser: Revenue ₹38,725 under Revenue, ₹9,327 under Your Earnings, 10 cells for 10 columns. Admin view checked by count only (12 cells for 12 columns), not in the browser (no office login).
+
+---
+
+### 36. Earnings Counts Visits That Haven't Happened Yet
+
+**Severity:** High
+**Status:** Fixed (2026-10-28, uncommitted; verified on `localhost` as therapist)
+**Category:** Money display
+**Affected Pages:** Earnings, therapist drawer Earnings tab (both use `computeEarningsSummary`)
+
+#### Description
+`buildEarningRows` lists every non-cancelled booking, and `computeEarningsSummary` summed them all, so a scheduled future visit (often paid up front as part of a package) counted as earned before it happened, and "Sessions: Completed" counted every row. therapist1234 showed ₹9,327 earned and 49 sessions; only 15 were completed.
+
+#### Fix and guard
+One rule, `isEarned` in `src/lib/earnings.ts`: only completed sessions count. Every total (revenue, therapist payout, company, owed, sessions, average) uses earned rows only; the rest are summed separately as "Upcoming". The page shows an "Upcoming" card and tags those rows; the drawer tab shows an Upcoming figure. therapist1234 now: Earned ₹8,117 (15 completed), Upcoming ₹22,385 (34 visits). Guard: `earnings.test.ts` "computeEarningsSummary: earned vs upcoming". Admin view not checked in the browser (no office login).
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -863,3 +893,5 @@ The 15s refresh (#27) paused while the tab was hidden, so a therapist with the d
 | 32 | Attended section buried a lead right after it was worked on | Medium | Fixed |
 | 33 | Returning customer's details not carried onto a new booking | Medium | Fixed |
 | 34 | Appointments stopped refreshing in a background tab | Low | Fixed |
+| 35 | Earnings totals row sat one column to the left | Medium | Fixed (uncommitted) |
+| 36 | Earnings counts visits that haven't happened yet | High | Fixed (uncommitted) |
