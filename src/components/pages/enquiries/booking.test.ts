@@ -36,7 +36,7 @@ describe("bookingLabel", () => {
       totalSessions: 6,
       typeOfappointment: "appointment" as const,
     };
-    expect(bookingLabel(course)).toBe("Therapy course (6 sessions)");
+    expect(bookingLabel(course)).toBe("Therapy package (6 sessions)");
     expect(bookingLabel({ ...course, totalSessions: 1 })).toBe("Therapy session");
   });
 

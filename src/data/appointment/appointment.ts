@@ -38,7 +38,14 @@ export const appointmentsQueryOptions = (user: UserType) => ({
     );
     return dedupePackageAppointments(filtered);
   },
-  refetchOnWindowFocus: false,
+  // Auto-refresh like the enquiries list so a booking another user (e.g. an
+  // admin) assigns to a therapist shows up on an already-open tab without a
+  // manual reload. refetchInterval fires on the timer regardless of staleness,
+  // so it isn't masked by the 30s staleTime below (which still keeps the
+  // drawer's write-ack `updateAppointment` refetch from re-hitting the network
+  // on every drawer open).
+  refetchOnWindowFocus: true,
+  refetchInterval: 15 * 1000, // 15 seconds
   staleTime: 30 * 1000, // 30 seconds
   retry: 3,
 });

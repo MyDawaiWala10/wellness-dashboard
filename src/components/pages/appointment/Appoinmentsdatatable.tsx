@@ -34,6 +34,8 @@ interface AppointmentDataType<TData, TValue> {
   data: TData[];
   /** Every visit, including ones shown inside their booking (defaults to data). */
   allAppointments?: TData[];
+  /** Starting sort (defaults to newest booking first). */
+  defaultSorting?: SortingState;
 }
 
 // Columns to hide on mobile (less critical for quick scanning)
@@ -51,11 +53,9 @@ export function AppointmentDataTable<TData, TValue>({
   columns,
   data,
   allAppointments,
+  defaultSorting = [{ id: "createdAt", desc: true }],
 }: AppointmentDataType<TData, TValue>) {
-  // Default to newest-first by booking time (the "Booked on" / createdAt column).
-  const [sorting, setSorting] = React.useState<SortingState>([
-    { id: "createdAt", desc: true },
-  ]);
+  const [sorting, setSorting] = React.useState<SortingState>(defaultSorting);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );

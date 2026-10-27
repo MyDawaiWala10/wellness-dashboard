@@ -1,7 +1,7 @@
 "use client";
 
 import { formatINR } from "@/components/pages/services/services-columns";
-import { childVisitsOf, courseProgressOf, nextVisitOf, visitWhen } from "@/lib/visit-groups";
+import { childVisitsOf, courseProgressOf, nextVisitOf, visitStartMs, visitWhen } from "@/lib/visit-groups";
 import { PackageProgressBadge } from "./package-progress-badge";
 import { slotBookingZodType, type ServiceType } from "@/type/schema";
 import { ColumnDef } from "@tanstack/react-table";
@@ -106,7 +106,15 @@ export function makeAppointmentColumns(
       // The booking's next visit still to happen - itself or one of its later
       // visits (add-on sessions, course follow-ups), which live inside it.
       id: "nextVisit",
-      header: "Next visit",
+      // Sorts soonest first; bookings with nothing coming up go last.
+      accessorFn: (row) => {
+        const next = nextVisitOf(row, allAppointments);
+        return next ? visitStartMs(next) : Infinity;
+      },
+      sortingFn: "basic",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Next visit" />
+      ),
       cell: ({ row }) => {
         const next = nextVisitOf(row.original, allAppointments);
         const more = childVisitsOf(row.original, allAppointments).filter(

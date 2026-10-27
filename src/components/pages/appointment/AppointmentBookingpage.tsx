@@ -115,6 +115,11 @@ export default function SlotBookingPage() {
             columns={columns}
             data={topLevelRows(appointments ?? [])}
             allAppointments={appointments ?? []}
+            // A therapist works by visit date: today's visits first, whenever
+            // the lead came in. The office keeps newest booking first.
+            defaultSorting={
+              role === "THERAPIST" ? [{ id: "nextVisit", desc: false }] : undefined
+            }
           />
         </QueryWrapper>
       </CardContent>
