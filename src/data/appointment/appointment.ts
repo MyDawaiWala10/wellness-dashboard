@@ -46,6 +46,8 @@ export const appointmentsQueryOptions = (user: UserType) => ({
   // on every drawer open).
   refetchOnWindowFocus: true,
   refetchInterval: 15 * 1000, // 15 seconds
+  // Keep polling in a hidden tab so a therapist still hears a new assignment.
+  refetchIntervalInBackground: true,
   staleTime: 30 * 1000, // 30 seconds
   retry: 3,
 });
