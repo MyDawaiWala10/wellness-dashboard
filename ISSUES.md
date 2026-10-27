@@ -798,15 +798,18 @@ Attended sorts by last update (matching its "Last updated" column), and a search
 ### 33. Returning Customer's Details Not Carried onto a New Booking
 
 **Severity:** Medium
-**Status:** Open (fix planned, on hold by request)
+**Status:** Fixed (2026-10-27, uncommitted; unit-tested, not run against a real database)
 **Category:** Data entry
 **Affected Pages:** New Enquiry, Book new session, New appointment, website
 
 #### Description
-The backend copies gender and age from the customer record onto a new booking only when it links the customer for the first time (`ensureCustomerForAppointment`). The New appointment form sends `customer_id` up front, so the copy is skipped (ENQ-0139 missed its customer's gender). Email and location are never copied. The New appointment form also never fills Age on screen.
+The backend copies gender and age from the customer record onto a new booking only when it links the customer for the first time (`ensureCustomerForAppointment`). The New appointment form sends `customer_id` up front, so the booking looked already linked and the copy was skipped (ENQ-0139 missed its customer's gender). Email and location were never copied. The New appointment form never filled Age on screen.
 
-#### Planned fix
-Server fills a new booking's blank email, location, gender and age from that person's customer record (same phone and name), on every create path; the New appointment form fills Age when a customer is picked.
+#### Fix and guard
+- Backend: `createBooking` drops a client-sent `customer_id` (the server links by phone + name), and the first link now also fills a blank email and location from the customer record, never overwriting typed values. Course sessions 2+ take session 1's (possibly filled) location.
+- Dashboard: picking a customer in New appointment fills Age from their record.
+- Guards: `bookingService.test.ts` "createBooking: customer link"; `invoiceGeneration.test.ts` "a new booking also takes the customer's email and address".
+- Not covered: first-time customers (nothing to copy); old customer records with no birth year or gender.
 
 ---
 
@@ -858,5 +861,5 @@ The 15s refresh (#27) paused while the tab was hidden, so a therapist with the d
 | 30 | Ticking "Reached out" turned a lead into a scheduled booking | High | Fixed (ENQ-0150 data still stuck) |
 | 31 | Appointments page listed bookings with no therapist | Medium | Fixed (uncommitted) |
 | 32 | Attended section buried a lead right after it was worked on | Medium | Fixed (uncommitted) |
-| 33 | Returning customer's details not carried onto a new booking | Medium | Open |
+| 33 | Returning customer's details not carried onto a new booking | Medium | Fixed (uncommitted) |
 | 34 | Appointments stopped refreshing in a background tab | Low | Fixed |
