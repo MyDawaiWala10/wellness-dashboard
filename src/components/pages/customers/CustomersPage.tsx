@@ -1,5 +1,6 @@
 "use client";
 
+import { matchesSearch } from "@/lib/search";
 import { useMemo, useState } from "react";
 import {
   flexRender,
@@ -133,16 +134,8 @@ export default function CustomersPage() {
     },
     onGlobalFilterChange: setSearch,
     globalFilterFn: (row, _columnId, value) => {
-      const q = String(value).toLowerCase().trim();
-      if (!q) return true;
       const c = row.original;
-      return (
-        (c.customer_id ?? "").toLowerCase().includes(q) ||
-        (c.name ?? "").toLowerCase().includes(q) ||
-        String(c.phonenumber ?? "").includes(q) ||
-        (c.email ?? "").toLowerCase().includes(q) ||
-        (c.location ?? "").toLowerCase().includes(q)
-      );
+      return matchesSearch(value, [c.customer_id, c.name, c.phonenumber, c.email, c.location]);
     },
     initialState: {
       pagination: { pageSize: 10 },

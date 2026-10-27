@@ -28,6 +28,8 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import AppointmentDetailDrawer from "./appointments-detail-page";
 import { slotBookingZodType } from "@/type/schema";
+import { matchesSearch } from "@/lib/search";
+import { childVisitsOf } from "@/lib/visit-groups";
 
 interface AppointmentDataType<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -62,6 +64,7 @@ export function AppointmentDataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [search, setSearch] = React.useState("");
   const [selected, setSelected] = React.useState<TData | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
 
@@ -94,16 +97,31 @@ export function AppointmentDataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    onGlobalFilterChange: setSearch,
+    // A later visit's ID (e.g. a package session) finds the booking it sits in.
+    globalFilterFn: (row, _columnId, value) => {
+      const r = row.original as slotBookingZodType;
+      const visits = childVisitsOf(r, (allAppointments ?? data) as slotBookingZodType[]);
+      return matchesSearch(value, [
+        r.name,
+        r.enquiryId,
+        r.phonenumber,
+        r.email,
+        r.doctor,
+        ...visits.map((v) => v.enquiryId),
+      ]);
+    },
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       rowSelection,
+      globalFilter: search,
     },
   });
 
   // reset filters
-  const isFiltered = table.getState().columnFilters.length > 0;
+  const isFiltered = table.getState().columnFilters.length > 0 || search !== "";
 
   return (
     <>
@@ -111,19 +129,18 @@ export function AppointmentDataTable<TData, TValue>({
         <div>
           <div className="flex items-center py-4 flex-wrap">
             <Input
-              placeholder="Filter names..."
-              value={
-                (table.getColumn("name")?.getFilterValue() as string) ?? ""
-              }
-              onChange={(event) =>
-                table.getColumn("name")?.setFilterValue(event.target.value)
-              }
+              placeholder="Search name, booking ID, phone, email, therapist..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
               className="max-w-sm mb-2 md:mb-0"
             />
             {isFiltered && (
               <Button
                 variant="ghost"
-                onClick={() => table.resetColumnFilters()}
+                onClick={() => {
+                  table.resetColumnFilters();
+                  setSearch("");
+                }}
                 className="h-8 px-2 lg:px-3 flex justify-center items-center gap-2"
               >
                 Reset
