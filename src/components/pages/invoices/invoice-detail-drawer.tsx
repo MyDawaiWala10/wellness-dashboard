@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 import type { PersistedInvoice, UpdateInvoiceInput, InvoicePaymentStatus, InvoiceLineItem } from "@/type/invoice";
 import { useUpdateInvoice, useVoidInvoice } from "@/data/invoice/invoice";
-// import { whatsAppLink } from "@/lib/whatsapp"; // for the turned-off WhatsApp send
 import { diffInvoice, type InvoiceChange } from "./invoice-diff";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -64,8 +63,6 @@ export function InvoiceDetailDrawer({
   const open = invoice !== null;
 
   const { mutate: updateInvoice, isPending: isUpdating } = useUpdateInvoice();
-  // Turned off with the "PDF and WhatsApp" section (re-add FileText and useGenerateInvoicePdf with it):
-  // const { mutate: generatePdf, isPending: isGeneratingPdf } = useGenerateInvoicePdf();
   const { mutate: voidInvoiceMut, isPending: isVoiding } = useVoidInvoice();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -213,19 +210,6 @@ export function InvoiceDetailDrawer({
     }
     setPendingSave({ values, changes });
   }
-
-  // Turned off with the "PDF and WhatsApp" section below (stale PDF address).
-  // function handleWhatsAppSend() {
-  //   if (!invoice?.pdf_url) return;
-  //   const msg = `Hi ${invoice.customer_name},\n\nPlease find your invoice ${invoice.invoice_id}.\nTotal: ${formatINR(invoice.total)}.\nDownload: ${invoice.pdf_url}\n\nThank you.`;
-  //
-  //   const wa = whatsAppLink(invoice.customer_phone, msg);
-  //   if (!wa) {
-  //     toast.error("This customer has no usable phone number");
-  //     return;
-  //   }
-  //   window.open(wa, "_blank", "noopener,noreferrer");
-  // }
 
   if (!invoice) {
     return (
@@ -464,71 +448,6 @@ export function InvoiceDetailDrawer({
               </div>
             )}
           </section>
-
-          {/* Turned off: the PDF link and "Send via WhatsApp" used the PDF address
-              loaded with the page, which goes stale when the invoice changes
-              (it once opened a ₹2,500 PDF for a ₹3,000 invoice). The Download
-              button at the top always asks the server for the current PDF.
-              Bring WhatsApp back by fetching that same fresh address first.
-
-          <Separator />
-
-          <section className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <FileText className="h-4 w-4" />
-                PDF and WhatsApp
-              </div>
-            </div>
-
-            {invoice.pdf_url ? (
-              <div className="text-xs text-muted-foreground break-all">
-                PDF:{" "}
-                <a
-                  href={invoice.pdf_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  {invoice.pdf_url}
-                </a>
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                No PDF yet. Generate to enable WhatsApp sending.
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isGeneratingPdf}
-                onClick={() =>
-                  generatePdf({
-                    invoiceId: invoice.invoice_id,
-                    regenerate: !!invoice.pdf_url,
-                  })
-                }
-              >
-                {isGeneratingPdf ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : invoice.pdf_url ? (
-                  "Regenerate PDF"
-                ) : (
-                  "Generate PDF"
-                )}
-              </Button>
-              <Button
-                type="button"
-                disabled={!invoice.pdf_url}
-                onClick={handleWhatsAppSend}
-              >
-                Send via WhatsApp
-              </Button>
-            </div>
-          </section>
-          */}
 
           {!invoice.voided && (
             <>

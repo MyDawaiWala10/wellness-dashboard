@@ -10,7 +10,6 @@ import type {
 } from "@/type/invoice";
 import { getAllInvoices } from "@/actions/invoices/get-all-invoices";
 import updateInvoice from "@/actions/invoices/update-invoice";
-import generateInvoicePdf from "@/actions/invoices/generate-invoice-pdf";
 import createInvoice from "@/actions/invoices/create-invoice";
 import voidInvoice from "@/actions/invoices/void-invoice";
 
@@ -64,29 +63,6 @@ export function useUpdateInvoice() {
     },
     onSuccess: () => {
       toast.success("Invoice updated");
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-export function useGenerateInvoicePdf() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      invoiceId,
-      regenerate = false,
-    }: {
-      invoiceId: string;
-      regenerate?: boolean;
-    }) => {
-      const result = await generateInvoicePdf(invoiceId, { regenerate });
-      if (!result.success) throw new Error(result.message);
-      return result.data;
-    },
-    onSuccess: (_data, vars) => {
-      toast.success(vars.regenerate ? "Invoice PDF regenerated" : "Invoice PDF generated");
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
     onError: (e: Error) => toast.error(e.message),

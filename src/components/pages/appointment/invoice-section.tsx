@@ -25,8 +25,6 @@ export function InvoiceSection({ appointmentId }: { appointmentId?: string }) {
   const { data: invoice, isLoading } = useInvoiceForAppointment(appointmentId, {
     enabled: !isTherapist,
   });
-  // Turned off with the PDF link below (re-add Button, Download and useGenerateInvoicePdf with it):
-  // const { mutate: generatePdf, isPending: isGenerating } = useGenerateInvoicePdf();
 
   if (isTherapist) return null;
 
@@ -69,37 +67,6 @@ export function InvoiceSection({ appointmentId }: { appointmentId?: string }) {
               {formatINR(invoice.total ?? 0)}
             </span>
           </div>
-
-          {/* Turned off: this link used the PDF address loaded with the page,
-              which goes stale when the invoice changes. The Download button at
-              the top of the booking panel always gets the current PDF.
-
-          {invoice.pdf_url ? (
-            <Button
-              asChild
-              type="button"
-              size="sm"
-              variant="outline"
-              className="w-full"
-            >
-              <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">
-                <Download className="h-3.5 w-3.5" />
-                Download PDF
-              </a>
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="w-full"
-              disabled={isGenerating}
-              onClick={() => generatePdf({ invoiceId: invoice.invoice_id })}
-            >
-              {isGenerating ? "Generating..." : "Generate PDF"}
-            </Button>
-          )}
-          */}
         </div>
       )}
     </section>

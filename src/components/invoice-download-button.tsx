@@ -3,16 +3,13 @@
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
 
-import generateInvoicePdf from "@/actions/invoices/generate-invoice-pdf";
 import { cn } from "@/lib/utils";
 
 /**
- * Opens an invoice's PDF. The server hands back the current PDF, or makes a
- * fresh one first when the numbers changed since (it marks the PDF out of date
- * then), so it never shows old amounts. Office roles only: the invoice routes
- * refuse therapists.
+ * Downloads an invoice's PDF. The server builds it fresh on every click, so it
+ * always shows the current amounts; nothing is stored or shared as a link.
+ * Office roles only: the invoice routes refuse therapists.
  */
 export function InvoiceDownloadButton({
   invoiceId,
@@ -22,28 +19,31 @@ export function InvoiceDownloadButton({
   invoiceId?: string;
   className?: string;
 }) {
-  const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
 
   async function download() {
     if (!invoiceId || busy) return;
-    // Opened inside the click so the browser doesn't block it as a pop-up; the
-    // PDF's address is filled in once it's ready.
-    const tab = window.open("", "_blank");
-    if (tab) tab.opener = null;
     setBusy(true);
-    const result = await generateInvoicePdf(invoiceId);
-    setBusy(false);
-    const url = result.success ? result.data?.pdf_url : undefined;
-    if (!url) {
-      tab?.close();
-      toast.error(result.message || "Couldn't get the invoice PDF");
-      return;
+    try {
+      const res = await fetch(`/api/invoices/${encodeURIComponent(invoiceId)}/pdf`, { cache: "no-store" });
+      // An expired login is redirected to the login page, which comes back as a
+      // 200 HTML page; only a real PDF is saved.
+      if (!res.ok || !res.headers.get("Content-Type")?.includes("application/pdf")) {
+        const body = await res.json().catch(() => ({}));
+        toast.error((body as { message?: string }).message || "Couldn't get the invoice PDF. Try logging in again.");
+        return;
+      }
+      const href = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = `${invoiceId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      toast.error("Network error, please try again");
+    } finally {
+      setBusy(false);
     }
-    if (tab) tab.location.href = url;
-    else window.location.href = url;
-    // A freshly made PDF is now on file.
-    queryClient.invalidateQueries({ queryKey: ["invoices"] });
   }
 
   const label = invoiceId ? "Download invoice PDF" : "No invoice yet";

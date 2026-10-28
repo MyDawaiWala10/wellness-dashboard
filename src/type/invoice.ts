@@ -36,7 +36,6 @@ export interface PersistedInvoice {
   total: number;
 
   payment_status: InvoicePaymentStatus;
-  pdf_url: string | null;
 
   voided?: boolean;
   voided_at?: string | null;
