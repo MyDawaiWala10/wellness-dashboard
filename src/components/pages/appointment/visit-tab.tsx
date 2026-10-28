@@ -255,11 +255,8 @@ export function VisitTab({
             setVerified(false); // consumed - the next visit needs a fresh code
             setNote(""); // clear the textarea for next visit
             savedNote.current = ""; // the server cleared the draft on completion
-            toast.success(
-              isMulti
-                ? `Session ${progress?.currentSession ?? ""} of ${progress?.total ?? ""} completed!`
-                : "Visit completed successfully!",
-            );
+            // The success message comes from useCompleteSession (the server's own
+            // wording); a second toast here showed it twice.
           },
         },
       );
