@@ -925,6 +925,50 @@ The Visit tab's toast is removed; the hook's server message is the only one. The
 
 ---
 
+### 41. Dashboard-Booked Consultation Invoiced at a Flat ₹500, Not Its Quoted Price
+
+**Severity:** High (money)
+**Status:** Fixed 2026-10-29, not yet deployed (backend, uncommitted). Existing invoices need `scripts/reprice-invoices.ts --apply` after deploy.
+**Category:** Invoices
+**Affected Pages:** Invoices, booking drawer invoice, invoice PDF
+
+#### Description
+Every consultation booked from the dashboard (empty `service`) was billed at ₹500, whatever its quote. INV-2026-0063 was quoted ₹540 (₹600 less a ₹60 offer) and paid ₹540, yet billed ₹500: total ₹2,000 against ₹2,040 paid. Also hit: INV-2026-0058, 0074, 0076, 0077 (₹500 instead of ₹600).
+
+#### Cause
+`buildLineItemsFromAppointment` (backend `lib/invoiceGeneration.ts`) only used the confirmed booking type when `service` was one of the public-site offerings. An empty `service` fell to the legacy path, where `hasConsultationCharge` adds a fixed `CONSULT_FEE` (₹500) and ignores `quotedPrice`.
+
+#### Fix and guard
+A consultation now always takes the confirmed-type path and is priced from its quote, wherever it was booked (all 17 consultation bookings have a quote, so no ₹500 fallback is needed). The invoice PDF also prints an offer's MRP only on a line that really is that offer's result. Guard: `invoiceBilling.test.ts` "consultation price (ISSUES #41)".
+
+---
+
+### 42. Booking Changes Didn't Reach Its Invoice (Paid Invoices Froze; Offers Never Synced)
+
+**Severity:** High (money)
+**Status:** Fixed 2026-10-29, not yet deployed (backend, uncommitted). Existing invoices need `scripts/reprice-invoices.ts --apply` after deploy.
+**Category:** Invoices
+**Affected Pages:** Invoices, booking drawer invoice, invoice PDF, Earnings (reads invoices)
+
+#### Description
+A change on a booking didn't show on its invoice:
+- **Add-on after payment:** INV-2026-0071 was paid ₹1,600 at 13:45 on 26 Oct; an Acupuncture add-on was confirmed at 13:50 and paid ₹500 at 13:51, but the invoice still says ₹1,600. INV-2026-0051 is missing ₹1,300 of add-ons the same way.
+- **Offers:** applying or removing an offer changed the booking's price but not its invoice until something else saved the booking.
+
+#### Cause
+- `syncInvoiceFromAppointment` froze an invoice's money once it was paid, to stop a fee edit after payment from silently re-pricing a settled bill. It also blocked new charges, so an add-on confirmed after payment never reached the one invoice the booking has.
+- `bookingOfferController` (apply and remove offer) wrote the new price but never called the invoice sync, unlike every other money path (payments, add-on confirm, checkout, booking edit).
+
+#### Fix and guard
+- The freeze is gone; the invoice always mirrors its booking. What it guarded against is now stopped at the booking: its price is locked once money is in (`lib/lockedFields.ts`), and an offer can't price it below what's paid (`offerMoney`). A voided invoice still never changes.
+- Applying or removing an offer now re-syncs the invoice.
+- Creating and updating an invoice now share one money calculation (`invoiceMoney`) instead of two copies.
+- Guards: `invoiceBilling.test.ts` "a paid invoice still takes new charges (ISSUES #42)" and `bookingOfferController.test.ts` "offers reach the invoice (ISSUES #42)".
+- Data: `scripts/reprice-invoices.ts` (dry run first) lists 9 invoices to re-price. Two of them, INV-2026-0044 and 0045, were fully paid before their price was raised (pre-lock) and would then show ₹80 and ₹150 due. INV-2026-0054 is the #25 duplicate and is skipped: void it by hand.
+- Note: a manual edit to a booking's invoice is replaced the next time the booking changes; correct the booking instead.
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -969,3 +1013,5 @@ The Visit tab's toast is removed; the hook's server message is the only one. The
 | 38 | Session note draft not shown again, and it overwrote the customer's note | High | Fixed |
 | 39 | Customer notes: anyone could write or edit any note; labels mixed up who wrote what | Medium | Fixed |
 | 40 | Completing a session showed two success pop-ups | Low | Fixed |
+| 41 | Dashboard-booked consultation invoiced at a flat ₹500, not its quoted price | High | Fixed (not deployed; re-price script pending) |
+| 42 | Booking changes didn't reach its invoice (paid invoices froze; offers never synced) | High | Fixed (not deployed; re-price script pending) |
