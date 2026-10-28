@@ -247,6 +247,11 @@ export const enquirySchema = z.object({
   // The therapist's note for the visit in progress, saved as they type and
   // filed into sessionNotes on completion. Never the customer's `note`.
   sessionNoteDraft: z.string().optional(),
+  // What the customer said when they asked again about the same request (a
+  // repeat folded into this lead). `note` stays their first message.
+  customerNotes: z
+    .array(z.object({ at: z.string(), note: z.string(), repeat: z.number().optional() }))
+    .optional(),
   sessionNotes: z
     .array(
       z.object({

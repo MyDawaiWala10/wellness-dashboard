@@ -2,15 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Check,
   ChevronDown,
   ChevronRight,
   Mail,
   MapPin,
   Phone,
   CalendarDays,
-  Pencil,
-  Plus,
   UserRound,
 } from "lucide-react";
 import { genderLabel } from "@/lib/person";
@@ -27,7 +24,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 
 import { EnquiryIntakeModal } from "@/components/pages/enquiries/enquiry-intake-modal";
 import type { Customer } from "@/data/customer/customer";
@@ -35,10 +31,11 @@ import type { ActivityEntry, EnquiryType } from "@/type/schema";
 import type { CustomerNote } from "@/type/customer-record";
 import { AppointmentStatusBadge } from "@/components/status-badge";
 import { tidyActivityText } from "@/lib/utils";
-import { useAuthStore } from "@/providers/permission-provider";
 import { addCustomerNote, editCustomerNote } from "@/actions/customers/update-customer-notes";
 import { toast } from "sonner";
 import { BookingIdBadge } from "@/components/booking-id-badge";
+import { NotesTimeline } from "@/components/notes-timeline";
+import { buildNotesTimeline } from "@/lib/notes-timeline";
 
 interface CustomerDetailDrawerProps {
   customer: Customer | null;
@@ -57,185 +54,6 @@ const SEGMENT_CLASS: Record<string, string> = {
   vip: "border-amber-600 text-amber-800 bg-amber-100",
 };
 
-
-function TherapistNotes({
-  customerId,
-  notes,
-  onNotesUpdate,
-}: {
-  customerId: string;
-  notes: CustomerNote[];
-  onNotesUpdate: (notes: CustomerNote[]) => void;
-}) {
-  const user = useAuthStore((s) => s.user);
-  const isTherapist = user?.role === "THERAPIST";
-  const [isAdding, setIsAdding] = useState(false);
-  const [editingIdx, setEditingIdx] = useState<number | null>(null);
-  const [newNote, setNewNote] = useState("");
-  const [editNote, setEditNote] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const sortedNotes = useMemo(
-    () => [...notes].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()),
-    [notes],
-  );
-
-  const handleAdd = async () => {
-    if (!newNote.trim() || !user) return;
-    setSaving(true);
-    const note: CustomerNote = {
-      at: new Date().toISOString(),
-      by: `${user.userfName} ${user.userlName}`.trim(),
-      userId: user.id,
-      note: newNote.trim(),
-    };
-    const result = await addCustomerNote(customerId, note);
-    setSaving(false);
-    if (result.success && result.data) {
-      onNotesUpdate(result.data.notes ?? []);
-      setNewNote("");
-      setIsAdding(false);
-      toast.success("Note added");
-    } else {
-      toast.error(result.message);
-    }
-  };
-
-  const handleEdit = async (original: CustomerNote) => {
-    if (!editNote.trim()) return;
-    setSaving(true);
-    const result = await editCustomerNote(customerId, {
-      at: original.at,
-      by: original.by,
-      note: editNote.trim(),
-    });
-    setSaving(false);
-    if (result.success && result.data) {
-      onNotesUpdate(result.data.notes ?? []);
-      setEditNote("");
-      setEditingIdx(null);
-      toast.success("Note updated");
-    } else {
-      toast.error(result.message);
-    }
-  };
-
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Therapist Notes ({notes.length})</h3>
-        {isTherapist && !isAdding && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 gap-1 text-xs"
-            onClick={() => setIsAdding(true)}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add note
-          </Button>
-        )}
-      </div>
-
-      {/* Add note form */}
-      {isAdding && (
-        <div className="border rounded-md p-3 space-y-2 bg-muted/30">
-          <Textarea
-            placeholder="Type your note about this customer..."
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            className="min-h-[80px] text-sm"
-          />
-          <div className="flex gap-2 justify-end">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => {
-                setIsAdding(false);
-                setNewNote("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="h-7 text-xs"
-              onClick={handleAdd}
-              disabled={saving || !newNote.trim()}
-            >
-              {saving ? "Saving..." : "Save note"}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Notes list */}
-      {sortedNotes.length === 0 && !isAdding ? (
-        <p className="text-sm text-muted-foreground">No therapist notes yet.</p>
-      ) : (
-        <div className="space-y-2">
-          {sortedNotes.map((n, i) => (
-            <div key={`${n.at}-${n.by}-${i}`} className="border rounded-md p-3 text-sm">
-              {editingIdx === i ? (
-                <div className="space-y-2">
-                  <Textarea
-                    value={editNote}
-                    onChange={(e) => setEditNote(e.target.value)}
-                    className="min-h-[60px] text-sm"
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={() => {
-                        setEditingIdx(null);
-                        setEditNote("");
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={() => handleEdit(n)}
-                      disabled={saving || !editNote.trim()}
-                    >
-                      {saving ? "Saving..." : "Save"}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <p className="whitespace-pre-wrap">{n.note}</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-muted-foreground">
-                      {n.by} · {format(new Date(n.at), "dd MMM yyyy, h:mm a")}
-                    </span>
-                    {isTherapist && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={() => {
-                          setEditingIdx(i);
-                          setEditNote(n.note);
-                        }}
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
 
 /**
  * Build a chronological activity timeline from ALL of a customer's bookings.
@@ -314,7 +132,6 @@ function BookingRow({ booking, index }: { booking: EnquiryType; index: number })
   const [expanded, setExpanded] = useState(false);
   const status = booking.status ?? "enquiry";
   const createdAt = (booking as unknown as { createdAt?: string }).createdAt;
-  const sessionNotes = booking.sessionNotes ?? [];
 
 
   return (
@@ -387,44 +204,6 @@ function BookingRow({ booking, index }: { booking: EnquiryType; index: number })
             label="Handled by"
             value={booking.reachedOutBy?.name ?? "-"}
           />
-          {booking.note && (
-            <div className="pt-1">
-              <div className="text-xs text-muted-foreground">Notes</div>
-              <p className="text-sm whitespace-pre-wrap mt-1">{booking.note}</p>
-            </div>
-          )}
-
-          {/* Session notes */}
-          {sessionNotes.length > 0 && (
-            <div className="pt-2 border-t">
-              <div className="text-xs font-semibold text-muted-foreground mb-1.5">
-                Completed Sessions ({sessionNotes.length})
-              </div>
-              <div className="space-y-0">
-                {sessionNotes.map((s, i) => (
-                  <details key={i} className="group border-b last:border-0">
-                    <summary className="flex cursor-pointer list-none items-center gap-2 py-1.5 text-[13px]">
-                      <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                      <span className="font-medium">Session {s.session}</span>
-                      <span className="ml-auto font-mono text-[11px] tabular-nums text-muted-foreground">
-                        {s.at ? format(new Date(s.at), "dd MMM") : ""}
-                        {s.therapist ? ` · ${s.therapist}` : ""}
-                      </span>
-                    </summary>
-                    {s.note ? (
-                      <p className="mb-2 ml-5 whitespace-pre-wrap rounded-r border-l-2 border-emerald-500 bg-muted/50 px-2.5 py-2 text-xs leading-relaxed">
-                        {s.note}
-                      </p>
-                    ) : (
-                      <p className="mb-2 ml-5 text-xs italic text-muted-foreground">
-                        No note recorded.
-                      </p>
-                    )}
-                  </details>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -446,6 +225,28 @@ export function CustomerDetailDrawer({
 }: CustomerDetailDrawerProps) {
   const open = customer !== null;
   const [localNotes, setLocalNotes] = useState<CustomerNote[]>(customer?.notes ?? []);
+
+  async function addNote(customerId: string, text: string): Promise<boolean> {
+    const result = await addCustomerNote(customerId, { note: text });
+    if (!result.success || !result.data) {
+      toast.error(result.message);
+      return false;
+    }
+    setLocalNotes(result.data.notes ?? []);
+    toast.success("Note added");
+    return true;
+  }
+
+  async function editNote(customerId: string, original: CustomerNote, text: string): Promise<boolean> {
+    const result = await editCustomerNote(customerId, { at: original.at, by: original.by, note: text });
+    if (!result.success || !result.data) {
+      toast.error(result.message);
+      return false;
+    }
+    setLocalNotes(result.data.notes ?? []);
+    toast.success("Note updated");
+    return true;
+  }
 
   // Re-sync notes whenever the parent refreshes the customer object (e.g. after
   // a session completion mirrors the note into the customer record and the
@@ -584,14 +385,15 @@ export function CustomerDetailDrawer({
 
           <Separator />
 
-          {/* Therapist Notes */}
-          {customer.customer_id && (
-            <TherapistNotes
-              customerId={customer.customer_id}
-              notes={localNotes}
-              onNotesUpdate={setLocalNotes}
+          {/* Every note about this customer, tagged Customer / Therapist / Office. */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">Notes</h3>
+            <NotesTimeline
+              timeline={buildNotesTimeline(customer.bookings, localNotes)}
+              onAdd={customer.customer_id ? (text) => addNote(customer.customer_id!, text) : undefined}
+              onEdit={customer.customer_id ? (note, text) => editNote(customer.customer_id!, note, text) : undefined}
             />
-          )}
+          </section>
 
           <Separator />
 

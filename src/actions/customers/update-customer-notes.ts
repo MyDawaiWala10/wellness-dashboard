@@ -5,12 +5,8 @@ import { fetchWithAuth } from "@/lib/fetchwithauth";
 import { ApiResponse } from "@/type/api";
 import type { PersistedCustomer } from "@/type/customer-record";
 
-type AddNoteInput = {
-  at: string;
-  by: string;
-  userId?: string;
-  note: string;
-};
+// The server stamps the author, time and kind from the login.
+type AddNoteInput = { note: string };
 
 type EditNoteInput = {
   at: string;

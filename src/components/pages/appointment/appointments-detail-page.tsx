@@ -22,6 +22,7 @@ import { useGetServices } from "@/data/service/service";
 import { useGetAllTherapist } from "@/data/therapist/therapist";
 import { getPackageProgressForAppointment } from "@/lib/package-progress";
 import { bookingLedger } from "@/lib/booking-money";
+import { identityKey } from "@/data/customer/customer";
 
 type AppointmentDetailDrawerProps = {
   data: slotBookingZodType | null;
@@ -58,6 +59,11 @@ const AppointmentDetailDrawer = ({
   const due = live ? bookingLedger(live).due : 0;
   // Later visits that live inside this booking (add-on sessions, course follow-ups).
   const visits = live ? childVisitsOf(live, allAppointments) : [];
+  // Everything this person has booked (same phone and name), for their notes.
+  const personKey = live?.phonenumber ? identityKey(live.phonenumber, live.name) : undefined;
+  const personBookings = personKey
+    ? allAppointments.filter((a) => !!a.phonenumber && identityKey(a.phonenumber, a.name) === personKey)
+    : undefined;
   const openVisits = visits.filter((v) => v.status !== "completed" && v.status !== "cancelled");
 
   return (
@@ -101,7 +107,7 @@ const AppointmentDetailDrawer = ({
               </TabsContent>
 
               <TabsContent value="history" className="mt-3 space-y-4">
-                <HistoryTab appointment={live} services={services} visits={visits} />
+                <HistoryTab appointment={live} visits={visits} personBookings={personBookings} />
                 <RecordIds
                   appointment={live}
                   therapistPhone={
