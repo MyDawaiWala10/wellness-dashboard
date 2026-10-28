@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Pencil, Plus } from "lucide-react";
+import { ChevronRight, Pencil, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -109,7 +109,12 @@ export function NotesTimeline({
           .join(" · ");
         return (
           <details key={b.id} open={b.id === open} className="group rounded-lg border">
-            <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 p-3">
+            <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 p-3 hover:bg-muted/40">
+              {/* Points right when closed, down when open. */}
+              <ChevronRight
+                aria-hidden
+                className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+              />
               {b.enquiryId && <span className="font-mono text-xs font-semibold">{b.enquiryId}</span>}
               <span className="text-sm font-medium">{b.title}</span>
               {b.status && <AppointmentStatusBadge status={b.status} />}
