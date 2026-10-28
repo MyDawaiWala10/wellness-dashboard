@@ -7,6 +7,7 @@ import getAllAppointments from "@/actions/appointments/get-all-appointments";
 import type { EnquiryType, UserType } from "@/type/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { markOwnBooking } from "@/lib/own-bookings";
 
 const OPEN_STATUSES = new Set<NonNullable<EnquiryType["status"]>>([
   "enquiry",
@@ -57,6 +58,7 @@ export function useCreateEnquiry() {
       return result;
     },
     onSuccess: (result) => {
+      markOwnBooking(result.data);
       toast.success("Enquiry created", { description: result.message });
       queryClient.invalidateQueries({ queryKey: ["enquiries"] });
       queryClient.invalidateQueries({ queryKey: ["appointments"] });

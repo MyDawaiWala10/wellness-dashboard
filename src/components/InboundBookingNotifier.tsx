@@ -9,6 +9,7 @@ import { useAuthStore } from "@/providers/permission-provider";
 import type { EnquiryType, slotBookingZodType } from "@/type/schema";
 import { playEnquiryBeep } from "@/lib/notification-sound";
 import { parentIdOf, visitWhen } from "@/lib/visit-groups";
+import { newBookingsOf } from "@/lib/own-bookings";
 
 // New leads are the office's job; a therapist is only told about bookings
 // assigned to them (the server returns a therapist only their own bookings).
@@ -24,11 +25,19 @@ export default function InboundBookingNotifier() {
 type Keyed = { _id?: string; enquiryId?: string; phonenumber?: number | string; name?: string };
 const keyOf = (e: Keyed) => e._id || e.enquiryId || `${e.phonenumber}-${e.name}`;
 
+/** A new booking, plus how many of its own later visits arrived with it. */
+type NewBooking<T> = { rec: T; visits: number };
+
 /**
- * Calls onNew with records that weren't in the list before. The first load
- * only seeds what's already there, so opening the dashboard never alerts.
+ * Calls onNew with bookings that weren't in the list before. The first load
+ * only seeds what's already there, so opening the dashboard never alerts. A
+ * package arrives as one record per session; it's one booking ("+N visits"),
+ * not N alerts. Bookings this person just created themselves are skipped.
  */
-function useNewRecords<T extends Keyed>(records: T[] | undefined, onNew: (fresh: T[]) => void) {
+function useNewBookings<T extends Keyed>(
+  records: T[] | undefined,
+  onNew: (bookings: NewBooking<T>[]) => void,
+) {
   const knownRef = useRef<Set<string> | null>(null);
 
   useEffect(() => {
@@ -39,7 +48,8 @@ function useNewRecords<T extends Keyed>(records: T[] | undefined, onNew: (fresh:
     }
     const fresh = records.filter((r) => !knownRef.current!.has(keyOf(r)));
     fresh.forEach((r) => knownRef.current!.add(keyOf(r)));
-    if (fresh.length > 0) onNew(fresh);
+    const bookings = newBookingsOf(fresh, (r) => parentIdOf(r as unknown as slotBookingZodType));
+    if (bookings.length > 0) onNew(bookings);
     // onNew is a fresh closure each render; only new data should trigger this.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [records]);
@@ -51,10 +61,10 @@ function OfficeBookingNotifier() {
     { id: user?.id, role: user?.role, userEmail: user?.userEmail },
   );
 
-  useNewRecords<EnquiryType>(enquiries, (newRecords) => {
+  useNewBookings<EnquiryType>(enquiries, (bookings) => {
     playEnquiryBeep();
 
-    for (const rec of newRecords) {
+    for (const { rec, visits } of bookings) {
       const name = rec.name || "Customer";
       const service = rec.service || rec.typeOfappointment || "New Booking";
       const phone = rec.phonenumber ? String(rec.phonenumber) : "";
@@ -65,7 +75,7 @@ function OfficeBookingNotifier() {
       const isBooking = !!rec.status && rec.status !== "enquiry";
 
       toast(isBooking ? "🔔 New Booking Received!" : "🔔 New Enquiry Received!", {
-        description: `${name} · ${service}${phone ? ` (${phone})` : ""}`,
+        description: `${name} · ${service}${phone ? ` (${phone})` : ""}${visits ? ` · +${visits} visits` : ""}`,
         duration: 8000,
         action: {
           label: isBooking ? "View Bookings" : "View Enquiries",
@@ -89,15 +99,9 @@ function TherapistBookingNotifier() {
     { id: user?.id, role: user?.role, userEmail: user?.userEmail },
   );
 
-  useNewRecords<slotBookingZodType>(appointments, (fresh) => {
-    // A new course arrives as one visit per session: alert once for the
-    // booking, not once per visit.
-    const ids = new Set(fresh.map((r) => r._id));
-    const bookings = fresh.filter((r) => !ids.has(parentIdOf(r) ?? ""));
-
+  useNewBookings<slotBookingZodType>(appointments, (bookings) => {
     playEnquiryBeep();
-    for (const rec of bookings) {
-      const visits = fresh.filter((r) => parentIdOf(r) === rec._id).length;
+    for (const { rec, visits } of bookings) {
       toast("🔔 New booking assigned to you", {
         description: `${rec.name || "Customer"} · ${visitWhen(rec)}${visits ? ` (+${visits} visits)` : ""}`,
         duration: 15000,

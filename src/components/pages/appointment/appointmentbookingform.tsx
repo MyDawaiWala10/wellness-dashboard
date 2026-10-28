@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useBookAppointment, useGetAllAppointments } from "@/data/appointment/appointment";
+import { markOwnBooking } from "@/lib/own-bookings";
 import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
 import {
   BOOKING_TYPES,
@@ -410,6 +411,7 @@ export default function AppointmentBookingForm() {
       toast.error(saved.message ?? "Couldn't save the booking");
       return;
     }
+    markOwnBooking(saved.data);
     // Apply the chosen offer for real before minting the pay-link, so the
     // WhatsApp amount matches the discounted total.
     if (offerId && saved.data._id) {

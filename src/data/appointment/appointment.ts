@@ -16,6 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { handleAuthError } from "@/lib/auth-error-handler";
+import { markOwnBooking } from "@/lib/own-bookings";
 
 export const appointmentsQueryOptions = (user: UserType) => ({
   queryKey: ["appointments", user?.id, user?.role, user?.userEmail] as const,
@@ -82,6 +83,7 @@ export function useBookAppointment() {
       return result;
     },
     onSuccess: (result, values) => {
+      markOwnBooking(result.data);
       // Without a therapist it waits on Enquiries (step 5), not Appointments.
       toast.success("Appointment booked", {
         description: values.doctorId
