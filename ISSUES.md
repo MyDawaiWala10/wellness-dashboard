@@ -855,6 +855,76 @@ One rule, `isEarned` in `src/lib/earnings.ts`: only completed sessions count. Ev
 
 ---
 
+### 37. One Package Booking Raised a Pop-up per Session
+
+**Severity:** Low
+**Status:** Fixed (2026-10-28, uncommitted; verified on `localhost` as therapist)
+**Category:** Notifications
+**Affected Pages:** every dashboard page (office and therapist new-booking alerts)
+
+#### Description
+A package is stored as one record per session (session 1 plus its follow-ups). The office new-booking alert (`OfficeBookingNotifier` in `src/components/InboundBookingNotifier.tsx`) showed one pop-up per new record, so a 6-session package for launchman01 (ENQ-0164) raised 6 identical "New Booking Received!" pop-ups. The therapist alert already grouped a package; the office alert was never given the same rule. The person who made the booking was also alerted about it.
+
+#### Fix and guard
+One shared function, `newBookingsOf` (`src/lib/own-bookings.ts`), used by both alerts: a package is one pop-up ("+5 visits"), and bookings created in this tab are skipped (marked by every dashboard create path: New appointment, its request-payment save, New enquiry). Guard: `own-bookings.test.ts`. Checked in the browser as therapist: a fake 6-session package gave one pop-up "(+5 visits)". The office view and the skip-own rule were not checked in the browser (no office login); the skip is per tab, so the creator's other tabs or devices still alert.
+
+---
+
+### 38. Session Note Draft Not Shown Again, and It Overwrote the Customer's Note
+
+**Severity:** High
+**Status:** Fixed (2026-10-28, uncommitted; backend unit-tested, Visit tab checked on `localhost` with saves intercepted)
+**Category:** Data loss
+**Affected Pages:** booking drawer, Visit tab step 3 (session note)
+
+#### Description
+Clicking out of the session-note box saved the draft into the booking's `note` field (`visit-tab.tsx`, `onBlur` -> `saveNote({ ...draft, note })`), but the Visit tab cleared the box every time it opened (`setNote("")`), so a therapist who switched tabs came back to an empty box and thought it wasn't saved. Worse, `note` is also the customer's / office's enquiry note, so the draft replaced the customer's original message, and completion then blanked `note`. Completion also fell back to `note` when no note was sent, so the customer's enquiry message could be filed as the therapist's session note and pass the "note written" check. Seen on ENQ-0164 (`note` holds the therapist's draft).
+
+#### Fix and guard
+- Backend: a separate `sessionNoteDraft` field. Completion files the sent note, else the draft (never `note`), and clears only the draft; the customer's `note` is left alone.
+- Visit tab: loads the draft back, saves it 0.8s after typing stops and on blur (no duplicate saves), and never writes `note`.
+- Guards: `visitOtp.test.ts` (the customer's note never counts as the session note; a saved draft does, and completion clears only the draft).
+- Browser (saves intercepted, nothing written): the draft loaded into the box, one save fired after typing paused carrying `sessionNoteDraft` with the customer's `note` unchanged, blur caused no extra save, and reopening showed the latest text.
+
+#### Not covered
+Records whose customer note was already replaced can't be restored. A draft already sitting in `note` (ENQ-0164) isn't moved to the new field; the therapist retypes it, or a one-time cleanup moves it (needs an OK). Not run against the real backend: the local server wasn't restarted.
+
+---
+
+### 39. Customer Notes: Anyone Could Write or Edit Any Note, and Labels Mixed Up Who Wrote What
+
+**Severity:** Medium
+**Status:** Fixed (2026-10-28, uncommitted; unit-tested, both screens checked on `localhost`, no notes written)
+**Category:** Security / notes
+**Affected Pages:** Customers drawer, booking drawer History tab
+
+#### Description
+- The customer-notes PATCH took the author, time and user id from the request body, so a note could be filed under anyone's name, and any logged-in user (a therapist included) could edit any customer's note, including a therapist's session record, matched only by time and author name.
+- Screens labelled every record note "Therapist Notes" although office staff wrote some, showed therapist session notes twice (the booking's copy and the customer record's copy), never showed the customer's own message in History, and showed only session 1's note for a package (later sessions are separate records).
+- A repeat request folded into an open lead kept the customer's new message only as activity-log text.
+
+#### Fix and guard
+- Backend: the server stamps author, time and `kind` (office / therapist / session) from the login; only the author or an Admin edits a note, and a session's copy never (`lib/customerNotes.ts`). Session copies carry their booking and session number. A folded repeat's message is saved as a customer note on the lead (`customerNotes`). Guards: `customerNotes.test.ts`, `bookingService.test.ts`.
+- Dashboard: one shared notes timeline (`components/notes-timeline.tsx`, `lib/notes-timeline.ts`) on both screens: "About this customer" first, then one block per booking, newest first, each note tagged Customer / Therapist / Office with who and when, filter chips, no duplicates. Guard: `notes-timeline.test.ts`.
+- Existing data: `scripts/backfill-note-kinds.ts` tags old notes (dry run: 15 session copies, 6 office notes); not applied yet.
+
+---
+
+### 40. Completing a Session Showed Two Success Pop-ups
+
+**Severity:** Low
+**Status:** Fixed (2026-10-28, uncommitted)
+**Category:** Notifications
+**Affected Pages:** booking drawer, Visit tab (Complete session)
+
+#### Description
+`useCompleteSession` (`src/data/appointment/appointment.ts`) shows the server's message ("Session 1 of 6 completed") and the Visit tab showed its own copy ("Session 1 of 6 completed!"), so every completion raised two pop-ups. The Visit tab's copy had also been hiding the server's wording for a single visit, which said "Package complete".
+
+#### Fix and guard
+The Visit tab's toast is removed; the hook's server message is the only one. The server now says "Visit completed" for a single visit and keeps "Package complete" for a finished package. Guard: `visitOtp.test.ts` "a single visit is announced as a visit, not a package".
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -895,3 +965,7 @@ One rule, `isEarned` in `src/lib/earnings.ts`: only completed sessions count. Ev
 | 34 | Appointments stopped refreshing in a background tab | Low | Fixed |
 | 35 | Earnings totals row sat one column to the left | Medium | Fixed |
 | 36 | Earnings counts visits that haven't happened yet | High | Fixed |
+| 37 | One package booking raised a pop-up per session | Low | Fixed (uncommitted) |
+| 38 | Session note draft not shown again, and it overwrote the customer's note | High | Fixed (uncommitted) |
+| 39 | Customer notes: anyone could write or edit any note; labels mixed up who wrote what | Medium | Fixed (uncommitted) |
+| 40 | Completing a session showed two success pop-ups | Low | Fixed (uncommitted) |
