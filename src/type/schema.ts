@@ -1,6 +1,7 @@
 import z from "zod";
 import { ROLES } from "@/constant";
 import { GENDERS } from "@/lib/person";
+import { isProfileLink } from "@/lib/profile-link";
 
 export const AnalyticsSchema = z.object({
   totalDoctors: z.number(),
@@ -375,6 +376,13 @@ export const TherapistformSchema = z.object({
   phonenumber: z.string().regex(/^\d{10}$/, "Must be 10 digits"),
   specialization: z.string().array(),
   bio: z.string().optional(),
+  // Pasted link to their profile elsewhere. The backend enforces the same rule
+  // (lib/profileLink.ts) - KEEP IN SYNC.
+  profileLink: z
+    .string()
+    .trim()
+    .refine((v) => !v || isProfileLink(v), "Use a full link starting with https://")
+    .optional(),
   isActive: z.boolean().default(true).optional(),
   profileImage: z.string().optional().or(z.literal("")),
   certificates: z.array(certificateSchema).optional(),

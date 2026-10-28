@@ -4,7 +4,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Copy, Loader2, X, Plus } from "lucide-react";
+import { Copy, Loader2, X, Plus, ExternalLink } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,7 +17,8 @@ import {
   useGetSpecializations,
 } from "@/data/specializations/specializations";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { isProfileLink } from "@/lib/profile-link";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Textarea } from "@/components/ui/textarea";
@@ -107,6 +108,7 @@ export default function TherapistDetailsPage({
       specialization: data.specialization ?? [],
       gender: data.gender,
       bio: data.bio,
+      profileLink: data.profileLink ?? "",
       profileImage: data.profileImage ?? "",
       certificates: data.certificates ?? [],
       weekOffDays: data.weekOffDays ?? [],
@@ -409,6 +411,39 @@ export default function TherapistDetailsPage({
                       )}
                     />
                   )}
+                  <FormField
+                    control={form.control}
+                    name="profileLink"
+                    render={({ field }) => (
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel>Therapist profile link</FormLabel>
+                        <div className="flex gap-2">
+                          <FormControl>
+                            <Input
+                              type="url"
+                              inputMode="url"
+                              placeholder="https://..."
+                              {...field}
+                              value={field.value ?? ""}
+                            />
+                          </FormControl>
+                          {/* A link, not a button: it stays usable when the form is read-only. */}
+                          {isProfileLink(field.value) && (
+                            <a
+                              href={field.value}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={buttonVariants({ variant: "outline" })}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                              Open
+                            </a>
+                          )}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
               </section>
 
