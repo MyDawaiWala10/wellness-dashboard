@@ -858,7 +858,7 @@ One rule, `isEarned` in `src/lib/earnings.ts`: only completed sessions count. Ev
 ### 37. One Package Booking Raised a Pop-up per Session
 
 **Severity:** Low
-**Status:** Fixed (2026-10-28, uncommitted; verified on `localhost` as therapist)
+**Status:** Fixed (2026-10-28, `cf06205`; verified on `localhost` as therapist)
 **Category:** Notifications
 **Affected Pages:** every dashboard page (office and therapist new-booking alerts)
 
@@ -873,7 +873,7 @@ One shared function, `newBookingsOf` (`src/lib/own-bookings.ts`), used by both a
 ### 38. Session Note Draft Not Shown Again, and It Overwrote the Customer's Note
 
 **Severity:** High
-**Status:** Fixed (2026-10-28, uncommitted; backend unit-tested, Visit tab checked on `localhost` with saves intercepted)
+**Status:** Fixed (2026-10-28, backend `587b57d`, dashboard `dfa32eb`; backend unit-tested, Visit tab checked on `localhost` with saves intercepted)
 **Category:** Data loss
 **Affected Pages:** booking drawer, Visit tab step 3 (session note)
 
@@ -894,7 +894,7 @@ Records whose customer note was already replaced can't be restored. A draft alre
 ### 39. Customer Notes: Anyone Could Write or Edit Any Note, and Labels Mixed Up Who Wrote What
 
 **Severity:** Medium
-**Status:** Fixed (2026-10-28, uncommitted; unit-tested, both screens checked on `localhost`, no notes written)
+**Status:** Fixed (2026-10-28, backend `98ce150`, dashboard `a9713cf`; unit-tested, both screens checked on `localhost`, no notes written)
 **Category:** Security / notes
 **Affected Pages:** Customers drawer, booking drawer History tab
 
@@ -913,7 +913,7 @@ Records whose customer note was already replaced can't be restored. A draft alre
 ### 40. Completing a Session Showed Two Success Pop-ups
 
 **Severity:** Low
-**Status:** Fixed (2026-10-28, uncommitted)
+**Status:** Fixed (2026-10-28, backend `b96ee13`, dashboard `2815e0d`)
 **Category:** Notifications
 **Affected Pages:** booking drawer, Visit tab (Complete session)
 
@@ -965,7 +965,7 @@ The Visit tab's toast is removed; the hook's server message is the only one. The
 | 34 | Appointments stopped refreshing in a background tab | Low | Fixed |
 | 35 | Earnings totals row sat one column to the left | Medium | Fixed |
 | 36 | Earnings counts visits that haven't happened yet | High | Fixed |
-| 37 | One package booking raised a pop-up per session | Low | Fixed (uncommitted) |
-| 38 | Session note draft not shown again, and it overwrote the customer's note | High | Fixed (uncommitted) |
-| 39 | Customer notes: anyone could write or edit any note; labels mixed up who wrote what | Medium | Fixed (uncommitted) |
-| 40 | Completing a session showed two success pop-ups | Low | Fixed (uncommitted) |
+| 37 | One package booking raised a pop-up per session | Low | Fixed |
+| 38 | Session note draft not shown again, and it overwrote the customer's note | High | Fixed |
+| 39 | Customer notes: anyone could write or edit any note; labels mixed up who wrote what | Medium | Fixed |
+| 40 | Completing a session showed two success pop-ups | Low | Fixed |
