@@ -244,6 +244,9 @@ export const enquirySchema = z.object({
   sessionIntervalDays: z.number().optional(),
   // So many sessions a week (1-4); newer courses use this instead of the interval.
   sessionsPerWeek: z.number().int().min(1).max(4).optional(),
+  // The therapist's note for the visit in progress, saved as they type and
+  // filed into sessionNotes on completion. Never the customer's `note`.
+  sessionNoteDraft: z.string().optional(),
   sessionNotes: z
     .array(
       z.object({

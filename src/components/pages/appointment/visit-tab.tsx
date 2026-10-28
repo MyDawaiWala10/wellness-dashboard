@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, QrCode } from "lucide-react";
 import { toast } from "sonner";
 
@@ -123,7 +123,10 @@ export function VisitTab({
     useCompleteSession();
 
   const [draft, setDraft] = useState<slotBookingZodType>(appointment);
-  const [note, setNote] = useState("");
+  // The therapist's draft lives in its own field (never the customer's `note`),
+  // so it can be loaded back when they return to this tab.
+  const [note, setNote] = useState(appointment.sessionNoteDraft ?? "");
+  const savedNote = useRef(appointment.sessionNoteDraft ?? "");
   const [otp, setOtp] = useState("");
   const [verified, setVerified] = useState(!!appointment.visitOtpVerified);
   // Uber-style "show the QR" popup for collecting at the door.
@@ -133,12 +136,23 @@ export function VisitTab({
 
   useEffect(() => {
     setDraft(appointment);
-    // Don't preload the executive's booking note - therapist writes fresh each session.
-    // The backend snapshots note into sessionNotes on completion and clears it.
-    setNote("");
+    setNote(appointment.sessionNoteDraft ?? "");
+    savedNote.current = appointment.sessionNoteDraft ?? "";
     setVerified(!!appointment.visitOtpVerified);
     setOtp("");
   }, [appointment._id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save the draft shortly after typing stops (and on blur), so switching tabs
+  // or pages never loses it. Clearing the box clears the saved draft too.
+  function persistNote(value: string) {
+    if (value === savedNote.current) return;
+    savedNote.current = value;
+    saveNote({ ...draft, sessionNoteDraft: value });
+  }
+  useEffect(() => {
+    const t = setTimeout(() => persistNote(note), 800);
+    return () => clearTimeout(t);
+  }, [note]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const done = new Set(draft.workChecklist ?? []);
   const actor =
@@ -240,6 +254,7 @@ export function VisitTab({
             if (result.data) setDraft(result.data as slotBookingZodType);
             setVerified(false); // consumed - the next visit needs a fresh code
             setNote(""); // clear the textarea for next visit
+            savedNote.current = ""; // the server cleared the draft on completion
             toast.success(
               isMulti
                 ? `Session ${progress?.currentSession ?? ""} of ${progress?.total ?? ""} completed!`
@@ -390,12 +405,7 @@ export function VisitTab({
           value={note}
           disabled={!verified}
           onChange={(e) => setNote(e.target.value)}
-          onBlur={() => {
-            // Save whenever there's content to persist (prevents loss on tab switch)
-            if (note.trim()) {
-              saveNote({ ...draft, note });
-            }
-          }}
+          onBlur={() => persistNote(note)}
           placeholder="Lower back, limited flexion. Dry needling on QL, 15 min stretch..."
         />
         )}
