@@ -26,6 +26,7 @@ import { useAuthStore } from "@/providers/permission-provider";
 import type { ActivityEntry, slotBookingZodType } from "@/type/schema";
 import { getPackageProgressForAppointment } from "@/lib/package-progress";
 import { parentIdOf, visitAddonShort, visitShort } from "@/lib/visit-groups";
+import { bookingLedger } from "@/lib/booking-money";
 import { verifyVisitOtp } from "@/actions/appointments/visit-otp";
 import { SendVisitOtpButton, visitCodeStatus } from "@/components/send-visit-otp";
 import { AssignTherapistCard } from "./assign-therapist-card";
@@ -158,6 +159,13 @@ export function VisitTab({
   const moneyParent =
     (parentId ? allAppointments.find((r) => r._id === parentId) : undefined) ?? appointment;
   const bookingDue = visitShort(appointment, moneyParent);
+  // The customer may pay ahead for later sessions: up to everything still due on
+  // the booking (the server's own limit; the Billing tab uses the same figure).
+  // This session's share stays the suggested amount.
+  const bookingRemaining = Math.max(
+    bookingDue,
+    bookingLedger(moneyParent).lines.find((l) => l.key === "booking")?.due ?? 0,
+  );
   const addonDue = visitAddonShort(appointment).amount;
   const paymentCleared = bookingDue + addonDue <= 0;
 
@@ -422,7 +430,7 @@ export function VisitTab({
             {bookingDue > 0 && appointment._id && (
               <RecordPaymentForm
                 appointmentId={appointment._id}
-                due={bookingDue}
+                due={bookingRemaining}
                 suggested={bookingDue}
                 companyPayee
               />
