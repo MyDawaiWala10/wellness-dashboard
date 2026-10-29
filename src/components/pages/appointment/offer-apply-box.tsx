@@ -24,8 +24,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuthStore } from "@/providers/permission-provider";
-import { useApplyOffer, useGetOffers, useRemoveOffer } from "@/data/offer/offer";
+import { OFFER_REPEAT_CONFIRM, useApplyOffer, useGetOffers, useRemoveOffer } from "@/data/offer/offer";
+import type { ApplyOfferInput } from "@/actions/offer/apply-offer";
 import { applicableOffers, computeOfferOff, type OfferLineKind } from "@/lib/offers";
 import { formatINR } from "@/components/pages/services/services-columns";
 import { bookingLabel } from "@/components/pages/enquiries/booking";
@@ -60,6 +71,9 @@ export function OfferApplyBox({ appointment }: { appointment: slotBookingZodType
   const { data: offers } = useGetOffers();
   const applyOffer = useApplyOffer();
   const removeOffer = useRemoveOffer();
+  // The server said this phone already used the offer; ask before applying again.
+  const [again, setAgain] = useState<{ message: string; input: ApplyOfferInput } | null>(null);
+  const [reason, setReason] = useState("");
 
   if (!role || !OFFICE.has(role)) return null;
   const bookingId = appointment._id;
@@ -118,15 +132,22 @@ export function OfferApplyBox({ appointment }: { appointment: slotBookingZodType
           userRole={role}
           applied={appliedFor(l)}
           busy={busy}
-          onApply={(id, note) =>
-            applyOffer.mutate({
+          onApply={(id, note) => {
+            const input: ApplyOfferInput = {
               bookingId,
               offerId: id,
               lineKind: l.apiLineKind,
               ...(l.apiLineKind === "add_on" ? { addonKey: l.addonKey } : {}),
               ...(note ? { note } : {}),
-            })
-          }
+            };
+            applyOffer.mutate(input, {
+              onError: (e) => {
+                if (e.cause !== OFFER_REPEAT_CONFIRM) return;
+                setReason(note);
+                setAgain({ message: e.message, input });
+              },
+            });
+          }}
           onRemove={() =>
             removeOffer.mutate({
               bookingId,
@@ -136,6 +157,37 @@ export function OfferApplyBox({ appointment }: { appointment: slotBookingZodType
           }
         />
       ))}
+
+      <AlertDialog open={!!again} onOpenChange={(open) => !open && setAgain(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply this offer again?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {again?.message}{" "}
+              It&apos;s meant once per phone. Applying it again is recorded in
+              History with your reason.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Reason (required)"
+            aria-label="Reason for applying the offer again"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!reason.trim()}
+              onClick={() => {
+                if (again) applyOffer.mutate({ ...again.input, note: reason.trim(), repeat: true });
+                setAgain(null);
+              }}
+            >
+              Apply anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

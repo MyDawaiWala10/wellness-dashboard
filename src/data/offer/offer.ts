@@ -20,6 +20,13 @@ import deleteOffer from "@/actions/offer/delete-offer";
 import applyOffer, { type ApplyOfferInput } from "@/actions/offer/apply-offer";
 import removeOffer, { type RemoveOfferInput } from "@/actions/offer/remove-offer";
 
+/**
+ * The server's answer when this phone already used a once-per-phone offer and
+ * the user (Admin / Super Admin) may apply it again with a reason. KEEP IN SYNC
+ * with backend controllers/bookingOfferController.ts.
+ */
+export const OFFER_REPEAT_CONFIRM = "OFFER_REPEAT_CONFIRM";
+
 export function useGetOffers() {
   return useQuery({
     queryKey: ["offers"],
@@ -86,7 +93,7 @@ export function useApplyOffer() {
   return useMutation({
     mutationFn: async (input: ApplyOfferInput) => {
       const result = await applyOffer(input);
-      if (!result.success) throw new Error(result.message);
+      if (!result.success) throw new Error(result.message, { cause: result.code });
       return result.data;
     },
     onSuccess: (data) => {
@@ -94,7 +101,10 @@ export function useApplyOffer() {
       queryClient.invalidateQueries({ queryKey: ["offers"] });
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    // The offer box asks "apply again?" itself for OFFER_REPEAT_CONFIRM.
+    onError: (e: Error) => {
+      if (e.cause !== OFFER_REPEAT_CONFIRM) toast.error(e.message);
+    },
   });
 }
 

@@ -14,6 +14,8 @@ export type ApplyOfferInput = {
   /** Required for lineKind "add_on" - the add-on key (serviceId|recommendedAt). */
   addonKey?: string;
   note?: string;
+  /** Apply a once-per-phone offer again (Admin / Super Admin, with a note). */
+  repeat?: boolean;
 };
 
 export type ApplyOfferResult = {
@@ -46,6 +48,7 @@ export default async function applyOffer(
       return {
         success: false,
         message: result.message ?? `Request failed with status ${response.status}`,
+        code: result.code,
       };
     }
     return {
