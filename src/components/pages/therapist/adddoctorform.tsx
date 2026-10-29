@@ -190,7 +190,7 @@ export default function AddDoctorForm() {
         </SheetDescription>
 
         <Form {...form}>
-          <form
+          <form method="post"
             onSubmit={form.handleSubmit(onSubmit)}
             className="flex flex-col h-full"
           >

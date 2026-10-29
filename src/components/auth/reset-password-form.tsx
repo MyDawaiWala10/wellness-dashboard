@@ -85,7 +85,7 @@ export const ResetPasswordForm = () => {
     <Card className="p-6 w-full max-w-[500px]">
       {step === "request" ? (
         <Form {...requestForm}>
-          <form
+          <form method="post"
             onSubmit={requestForm.handleSubmit(onRequest)}
             className="space-y-6"
           >
@@ -128,7 +128,7 @@ export const ResetPasswordForm = () => {
         </Form>
       ) : (
         <Form {...resetForm}>
-          <form onSubmit={resetForm.handleSubmit(onReset)} className="space-y-6">
+          <form method="post" onSubmit={resetForm.handleSubmit(onReset)} className="space-y-6">
             <div>
               <h1 className="text-lg font-semibold">Enter your code</h1>
               <p className="text-sm text-muted-foreground mt-1">
