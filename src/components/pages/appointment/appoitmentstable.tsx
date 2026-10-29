@@ -9,7 +9,7 @@ import { DataTableColumnHeader } from "@/components/tables/data-table-column-hea
 import { Badge } from "@/components/ui/badge";
 import { getConfirmedAddonNames } from "@/lib/package-progress";
 import { bookingKindOf, bookingLabel } from "@/components/pages/enquiries/booking";
-import { AppointmentStatusBadge } from "@/components/status-badge";
+import { AppointmentStatusBadge, shownStatus } from "@/components/status-badge";
 import { BookingIdBadge } from "@/components/booking-id-badge";
 import { referralColumn } from "@/components/referral-column";
 import { format } from "date-fns";
@@ -79,7 +79,12 @@ export function makeAppointmentColumns(
       cell: ({ row }) => row.getValue("name"),
     },
     {
-      accessorKey: "status",
+      // Where the booking's next visit stands (OTP Pending -> Visit Pending ->
+      // Session Live -> Completed), worked out by the server from all of its
+      // visits so every viewer sees the same; the stored status until a
+      // therapist is set.
+      id: "status",
+      accessorFn: (row) => shownStatus(row) ?? "",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Status" />
       ),

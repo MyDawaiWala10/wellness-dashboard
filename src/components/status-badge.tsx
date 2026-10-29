@@ -12,6 +12,11 @@ const STATUS_LABEL: Record<string, string> = {
   ongoing: "Ongoing",
   completed: "Completed",
   cancelled: "Cancelled",
+  // A booking's visit progress, sent by the server as `visitStatus` (backend
+  // lib/visitStatus.ts, client list B2 #9). Display only.
+  otp_pending: "OTP Pending",
+  visit_pending: "Visit Pending",
+  session_live: "Session Live",
 };
 
 const STATUS_CLASS: Record<string, string> = {
@@ -19,7 +24,16 @@ const STATUS_CLASS: Record<string, string> = {
   scheduled: "border-yellow-600 text-yellow-600",
   ongoing: "border-blue-600 text-blue-600",
   completed: "border-green-600 text-green-600",
+  // The client's colours: red until the therapist enters the code (blinking
+  // while no code is sent), yellow while the session runs.
+  otp_pending: "border-red-600 text-red-600 motion-safe:animate-blink",
+  visit_pending: "border-red-600 text-red-600",
+  session_live: "border-yellow-500 bg-yellow-400/15 text-yellow-700 dark:text-yellow-400",
 };
+
+/** What a booking's badge shows everywhere: where its visits stand, else its stored status. */
+export const shownStatus = (r: { status?: string; visitStatus?: string | null }) =>
+  r.visitStatus ?? r.status;
 
 export function AppointmentStatusBadge({
   status,

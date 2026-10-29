@@ -2,6 +2,7 @@ import type { slotBookingZodType as Row } from "@/type/schema";
 import type { CustomerNote } from "@/type/customer-record";
 import { childVisitsOf, topLevelRows } from "@/lib/visit-groups";
 import { bookingLabel } from "@/components/pages/enquiries/booking";
+import { shownStatus } from "@/components/status-badge";
 
 /**
  * Every note about one customer, grouped the way people read it: notes about
@@ -77,7 +78,7 @@ export function buildNotesTimeline(bookings: Row[], recordNotes: CustomerNote[] 
       ids: new Set(visits.map((v) => v.enquiryId).filter(Boolean)),
       title: bookingLabel(top),
       at: createdAt(top),
-      status: top.status,
+      status: shownStatus(top),
       notes,
     };
   });

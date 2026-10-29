@@ -29,7 +29,7 @@ import { EnquiryIntakeModal } from "@/components/pages/enquiries/enquiry-intake-
 import type { Customer } from "@/data/customer/customer";
 import type { ActivityEntry, EnquiryType } from "@/type/schema";
 import type { CustomerNote } from "@/type/customer-record";
-import { AppointmentStatusBadge } from "@/components/status-badge";
+import { AppointmentStatusBadge, shownStatus } from "@/components/status-badge";
 import { tidyActivityText } from "@/lib/utils";
 import { addCustomerNote, editCustomerNote } from "@/actions/customers/update-customer-notes";
 import { toast } from "sonner";
@@ -130,7 +130,7 @@ function buildCustomerActivity(bookings: EnquiryType[]): ActivityEntry[] {
 
 function BookingRow({ booking, index }: { booking: EnquiryType; index: number }) {
   const [expanded, setExpanded] = useState(false);
-  const status = booking.status ?? "enquiry";
+  const status = shownStatus(booking) ?? "enquiry";
   const createdAt = (booking as unknown as { createdAt?: string }).createdAt;
 
 

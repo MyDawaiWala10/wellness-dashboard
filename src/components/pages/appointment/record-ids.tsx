@@ -1,7 +1,7 @@
 "use client";
 
 import type { slotBookingZodType } from "@/type/schema";
-import { AppointmentStatusBadge } from "@/components/status-badge";
+import { AppointmentStatusBadge, shownStatus } from "@/components/status-badge";
 import { BookingIdBadge } from "@/components/booking-id-badge";
 
 /**
@@ -56,7 +56,7 @@ export function RecordIds({
           Status
         </span>
         <AppointmentStatusBadge
-          status={appointment.status}
+          status={shownStatus(appointment)}
           className="text-[11px]"
         />
       </div>

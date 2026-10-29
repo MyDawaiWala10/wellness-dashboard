@@ -6,7 +6,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { useGetAllAppointments } from "@/data/appointment/appointment";
 import { useAuthStore } from "@/providers/permission-provider";
 import { QueryWrapper } from "@/components/query-wrapper";
-import { AppointmentStatusBadge } from "@/components/status-badge";
+import { AppointmentStatusBadge, shownStatus } from "@/components/status-badge";
 import { BookingIdBadge } from "@/components/booking-id-badge";
 import { readCreatedISO } from "@/lib/metrics";
 
@@ -108,7 +108,7 @@ const DashboardTable = () => {
                         </TableCell>
                         <TableCell>{appt.slot?.time ?? "--"}</TableCell>
                         <TableCell>
-                          <AppointmentStatusBadge status={appt.status} />
+                          <AppointmentStatusBadge status={shownStatus(appt)} />
                         </TableCell>
                       </TableRow>
                     ))}

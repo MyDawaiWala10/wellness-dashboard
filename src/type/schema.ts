@@ -239,6 +239,9 @@ export const enquirySchema = z.object({
   visitOtpSentAt: z.string().optional(),
   visitOtpSentBy: z.string().optional(),
   visitOtpVerifiedAt: z.string().optional(),
+  // The list status the server works out from all of the booking's visits
+  // (backend lib/visitStatus.ts), the same for every viewer. Display only.
+  visitStatus: z.enum(["otp_pending", "visit_pending", "session_live", "completed"]).nullable().optional(),
   // Ad-hoc multi-session tracking + per-session report log.
   totalSessions: z.number().optional(),
   sessionIntervalDays: z.number().optional(),

@@ -40,6 +40,12 @@
 }
 
 @theme inline {
+  /* A hard on/off blink (animate-blink), for "OTP Pending". Tailwind's pulse
+     only fades to half strength, which doesn't read as blinking. */
+  --animate-blink: blink 1s steps(1, end) infinite;
+  @keyframes blink {
+    50% { opacity: 0.15; }
+  }
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
