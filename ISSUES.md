@@ -969,6 +969,104 @@ A change on a booking didn't show on its invoice:
 
 ---
 
+### 43. Package Progress Read From the Booking Row Alone (Drawer Header, Customers' App), and Add-on Visits Counted as Sessions
+
+**Severity:** Medium
+**Status:** Fixed 2026-10-29, uncommitted (dashboard and backend)
+**Category:** Booking drawer, Customers' App API
+**Affected Pages:** booking drawer header; Appointments list "Sessions"; `GET /api/customer-app/bookings`
+
+#### Description
+- ENQ-0157 (7-session package) has sessions 1, 2 and 3 completed, as its Visits tab shows, yet the drawer header read "Session 1 of 7 · 6 left" with the bar at 1/7. ENQ-0129 ("Session 1 of 4 · 4 left", nothing done) only looked right by chance.
+- The Customers' App API sent the same wrong figure as `sessionsCompleted` (1 for ENQ-0157).
+- The list's "X of N completed" also counted completed add-on visits as package sessions, so a package with a later add-on visit could read "8 of 7".
+
+#### Cause
+A package is stored one of two ways: an older one-row package with a `sessionsCompleted` counter, or a package with a visit per session (the booking is session 1, sessions 2 to N are rows with `packageOriginId`). On the second kind the booking's own counter only ever covers session 1. `courseProgressOf` (`src/lib/visit-groups.ts`) counted the session rows correctly for the list, but the drawer header (`AppointmentSummaryStrip`) read only the booking row, and `listBookingsForPhone` (backend `lib/customerBookings.ts`) sent the row's counter. `courseProgressOf` itself used `childVisitsOf`, which also returns add-on visits.
+
+#### Fix and guard
+- `courseProgressOf` counts only the package's session rows (not add-on visits). The drawer header uses it for the whole package, and a session visit shows its package's progress when the package is loaded.
+- The Customers' App API counts the done session rows for a package's booking the same way (KEEP IN SYNC comments on both sides); each session row still reports only itself.
+- Checked in the browser: ENQ-0157's header now reads "Session 4 of 7 · 4 left" at 3/7, matching the list's "3 of 7 completed".
+- Guards: `visit-groups.test.ts` "counts done sessions on their own rows, not add-on visits (ISSUES #43)" and `customerBookings.test.ts` "a package with a visit per session counts its done session rows (ISSUES #43)".
+- Not covered: a therapist whose list lacks the package's booking (assigned to someone else) still sees one visit's progress on that visit's header.
+
+---
+
+### 44. Visit Code Hash Sent to the Browser (a Therapist Could Recover the Code)
+
+**Severity:** High (security)
+**Status:** Open (found 2026-10-29)
+**Category:** Visit OTP
+**Affected Pages:** every appointments list (office and therapist), via `GET /api/appointments`
+
+#### Description
+The appointments list returns each visit's `visitOtpHash` (the bcrypt hash of the 4-digit visit code) to the browser. Running the therapist list's own query read-only returned the hash on 8 of the test therapist's 55 bookings (e.g. ENQ-0154, ENQ-0151, ENQ-0118). With only 10,000 possible codes, the code can be worked out from its hash, so a therapist could start a visit without the customer giving them the code, which is what the code is meant to prove.
+
+#### Cause
+`visitOtpHash` (backend `models/appointmentsBookingModel.ts`) has no `select: false`, the list queries only drop the referral fields (`HIDDEN_FROM_THERAPISTS`), and the dashboard passes the whole response through to the browser.
+
+#### Fix and guard
+Not fixed yet. Planned: `select: false` on `visitOtpHash` (and the attempt counter), with the verify step asking for it explicitly, plus a test that the list never carries it.
+
+---
+
+### 45. Login Did Nothing on a Phone Through ngrok, and Sent the Password in the Address
+
+**Severity:** High (security)
+**Status:** Fixed (uncommitted, found 2026-10-29)
+**Category:** Auth / local dev
+**Affected Pages:** login, reset password, Add user (Settings), Add therapist
+
+#### Description
+Opening the local dashboard on a phone through an ngrok link, the Login button did nothing. Each press reloaded the page as `GET /auth/login?userEmailOrPhone=...&userPassword=...`, so the email and password showed in plain text in the dev server log and the tunnel's request history.
+
+#### Cause
+Two things together. Next 16's dev server blocks its own scripts for any host not in `allowedDevOrigins`, so on the ngrok address the page never hydrated. Then the form, which had no `method`, fell back to the browser default: a GET with every field in the URL.
+
+#### Fix and guard
+`next.config.ts` allows `*.ngrok-free.app` in dev. Every form that carries a password (login, both reset-password steps, Add user, Add therapist) now has `method="post"`, so if its script ever fails to load the fields go in the request body, never the address. Checked through the ngrok link: the form validates on its own and the address stays `/auth/login`.
+
+Once login worked, the dev log still printed the password: Next 16 logs every Server Action's arguments in dev, including `Login`'s. `logging: { serverFunctions: false }` in `next.config.ts` turns that off; checked that the log no longer shows any action's inputs.
+
+---
+
+### 46. Invoice Download Said "Try Logging In Again" When IDM Took the PDF
+
+**Severity:** Low
+**Status:** Fixed (uncommitted, found 2026-10-29)
+**Category:** Invoices / UI message
+**Affected Pages:** every invoice download button (booking drawer, invoices)
+
+#### Description
+On a browser with Internet Download Manager installed, the invoice download button showed "Couldn't get the invoice PDF. Try logging in again." The dev log showed the server sent the PDF every time (`GET /api/invoices/INV-2026-0079/pdf 200`).
+
+#### Cause
+IDM's browser extension takes PDF downloads for itself and hands the page an empty `204`. The button treated any reply that wasn't a PDF as an expired login.
+
+#### Fix and guard
+`src/components/invoice-download-button.tsx` is now a plain `<a href download>` link to the same route. There's no fetch, blob or toast, so the browser just saves the file, and a failed download shows in the browser's own downloads list. With IDM's browser extension on, IDM still takes the PDF and the browser lists "File wasn't available on site", even though the server logged `200`. That's IDM's synthetic `204`, and a site can't stop it. On that machine, add the dashboard's hosts to IDM's "Don't start downloading automatically from the following sites" list.
+
+---
+
+### 47. An Offer's "Who Absorbs the Discount" Setting Does Nothing
+
+**Severity:** Medium (money)
+**Status:** Open (found 2026-10-29, parked)
+**Category:** Offers / therapist earnings
+**Affected Pages:** Services → Offers (the setting), Earnings and a therapist's Earnings tab (where it should count)
+
+#### Description
+When a Super Admin creates an offer, they choose who absorbs the discount: the company or the therapist. Every applied offer stores that choice (`appliedOffers[].absorbedBy`), but nothing reads it.
+
+#### Cause
+`src/lib/earnings.ts` splits revenue as `paymentAmount ?? quotedPrice`, which is the price after the discount. So the therapist's cut always shrinks with the discount, even when the offer says the company absorbs it.
+
+#### Fix and guard
+Not fixed. First decide what "company absorbs" means: should the therapist's cut be worked out on the pre-discount price? Then the server should send the split, so the dashboard doesn't recompute it. Add a test for each choice.
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -1015,3 +1113,8 @@ A change on a booking didn't show on its invoice:
 | 40 | Completing a session showed two success pop-ups | Low | Fixed |
 | 41 | Dashboard-booked consultation invoiced at a flat ₹500, not its quoted price | High | Fixed (not deployed; re-price script pending) |
 | 42 | Booking changes didn't reach its invoice (paid invoices froze; offers never synced) | High | Fixed (not deployed; re-price script pending) |
+| 43 | Package progress read from the booking row alone (drawer header, Customers' App); add-on visits counted as sessions | Medium | Fixed (uncommitted) |
+| 44 | Visit code hash sent to the browser (a therapist could recover the code) | High | Open |
+| 45 | Login did nothing on a phone through ngrok, and sent the password in the address | High | Fixed (uncommitted) |
+| 46 | Invoice download said "try logging in again" when IDM took the PDF | Low | Fixed (uncommitted) |
+| 47 | An offer's "who absorbs the discount" setting does nothing | Medium | Open |
