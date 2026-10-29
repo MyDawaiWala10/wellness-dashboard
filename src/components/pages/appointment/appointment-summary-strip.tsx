@@ -4,7 +4,6 @@ import { MapPin, MessageCircle, Phone } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import type { ServiceType, slotBookingZodType } from "@/type/schema";
-import { getPackageProgressForAppointment } from "@/lib/package-progress";
 import { bookingLabel } from "@/components/pages/enquiries/booking";
 import { bookingLedger } from "@/lib/booking-money";
 import { BookingIdBadge } from "@/components/booking-id-badge";
@@ -13,7 +12,7 @@ import { whatsAppLink, toWhatsAppNumber } from "@/lib/whatsapp";
 import { useAuthStore } from "@/providers/permission-provider";
 import { InvoiceDownloadButton } from "@/components/invoice-download-button";
 import { useInvoiceForAppointment } from "@/data/invoice/invoice";
-import { parentIdOf } from "@/lib/visit-groups";
+import { courseProgressOf, parentIdOf } from "@/lib/visit-groups";
 
 /**
  * Who, how much, how far along - answered before anyone clicks anything.
@@ -24,16 +23,19 @@ import { parentIdOf } from "@/lib/visit-groups";
  */
 export function AppointmentSummaryStrip({
   appointment,
+  all,
   services,
 }: {
   appointment: slotBookingZodType;
+  /** Every loaded booking: a package's later sessions are rows of their own. */
+  all: slotBookingZodType[];
   services: ServiceType[];
 }) {
-  const progress = getPackageProgressForAppointment(
-    appointment,
-    [appointment],
-    services,
-  );
+  // The whole package, counted from its session visits; a session visit shows
+  // its package's progress when the package is loaded too (ISSUES #43).
+  const booking =
+    (appointment.packageOriginId && all.find((a) => a._id === appointment.packageOriginId)) || appointment;
+  const progress = courseProgressOf(booking, all, services);
   const { due } = bookingLedger(appointment);
   // Office roles get Location, WhatsApp and Call; a therapist only Location
   // and Call (B1 #7) - messaging the customer is the office's job.

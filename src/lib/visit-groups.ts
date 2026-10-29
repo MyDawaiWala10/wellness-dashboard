@@ -83,14 +83,18 @@ export function visitLabel(r: Row, parent: Row): string {
 }
 
 /**
- * A booking's course progress for the list ("1 of 3 completed"). A course with
- * a visit per session counts its completed visits (the booking is session 1);
- * a one-booking package uses its counter. null for single visits.
+ * A booking's course progress ("1 of 3 completed"), for the list and the
+ * booking drawer's header. A course with a visit per session counts its
+ * completed session visits (the booking is session 1; add-on visits aren't
+ * sessions); a one-booking package uses its counter. null for single visits.
+ * The Customers' App API counts the same way (backend lib/customerBookings.ts
+ * listBookingsForPhone) - KEEP IN SYNC.
  */
 export function courseProgressOf(r: Row, all: Row[], services: ServiceType[]): PackageProgress | null {
   const own = courseSessionOf(r);
   if (own && own.session === 1 && !parentIdOf(r)) {
-    const completed = [r, ...childVisitsOf(r, all)].filter((v) => v.status === "completed").length;
+    const sessions = childVisitsOf(r, all).filter((v) => !v.addonOf?.bookingId);
+    const completed = [r, ...sessions].filter((v) => v.status === "completed").length;
     return {
       packageName: `${own.total}-session course`,
       packageServiceId: r.packageServiceId ?? "",

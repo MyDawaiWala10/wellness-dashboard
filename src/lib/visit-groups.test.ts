@@ -46,6 +46,14 @@ describe("Sessions column", () => {
     expect(courseProgressOf(origin, [origin, s2, s3], [])?.label).toBe("1 of 3 completed");
   });
 
+  it("counts done sessions on their own rows, not add-on visits (ISSUES #43)", () => {
+    const origin = row({ _id: "c", bookingKind: "course", totalSessions: 3, sessionIntervalDays: 7, status: "completed" });
+    const s2 = row({ _id: "s2", packageOriginId: "c", sessionNumber: 2, totalSessions: 3, status: "completed" });
+    const s3 = row({ _id: "s3", packageOriginId: "c", sessionNumber: 3, totalSessions: 3, status: "scheduled" });
+    const addon = row({ _id: "a", addonOf: { bookingId: "c", key: "S|t", session: 1 }, status: "completed" });
+    expect(courseProgressOf(origin, [origin, s2, s3, addon], [])).toMatchObject({ completed: 2, currentSession: 3, total: 3 });
+  });
+
   it("a single visit has nothing to count", () => {
     expect(courseProgressOf(row({ _id: "x", status: "completed" }), [], [])).toBeNull();
   });

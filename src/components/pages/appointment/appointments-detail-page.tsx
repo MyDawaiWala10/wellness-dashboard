@@ -77,7 +77,7 @@ const AppointmentDetailDrawer = ({
 
         {live ? (
           <div className="space-y-3 px-4 pb-6">
-            <AppointmentSummaryStrip appointment={live} services={services} />
+            <AppointmentSummaryStrip appointment={live} all={allAppointments} services={services} />
 
             <Tabs key={live._id} defaultValue="visit">
               <TabsList className="w-full">
