@@ -928,7 +928,7 @@ The Visit tab's toast is removed; the hook's server message is the only one. The
 ### 41. Dashboard-Booked Consultation Invoiced at a Flat ₹500, Not Its Quoted Price
 
 **Severity:** High (money)
-**Status:** Fixed 2026-10-29, not yet deployed (backend, uncommitted). Existing invoices need `scripts/reprice-invoices.ts --apply` after deploy.
+**Status:** Fixed 2026-10-29, deployed (backend 83b4bc7). Existing invoices still need `scripts/reprice-invoices.ts --apply`.
 **Category:** Invoices
 **Affected Pages:** Invoices, booking drawer invoice, invoice PDF
 
@@ -946,7 +946,7 @@ A consultation now always takes the confirmed-type path and is priced from its q
 ### 42. Booking Changes Didn't Reach Its Invoice (Paid Invoices Froze; Offers Never Synced)
 
 **Severity:** High (money)
-**Status:** Fixed 2026-10-29, not yet deployed (backend, uncommitted). Existing invoices need `scripts/reprice-invoices.ts --apply` after deploy.
+**Status:** Fixed 2026-10-29, deployed (backend 83b4bc7). Existing invoices still need `scripts/reprice-invoices.ts --apply`.
 **Category:** Invoices
 **Affected Pages:** Invoices, booking drawer invoice, invoice PDF, Earnings (reads invoices)
 
@@ -972,7 +972,7 @@ A change on a booking didn't show on its invoice:
 ### 43. Package Progress Read From the Booking Row Alone (Drawer Header, Customers' App), and Add-on Visits Counted as Sessions
 
 **Severity:** Medium
-**Status:** Fixed 2026-10-29, uncommitted (dashboard and backend)
+**Status:** Fixed 2026-10-29 (backend 7248cda, dashboard 4928bd1)
 **Category:** Booking drawer, Customers' App API
 **Affected Pages:** booking drawer header; Appointments list "Sessions"; `GET /api/customer-app/bookings`
 
@@ -1014,7 +1014,7 @@ Not fixed yet. Planned: `select: false` on `visitOtpHash` (and the attempt count
 ### 45. Login Did Nothing on a Phone Through ngrok, and Sent the Password in the Address
 
 **Severity:** High (security)
-**Status:** Fixed (uncommitted, found 2026-10-29)
+**Status:** Fixed 2026-10-29 (a01e265)
 **Category:** Auth / local dev
 **Affected Pages:** login, reset password, Add user (Settings), Add therapist
 
@@ -1034,7 +1034,7 @@ Once login worked, the dev log still printed the password: Next 16 logs every Se
 ### 46. Invoice Download Said "Try Logging In Again" When IDM Took the PDF
 
 **Severity:** Low
-**Status:** Fixed (uncommitted, found 2026-10-29)
+**Status:** Fixed 2026-10-29 (d33d340)
 **Category:** Invoices / UI message
 **Affected Pages:** every invoice download button (booking drawer, invoices)
 
@@ -1111,10 +1111,10 @@ Not fixed. First decide what "company absorbs" means: should the therapist's cut
 | 38 | Session note draft not shown again, and it overwrote the customer's note | High | Fixed |
 | 39 | Customer notes: anyone could write or edit any note; labels mixed up who wrote what | Medium | Fixed |
 | 40 | Completing a session showed two success pop-ups | Low | Fixed |
-| 41 | Dashboard-booked consultation invoiced at a flat ₹500, not its quoted price | High | Fixed (not deployed; re-price script pending) |
-| 42 | Booking changes didn't reach its invoice (paid invoices froze; offers never synced) | High | Fixed (not deployed; re-price script pending) |
-| 43 | Package progress read from the booking row alone (drawer header, Customers' App); add-on visits counted as sessions | Medium | Fixed (uncommitted) |
+| 41 | Dashboard-booked consultation invoiced at a flat ₹500, not its quoted price | High | Fixed (re-price script pending) |
+| 42 | Booking changes didn't reach its invoice (paid invoices froze; offers never synced) | High | Fixed (re-price script pending) |
+| 43 | Package progress read from the booking row alone (drawer header, Customers' App); add-on visits counted as sessions | Medium | Fixed |
 | 44 | Visit code hash sent to the browser (a therapist could recover the code) | High | Open |
-| 45 | Login did nothing on a phone through ngrok, and sent the password in the address | High | Fixed (uncommitted) |
-| 46 | Invoice download said "try logging in again" when IDM took the PDF | Low | Fixed (uncommitted) |
+| 45 | Login did nothing on a phone through ngrok, and sent the password in the address | High | Fixed |
+| 46 | Invoice download said "try logging in again" when IDM took the PDF | Low | Fixed |
 | 47 | An offer's "who absorbs the discount" setting does nothing | Medium | Open |
