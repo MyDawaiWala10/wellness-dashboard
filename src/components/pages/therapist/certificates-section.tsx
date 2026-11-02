@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Eye, FileText, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUploadThing } from "@/lib/uploadthing";
@@ -27,6 +26,9 @@ export function CertificatesSection({
   readOnly = false,
 }: CertificatesSectionProps) {
   const [draftLabel, setDraftLabel] = useState("");
+  // Upload pressed before the name was written: say so under the name box.
+  const [needsName, setNeedsName] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [lightboxLabel, setLightboxLabel] = useState("");
 
@@ -45,16 +47,23 @@ export function CertificatesSection({
     },
   });
 
+  function askForName() {
+    setNeedsName(true);
+    document.getElementById("cert-label")?.focus();
+  }
+
+  // The button stays clickable so an empty name gets a reason, not a dead click.
+  function pickFile() {
+    if (!draftLabel.trim()) return askForName();
+    fileInput.current?.click();
+  }
+
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
-    if (!draftLabel.trim()) {
-      toast.error("Add a label first (e.g. 'BPT Degree')");
-      e.target.value = "";
-      return;
-    }
-    startUpload([file]);
     e.target.value = "";
+    if (!file) return;
+    if (!draftLabel.trim()) return askForName();
+    startUpload([file]);
   }
 
   function handleRemove(idx: number) {
@@ -70,8 +79,6 @@ export function CertificatesSection({
     }
   }
 
-  const canUpload = draftLabel.trim().length > 0 && !isUploading;
-
   return (
     <div className="space-y-4">
       {!readOnly && (
@@ -82,48 +89,54 @@ export function CertificatesSection({
                 htmlFor="cert-label"
                 className="text-xs font-medium text-muted-foreground"
               >
-                Certificate label
+                Certificate name
               </label>
               <Input
                 id="cert-label"
                 placeholder="e.g. BPT Degree, Acupuncture Certification"
                 value={draftLabel}
-                onChange={(e) => setDraftLabel(e.target.value)}
+                onChange={(e) => {
+                  setDraftLabel(e.target.value);
+                  setNeedsName(false);
+                }}
                 disabled={isUploading}
+                aria-invalid={needsName}
+                aria-describedby={needsName ? "cert-label-hint" : undefined}
                 className="h-11 sm:h-10"
               />
             </div>
-            <label className={cn(!canUpload && "cursor-not-allowed")}>
-              <input
-                type="file"
-                accept="image/*,application/pdf"
-                className="hidden"
-                onChange={handleFile}
-                disabled={!canUpload}
-              />
-              <Button
-                type="button"
-                variant="default"
-                disabled={!canUpload}
-                className="h-11 sm:h-10 w-full sm:w-auto"
-                asChild
-              >
-                <span>
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Uploading…
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload file
-                    </>
-                  )}
-                </span>
-              </Button>
-            </label>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={handleFile}
+            />
+            <Button
+              type="button"
+              variant="default"
+              disabled={isUploading}
+              onClick={pickFile}
+              className="h-11 sm:h-10 w-full sm:w-auto"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Uploading…
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload file
+                </>
+              )}
+            </Button>
           </div>
+          {needsName && (
+            <p id="cert-label-hint" role="alert" className="text-xs text-destructive mt-2">
+              Write the certificate name first (e.g. BPT Degree)
+            </p>
+          )}
           <p className="text-[11px] text-muted-foreground mt-2">
             Images open in a preview; PDFs open in a new tab. Max 8MB image / 16MB PDF.
           </p>

@@ -59,7 +59,7 @@ and drives scheduling.
 |---|---|---|
 | `doctorId` | String, required, unique | `THR-####`, allocated server-side. |
 | `userId` | String | Links to the matching `User._id`, if the therapist has a login. |
-| `name`, `firstName`, `lastName` | String | `firstName`/`lastName` default `""`. |
+| `name` | String | Required. The only copy of the name on the therapist record; the login keeps its own first/last split. |
 | `gender` | enum `male / female` | **Not actually enforced as required** - the schema option is misspelled `requied` instead of `required`, so Mongoose silently ignores it. Harmless today since the UI always sends a value, but worth fixing if this model is ever touched. |
 | `email` | String, required | Not unique at the schema level - uniqueness is only checked in application code against both `Doctor` and `User`. |
 | `phonenumber` | Number, required | |

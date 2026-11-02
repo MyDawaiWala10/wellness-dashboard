@@ -1356,6 +1356,55 @@ Moved to `appointments-detail-page.tsx`, under the summary strip and above the t
 
 ---
 
+### 62. Therapists Added With "Add Therapist" Show Blank Names and Can't Be Saved
+
+**Severity:** High (production: the therapist's profile can't be edited at all)
+**Status:** Fixed 2026-11-02, not shipped (found the same day on THR-0014 "Launch Therapist")
+**Category:** Frontend + backend / therapists
+**Affected Pages:** Therapists (profile drawer, Profile tab)
+
+#### Description
+The drawer's First Name and Last Name are blank although the header shows the name. Pressing "Update Details" fails with "Error updating therapist".
+
+#### Cause
+- 2026-09-14 (dashboard 031d445, backend 0325f86): First/Last Name fields were added to the drawer. They read only `Doctor.firstName` / `lastName`, and the save rebuilds `name` from them.
+- "Add Therapist" has one Name field and never fills `firstName` / `lastName` (both default ""). The one-time `scripts/sync-therapist-names.ts` fixed only the therapists that existed then.
+- So the save sends `name: ""`. The Doctor model requires `name`, and `findOneAndUpdate` runs validators, so it throws "Path `name` is required". `updateTherapistSuperAdmin` answers 500 "Error updating therapist". Reproduced 2026-11-02 against the real model with no database: `name: ""` fails, a real name passes.
+- 2026-10-10 (backend 59bc065) fixed the same error for a half-empty name, where the login copy failed. Its test never sent `name`, so the both-empty case stayed broken.
+
+The "Therapist profile link" on THR-0014 (`http://localhost:3000/dashboard/appointments`) is a separate matter. It is saved data, not this bug: no code fills it, and any http(s) address is accepted.
+
+#### Fix and guard
+The duplicate is gone, so the two copies can't drift apart again.
+- **Dashboard:** the drawer has one Name field, like "Add Therapist", saved as is. Blank is stopped on the form ("Name is required").
+- **Backend:** `Doctor.firstName` / `lastName` were removed from the model and from the Settings > Users sync. Both update endpoints refuse a blank name with a 400 "Name is required." instead of a 500.
+- **Login sync:** the login's first/last name is split from `name` (the same `loginNames` helper "Add Therapist" uses), and only when the name actually changes. Status and split saves don't touch it.
+- `scripts/sync-therapist-names.ts` (one-time, wrote the removed fields) was deleted.
+
+Guards: `DoctorController.test.ts` "therapist name (ISSUES #62)" sends the drawer's real payload: a blank name gives a 400, a rename splits onto the login, an unchanged name leaves the login alone. In the browser, a name-only therapist opens with the Name filled in, and clearing it blocks the save.
+
+Old records keep a stale `firstName` / `lastName` in the database. Nothing reads them any more.
+
+---
+
+### 63. Certificate "Upload file" Does Nothing When the Name Is Empty, With No Hint
+
+**Severity:** Low (usability)
+**Status:** Fixed 2026-11-02, not shipped
+**Category:** Frontend / therapists
+**Affected Pages:** Therapists (Add Therapist and the profile drawer, Certificates)
+
+#### Description
+Pressing "Upload file" before writing the certificate name did nothing. In dark mode the switched-off button still looked active, so people didn't know the name came first.
+
+#### Cause
+`certificates-section.tsx` disabled the button while the name was empty. Its "Add a label first" message could never show, because a disabled button never lets the click through.
+
+#### Fix and guard
+The button stays clickable. With no name, it doesn't open the file picker: it puts the cursor in the name box and shows "Write the certificate name first (e.g. BPT Degree)" under it in red. The message clears as soon as typing starts. The field is now called "Certificate name". The button is now a real button, so it can also be reached with the keyboard. Checked in the browser: empty name shows the message and opens no picker; with a name, the picker opens.
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -1421,3 +1470,5 @@ Moved to `appointments-detail-page.tsx`, under the summary strip and above the t
 | 59 | Add-ons attached while booking keep the browser's price | Medium | Open |
 | 60 | Details-page time change doesn't move an assigned visit | Medium | Open |
 | 61 | Video call link hidden at the bottom of the History tab | Low | Fixed (not shipped) |
+| 62 | Therapists added with "Add Therapist" show blank names and can't be saved | High | Fixed (not shipped) |
+| 63 | Certificate "Upload file" does nothing when the name is empty, with no hint | Low | Fixed (not shipped) |
