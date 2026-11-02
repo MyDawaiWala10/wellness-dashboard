@@ -79,7 +79,6 @@ export default function AddDoctorForm() {
     mode: "onChange",
     defaultValues: {
       name: "",
-      doctorId: "",
       password: "",
       gender: "male",
       phonenumber: undefined,
@@ -234,22 +233,6 @@ export default function AddDoctorForm() {
                         <FormLabel>Name</FormLabel>
                         <FormControl>
                           <Input placeholder="Name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="doctorId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Therapist ID</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Auto-assigned (THR-####) if left blank"
-                            {...field}
-                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

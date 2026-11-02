@@ -99,7 +99,6 @@ export default function TherapistDetailsPage({
     resolver: zodResolver(TherapistformSchema),
     defaultValues: {
       name: data.name,
-      doctorId: data.doctorId,
       phonenumber: data.phonenumber != null ? String(data.phonenumber) : "",
       email: data.email,
       isActive: data.isActive,
@@ -178,7 +177,9 @@ export default function TherapistDetailsPage({
   }
 
   function onSubmit(values: z.infer<typeof TherapistformSchema>) {
-    updateMutate(values, {
+    // The ID isn't a field (it's shown in the header and never changes), but the
+    // save is addressed by it.
+    updateMutate({ ...values, doctorId: data.doctorId }, {
       onSuccess: () => onClose(),
     });
   }
@@ -283,19 +284,6 @@ export default function TherapistDetailsPage({
                         <FormLabel>Name</FormLabel>
                         <FormControl>
                           <Input placeholder="Full name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="doctorId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Therapist ID</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Therapist ID" {...field} readOnly tabIndex={-1} className="bg-muted/50 cursor-not-allowed" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

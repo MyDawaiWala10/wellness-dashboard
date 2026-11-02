@@ -1405,6 +1405,27 @@ The button stays clickable. With no name, it doesn't open the file picker: it pu
 
 ---
 
+### 64. A Therapist ID Could Be Typed In, or Changed
+
+**Severity:** High (data integrity: bookings, earnings and leave point at the ID)
+**Status:** Fixed 2026-11-02, not shipped (found the same day)
+**Category:** Backend + frontend / therapists
+**Affected Pages:** Therapists (Add Therapist, profile save)
+
+#### Description
+- "Add Therapist" had an editable Therapist ID box, and the server saved whatever was typed (for example "efefefef") instead of the next THR-####.
+- On a profile save, the server also took a new ID from Admin, Staff or Super Admin. The drawer shows the ID read-only, but a crafted request could change it, cutting the therapist off from every booking, payout and leave record that points at the old ID.
+
+#### Cause
+`addDoctor` used `doctorId || THR-####`, and `updateDoctorDetails` copied `req.body.doctorId` for every role but Therapist. The read-only box was a screen-only rule.
+
+#### Fix and guard
+- **Backend:** `addDoctor` always allocates THR-####, and `updateDoctorDetails` never writes `doctorId` (the Super Admin endpoint already didn't).
+- **Dashboard:** there is no Therapist ID box anywhere. It's gone from Add Therapist, and the read-only one is gone from the profile drawer, which shows the ID in its header. The drawer's save takes the ID from the stored record, not from the form.
+- **Tests:** `DoctorController.test.ts` checks that a typed ID becomes THR-0015, and that Admin, Staff and Super Admin can't change an ID.
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -1472,3 +1493,4 @@ The button stays clickable. With no name, it doesn't open the file picker: it pu
 | 61 | Video call link hidden at the bottom of the History tab | Low | Fixed (not shipped) |
 | 62 | Therapists added with "Add Therapist" show blank names and can't be saved | High | Fixed (not shipped) |
 | 63 | Certificate "Upload file" does nothing when the name is empty, with no hint | Low | Fixed (not shipped) |
+| 64 | A therapist ID could be typed in, or changed | High | Fixed (not shipped) |
