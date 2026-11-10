@@ -1330,6 +1330,12 @@ Not fixed. Price each attached add-on with `addonCataloguePrice` in `createBooki
 #### Description
 A visit assigned from the Enquiries drawer has `therapyStartTime` (and `physioSlot.time`) set as well as `slot.time`. The details page's Time box edits only `slot.time`. Every server reader takes `therapyStartTime || physioSlot.time || slot.time` (clash check, invoice "Session date", the video call time), so the new time is saved but ignored: the visit stays at the old time and the clash check never sees the move.
 
+Found again on 2026-11-10. The online consultation's Google Calendar entry and Meet invite keep the old time as well. A date change has the same split:
+- The dashboard lists and the call use `slot.date` first.
+- The therapist calendar view (`therapist-calendar-view.tsx`) and the Customers' App use `physioSlot.date` first, so they show the old day.
+
+The Enquiries assign step writes all three fields together, so it isn't affected.
+
 #### Cause
 `appointments-details-page.tsx` sends `therapyStartTime` / `therapyEndTime` unchanged from the stored values (`buildDefaults`) while `slot.time` changes.
 
