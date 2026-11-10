@@ -8,8 +8,20 @@ import type { EnquiryType } from "@/type/schema";
 
 export type CreateEnquiryInput = Pick<
   EnquiryType,
-  "name" | "phonenumber" | "note" | "source" | "referredByDoctorId"
->;
+  | "name"
+  | "phonenumber"
+  | "note"
+  | "source"
+  | "referredByDoctorId"
+  | "email"
+  | "location"
+  | "service"
+  | "gender"
+  | "age"
+> & {
+  /** A therapist's referral code; the server turns it into the referrer. */
+  referralCode?: string;
+};
 
 export default async function createEnquiry(
   values: CreateEnquiryInput,

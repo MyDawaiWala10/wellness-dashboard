@@ -10,6 +10,12 @@ import type { EnquiryType, ServiceType } from "@/type/schema";
  */
 export type BookingType = NonNullable<EnquiryType["typeOfappointment"]>;
 
+/**
+ * What a lead asks for, as the patient site offers it. The server derives the
+ * booking type from it. KEEP IN SYNC with WellnessBackend lib/offerings.ts.
+ */
+export const OFFERINGS = ["Online Consultation", "Home Therapy", "Vitals Check"] as const;
+
 export const BOOKING_TYPES: {
   value: BookingType;
   label: string;

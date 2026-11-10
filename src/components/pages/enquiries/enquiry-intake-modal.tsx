@@ -27,23 +27,45 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useCreateEnquiry, findOpenEnquiryByPhone } from "@/data/enquiry/enquiry";
 import { useGetCustomers } from "@/data/customer/customer";
 import { useAuthStore } from "@/providers/permission-provider";
 import { BookingSourceField } from "@/components/booking-source-field";
 import { bookingSourceError, type BookingSource } from "@/lib/booking-source";
+import { GENDERS, genderLabel } from "@/lib/person";
+import { OFFERINGS } from "./booking";
 
+// The same details the patient site's booking form asks for, with the same
+// rules: a service is required, and an address unless it's an online call.
 const intakeFormSchema = z
   .object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     phonenumber: z
       .number({ error: "Phone is required" })
       .refine((n) => String(n).length === 10, "Phone must be exactly 10 digits"),
+    email: z.string().trim().email("Enter a valid email").optional().or(z.literal("")),
+    location: z.string().trim().max(120, "Too long").optional(),
+    service: z.enum(OFFERINGS, { error: "Pick a service" }),
+    gender: z.enum(GENDERS).optional(),
+    age: z.number().int("Whole years").min(1, "1 to 120").max(120, "1 to 120").optional(),
     note: z.string().optional(),
     source: z.string().optional(),
     referredByDoctorId: z.string().nullable().optional(),
+    referralCode: z.string().trim().max(20, "Too long").optional(),
   })
   .superRefine((v, ctx) => {
+    if (v.service && v.service !== "Online Consultation" && !v.location) {
+      ctx.addIssue({ code: "custom", message: "City / area is needed for a home service", path: ["location"] });
+    }
+    // A referral code says how they reached us, so the pick isn't needed then.
+    if (v.referralCode) return;
     const message = bookingSourceError({
       source: v.source as BookingSource | "",
       referredByDoctorId: v.referredByDoctorId,
@@ -82,10 +104,17 @@ export function EnquiryIntakeModal({
   const emptyValues: IntakeFormValues = {
     name: "",
     phonenumber: undefined as unknown as number,
+    email: "",
+    location: "",
+    // No default service either: the executive has to ask.
+    service: undefined as unknown as IntakeFormValues["service"],
+    gender: undefined,
+    age: undefined,
     note: "",
     // No default on purpose: an untouched pick would file a walk-in as WhatsApp.
     source: "",
     referredByDoctorId: null,
+    referralCode: "",
   };
 
   const form = useForm<IntakeFormValues>({
@@ -139,6 +168,9 @@ export function EnquiryIntakeModal({
     createMutation.mutate(
       {
         ...values,
+        email: values.email || undefined,
+        location: values.location || undefined,
+        referralCode: values.referralCode?.toUpperCase() || undefined,
         // Only a therapist referral carries a referrer; don't post a stale one.
         referredByDoctorId:
           values.source === "therapist" ? values.referredByDoctorId : undefined,
@@ -166,7 +198,7 @@ export function EnquiryIntakeModal({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New enquiry</DialogTitle>
           <DialogDescription>
@@ -242,6 +274,113 @@ export function EnquiryIntakeModal({
 
             <FormField
               control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email (optional)</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="you@example.com" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="service"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Service</FormLabel>
+                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="What are they asking for?" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {OFFERINGS.map((o) => (
+                        <SelectItem key={o} value={o}>
+                          {o}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="location"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    City / Area
+                    {form.watch("service") === "Online Consultation" ? " (optional)" : ""}
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ekbalpore, Kolkata" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="gender"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Gender (optional)</FormLabel>
+                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {GENDERS.map((g) => (
+                          <SelectItem key={g} value={g}>
+                            {genderLabel(g)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="age"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Age (optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={120}
+                        placeholder="45"
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(e.target.value === "" ? undefined : Number(e.target.value))
+                        }
+                        onBlur={field.onBlur}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
               name="source"
               render={({ fieldState }) => (
                 <FormItem>
@@ -260,6 +399,34 @@ export function EnquiryIntakeModal({
                     }}
                     error={fieldState.error?.message}
                   />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="referralCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Referral code (optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g. CK43Z"
+                      autoCapitalize="characters"
+                      className="font-mono uppercase"
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        field.onChange(e.target.value);
+                        // The pick above stops being required once there's a code.
+                        void form.trigger("source");
+                      }}
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    A therapist&apos;s code makes this their referral, whatever is picked above.
+                  </p>
+                  <FormMessage />
                 </FormItem>
               )}
             />
