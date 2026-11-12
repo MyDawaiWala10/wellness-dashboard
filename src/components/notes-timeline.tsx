@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { ChevronRight, Pencil, Plus } from "lucide-react";
+import { ChevronRight, Copy, Pencil, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +11,7 @@ import { AppointmentStatusBadge } from "@/components/status-badge";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { CustomerNote } from "@/type/customer-record";
 import {
+  bookingChatText,
   canEditNote,
   type NoteSource,
   type NotesTimeline as Timeline,
@@ -36,8 +38,7 @@ const SOURCE: Record<NoteSource, { label: string; pill: string; rule: string }> 
   },
 };
 
-type Filter = "all" | NoteSource;
-const FILTERS: Filter[] = ["all", "customer", "therapist", "office"];
+const SOURCES: NoteSource[] = ["customer", "therapist", "office"];
 
 const when = (at?: string) => (at ? format(new Date(at), "yyyy-MM-dd HH:mm") : "");
 
@@ -51,6 +52,7 @@ export function NotesTimeline({
   openId,
   onAdd,
   onEdit,
+  copyChatName,
 }: {
   timeline: Timeline;
   /** The booking block to open (the one being looked at). Default: the newest. */
@@ -58,31 +60,66 @@ export function NotesTimeline({
   /** Adding a note about the person; resolves true once saved. */
   onAdd?: (text: string) => Promise<boolean>;
   onEdit?: (note: CustomerNote, text: string) => Promise<boolean>;
+  /** Shows "Copy chat" for the open booking; the name goes under its heading. */
+  copyChatName?: string;
 }) {
-  const [filter, setFilter] = useState<Filter>("all");
-  const shows = (n: TimelineNote) => filter === "all" || n.source === filter;
+  // Whose notes are shown, and so copied. All three to start.
+  const [include, setInclude] = useState<ReadonlySet<NoteSource>>(() => new Set(SOURCES));
+  const shows = (n: TimelineNote) => include.has(n.source);
   const open = openId ?? timeline.bookings[0]?.id;
   const about = timeline.about.filter(shows);
+  const openBooking = timeline.bookings.find((b) => b.id === open);
+
+  function toggle(s: NoteSource, on: boolean) {
+    const next = new Set(include);
+    if (on) next.add(s);
+    else next.delete(s);
+    setInclude(next);
+  }
+
+  async function copyChat() {
+    if (!openBooking) return;
+    const { text, count } = bookingChatText(openBooking, include, copyChatName);
+    if (count === 0) {
+      toast.error("Nothing to copy: tick someone who has notes on this booking.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`Copied ${count} ${count === 1 ? "message" : "messages"}${openBooking.enquiryId ? ` from ${openBooking.enquiryId}` : ""}`);
+    } catch {
+      toast.error("Couldn't copy - try again");
+    }
+  }
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Show notes from">
-        {FILTERS.map((f) => (
-          <Button
-            key={f}
-            type="button"
-            size="sm"
-            variant={filter === f ? "secondary" : "ghost"}
-            aria-pressed={filter === f}
-            className="h-7 px-2.5 text-xs"
-            onClick={() => setFilter(f)}
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Show notes from">
+        {SOURCES.map((s) => (
+          <label
+            key={s}
+            className={cn(
+              "flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-xs",
+              include.has(s) ? "border-foreground/30" : "text-muted-foreground",
+            )}
           >
-            {f === "all" ? "All" : SOURCE[f].label}
-          </Button>
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 cursor-pointer accent-foreground"
+              checked={include.has(s)}
+              onChange={(e) => toggle(s, e.target.checked)}
+            />
+            {SOURCE[s].label}
+          </label>
         ))}
+        {copyChatName !== undefined && openBooking && (
+          <Button type="button" size="sm" variant="outline" className="ml-auto h-7 px-2.5 text-xs" onClick={copyChat}>
+            <Copy className="h-3.5 w-3.5" /> Copy chat
+          </Button>
+        )}
       </div>
 
-      {(about.length > 0 || onAdd) && filter !== "customer" && (
+      {(about.length > 0 || onAdd) && (include.has("therapist") || include.has("office")) && (
         <section className="rounded-lg border p-3">
           <div className="mb-2 flex items-center justify-between">
             <h4 className="text-sm font-semibold">About this customer</h4>
@@ -126,7 +163,7 @@ export function NotesTimeline({
             <div className="space-y-2 border-t p-3">
               {notes.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  {filter === "all" ? "No notes for this booking yet." : `No ${SOURCE[filter].label.toLowerCase()} notes for this booking.`}
+                  {b.notes.length === 0 ? "No notes for this booking yet." : "No notes from the ticked people on this booking."}
                 </p>
               ) : (
                 notes.map((n, i) => <NoteRow key={`${n.at}-${i}`} note={n} />)

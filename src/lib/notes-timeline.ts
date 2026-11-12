@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import type { slotBookingZodType as Row } from "@/type/schema";
 import type { CustomerNote } from "@/type/customer-record";
 import { childVisitsOf, topLevelRows } from "@/lib/visit-groups";
@@ -113,6 +114,32 @@ export function buildNotesTimeline(bookings: Row[], recordNotes: CustomerNote[] 
     bookings: groups
       .sort((a, b) => time(b.at) - time(a.at))
       .map(({ id, enquiryId, title, at, status, notes }) => ({ id, enquiryId, title, at, status, notes })),
+  };
+}
+
+const WHO: Record<NoteSource, string> = { customer: "Customer", therapist: "Therapist", office: "Office" };
+
+/**
+ * One booking's notes from the chosen people as plain text, to paste into
+ * WhatsApp (*bold* shows bold there): a heading, then each note in time order
+ * as "*Session 1 of 6* · 28 Oct 2026, 17:00" over "therapist1234: note".
+ */
+export function bookingChatText(
+  booking: BookingNotes,
+  include: ReadonlySet<NoteSource>,
+  customerName?: string,
+): { text: string; count: number } {
+  const notes = booking.notes
+    .filter((n) => include.has(n.source))
+    .sort((a, b) => time(a.at) - time(b.at));
+  const stamp = (at?: string) => (at ? format(new Date(at), "d MMM yyyy, HH:mm") : "");
+  const heading = `*${[booking.enquiryId, booking.title].filter(Boolean).join(" · ")}*`;
+  const blocks = notes.map(
+    (n) => `*${n.tag}*${n.at ? ` · ${stamp(n.at)}` : ""}\n${n.by || WHO[n.source]}: ${n.text}`,
+  );
+  return {
+    text: [[heading, customerName?.trim()].filter(Boolean).join("\n"), ...blocks].join("\n\n"),
+    count: notes.length,
   };
 }
 

@@ -78,6 +78,7 @@ export function HistoryTab({
         <NotesTimeline
           timeline={buildNotesTimeline(personBookings ?? [appointment, ...visits], customerNotes)}
           openId={appointment._id}
+          copyChatName={appointment.name ?? ""}
         />
       )}
 

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { slotBookingZodType as Row } from "@/type/schema";
 import type { CustomerNote } from "@/type/customer-record";
-import { buildNotesTimeline, canEditNote } from "./notes-timeline";
+import { format } from "date-fns";
+import { bookingChatText, buildNotesTimeline, canEditNote, type NoteSource } from "./notes-timeline";
 
 const row = (r: Partial<Row> & { createdAt?: string }) => ({ name: "Asha", phonenumber: 1, ...r }) as Row;
 
@@ -65,5 +66,37 @@ describe("canEditNote", () => {
     expect(canEditNote(office, { role: "STAFF", id: "u2" })).toBe(false);
     expect(canEditNote(office, { role: "ADMIN", id: "u2" })).toBe(true);
     expect(canEditNote({ ...office, kind: "session" }, { role: "SUPER_ADMIN", id: "u1" })).toBe(false);
+  });
+});
+
+describe("bookingChatText", () => {
+  // Shown in the viewer's own time zone, like the History tab.
+  const at = (iso: string) => format(new Date(iso), "d MMM yyyy, HH:mm");
+  const pkgNotes = () => buildNotesTimeline([pkg, pkgS2]).bookings[0];
+  const all = new Set<NoteSource>(["customer", "therapist", "office"]);
+
+  it("a heading, then each note in time order: tag and time, then who and what", () => {
+    const { text, count } = bookingChatText(pkgNotes(), all, "Asha");
+    expect(count).toBe(4);
+    expect(text).toBe(
+      [
+        "*ENQ-0020 · " + pkgNotes().title + "*\nAsha",
+        `*When booking* · ${at("2026-10-01T10:00:00Z")}\nCustomer: Lower back pain`,
+        `*Asked again (#2)* · ${at("2026-10-03T10:00:00Z")}\nCustomer: Now also neck stiffness`,
+        `*Session 1 of 3* · ${at("2026-10-05T10:00:00Z")}\nT1234: Dry needling on QL`,
+        `*Session 2 of 3* · ${at("2026-10-08T10:00:00Z")}\nT1234: Neck stretches added`,
+      ].join("\n\n"),
+    );
+  });
+
+  it("leaves out the people who aren't ticked", () => {
+    const { text, count } = bookingChatText(pkgNotes(), new Set<NoteSource>(["therapist"]));
+    expect(count).toBe(2);
+    expect(text).not.toContain("Customer:");
+    expect(text).toContain("T1234: Neck stretches added");
+  });
+
+  it("nothing ticked: no messages", () => {
+    expect(bookingChatText(pkgNotes(), new Set<NoteSource>()).count).toBe(0);
   });
 });
