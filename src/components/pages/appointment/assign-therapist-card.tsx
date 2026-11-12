@@ -52,7 +52,9 @@ export function AssignTherapistCard({
   // Assigned and not being changed: show who and when, with a way out.
   if (assigned && !changing) {
     return (
-      <div className={`flex items-center gap-3 rounded-lg border p-3 ${isCompleted ? "opacity-50 pointer-events-none" : ""}`}>
+      // A finished visit keeps its therapist (the server refuses a change), so it
+      // just loses the Change button; who and when stay fully readable.
+      <div className="flex items-center gap-3 rounded-lg border p-3">
         {/* One line: who, then when, with the time large enough to read at a glance.
             Wraps under the name on a narrow phone rather than squeezing. */}
         <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
@@ -64,7 +66,7 @@ export function AssignTherapistCard({
             {appointment.slot?.time ? `, ${appointment.slot.time}` : ""}
           </p>
         </div>
-        {!isTherapist && (
+        {!isTherapist && !isCompleted && (
           <Button
             type="button"
             size="sm"
