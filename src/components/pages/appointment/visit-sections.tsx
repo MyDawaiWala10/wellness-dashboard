@@ -21,7 +21,8 @@ import {
   useConfirmAppointmentRecommendation,
 } from "@/data/appointment/appointment";
 import type { slotBookingZodType } from "@/type/schema";
-import { addonPrice, recommendedAddonTotal } from "@/lib/service-pricing";
+import { addonPrice, recommendedAddonTotal, standardSessionRate } from "@/lib/service-pricing";
+import { PerSession } from "@/components/money";
 import { whatsAppLink } from "@/lib/whatsapp";
 import { sendAddonOtp } from "@/actions/appointments/addon-otp";
 import { getPackageProgressForAppointment } from "@/lib/package-progress";
@@ -68,6 +69,7 @@ export function AddonsVisitSection({
   const { data: services = [] } = useGetServices();
   const { data: rateCard } = useGetSessionRates();
   const tiers = rateCard?.tiers ?? [];
+  const standardRate = standardSessionRate(tiers);
   const { mutate: addRecommendation, isPending } = useAddAppointmentRecommendation();
   const { mutate: confirmRecommendation, isPending: isConfirming } =
     useConfirmAppointmentRecommendation();
@@ -250,8 +252,8 @@ export function AddonsVisitSection({
                 </div>
                 {rec.sessions && rec.sessions > 1 && (
                   <p className="text-[11px] text-muted-foreground">
-                    {formatINR(Math.round(rec.quotedPrice / rec.sessions))}/session
-                    × {rec.sessions}
+                    <PerSession rate={Math.round(rec.quotedPrice / rec.sessions)} standard={standardRate} /> ×{" "}
+                    {rec.sessions}
                   </p>
                 )}
                 {rec.slot?.date && (
@@ -384,9 +386,14 @@ export function AddonsVisitSection({
           />
           {serviceId && pricing.total > 0 && (
             <p className="text-[11px] text-muted-foreground tabular-nums">
-              {sessions && sessions > 1
-                ? `${formatINR(pricing.perSession)}/session × ${sessions} = ${formatINR(pricing.total)}`
-                : `${formatINR(pricing.perSession)} per session`}
+              {sessions && sessions > 1 ? (
+                <>
+                  <PerSession rate={pricing.perSession} standard={pricing.usesTiers ? standardRate : undefined} /> ×{" "}
+                  {sessions} = {formatINR(pricing.total)}
+                </>
+              ) : (
+                `${formatINR(pricing.perSession)} per session`
+              )}
             </p>
           )}
           {noTier && (

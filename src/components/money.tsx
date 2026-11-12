@@ -39,3 +39,18 @@ export function Money({
     </span>
   );
 }
+
+/**
+ * A per-session price from the rate card: the standard 1-session rate crossed
+ * out in front when this one is lower ("₹1,600 ₹1,500/session"). The invoice
+ * shows the same (WellnessBackend lib/invoiceView.ts listPrice).
+ */
+export function PerSession({ rate, standard }: { rate: number; standard?: number }) {
+  return (
+    <span className="whitespace-nowrap">
+      {standard != null && standard > rate && <Money value={standard} struck className="mr-1" />}
+      <Money value={rate} />
+      /session
+    </span>
+  );
+}

@@ -21,6 +21,9 @@ export function sessionRate(tiers: RateTier[], sessions: number): number {
   return tier ? (tier.rate ?? 0) : 0;
 }
 
+/** The rate card's 1-session price: a package's lower rate is a discount from it. */
+export const standardSessionRate = (tiers: RateTier[]) => sessionRate(tiers, 1);
+
 /** Total price for booking `sessions` sessions = tier rate × count. */
 export function sessionTotal(
   tiers: RateTier[] | undefined,

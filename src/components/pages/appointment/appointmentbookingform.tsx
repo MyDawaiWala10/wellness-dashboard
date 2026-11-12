@@ -43,7 +43,7 @@ import { bookingSourceError, type BookingSource } from "@/lib/booking-source";
 import { useGetServices } from "@/data/service/service";
 import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { CustomerSearchField } from "@/components/pages/invoices/customer-search-field";
-import { sessionRate, sessionTotal, addonPrice, recommendedAddonTotal } from "@/lib/service-pricing";
+import { sessionRate, sessionTotal, standardSessionRate, addonPrice, recommendedAddonTotal } from "@/lib/service-pricing";
 import { courseDayOffset, perWeekLabel, SESSIONS_PER_WEEK } from "@/lib/course-schedule";
 import {
   checkConflict,
@@ -54,7 +54,7 @@ import {
 import { useGetSessionRates } from "@/data/session-rate/session-rate";
 import { useAuthStore } from "@/providers/permission-provider";
 import { formatINR } from "@/components/pages/services/services-columns";
-import { Money } from "@/components/money";
+import { Money, PerSession } from "@/components/money";
 import { useQueryClient } from "@tanstack/react-query";
 import addAppointments from "@/actions/appointments/book-appointment";
 import { useGetOffers, useApplyOffer } from "@/data/offer/offer";
@@ -958,6 +958,12 @@ export default function AppointmentBookingForm() {
                         }
                       />
                     </FormControl>
+                    {isCourse && (sessions ?? 0) > 0 && sessionRate(tiers, sessions ?? 0) > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {sessions} {sessions === 1 ? "session" : "sessions"} ×{" "}
+                        <PerSession rate={sessionRate(tiers, sessions ?? 0)} standard={standardSessionRate(tiers)} />
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
