@@ -53,13 +53,15 @@ export function AssignTherapistCard({
   if (assigned && !changing) {
     return (
       <div className={`flex items-center gap-3 rounded-lg border p-3 ${isCompleted ? "opacity-50 pointer-events-none" : ""}`}>
-        <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold">{appointment.doctor}</p>
-          <p className="text-[11px] text-muted-foreground">
+        {/* One line: who, then when, with the time large enough to read at a glance.
+            Wraps under the name on a narrow phone rather than squeezing. */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <p className="truncate text-sm font-medium">{appointment.doctor}</p>
+          <p className="text-base font-semibold tabular-nums">
             {appointment.slot?.date
               ? format(new Date(appointment.slot.date), "dd MMM yyyy")
-              : "no date"}
-            {appointment.slot?.time ? ` at ${appointment.slot.time}` : ""}
+              : "No date"}
+            {appointment.slot?.time ? `, ${appointment.slot.time}` : ""}
           </p>
         </div>
         {!isTherapist && (
