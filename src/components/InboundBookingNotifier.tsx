@@ -13,7 +13,8 @@ import { newBookingsOf } from "@/lib/own-bookings";
 
 // New leads are the office's job; a therapist is only told about bookings
 // assigned to them (the server returns a therapist only their own bookings).
-const OFFICE_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "STAFF", "CUSTOMER_CARE"]);
+// KEEP IN SYNC with OFFICE_ROLES in the backend's lib/index.ts.
+export const OFFICE_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "STAFF", "CUSTOMER_CARE"]);
 
 export default function InboundBookingNotifier() {
   const { user } = useAuthStore();

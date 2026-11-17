@@ -46,6 +46,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogoutButton } from './auth/logout-button';
 import { useAuthStore } from '@/providers/permission-provider';
 import InboundBookingNotifier from './InboundBookingNotifier';
+import { PushAlertsBanner } from './push-alerts-banner';
 
 const navLinks = [
   {
@@ -312,6 +313,7 @@ const SlimSidebar = ({ children }: { children: React.ReactNode }) => {
           </DropdownMenu>
         </header>
         <div ref={contentScrollRef} className='px-5 overflow-y-auto' >
+        <PushAlertsBanner />
         {children}
         </div>
       </div>
