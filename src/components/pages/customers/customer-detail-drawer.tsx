@@ -9,7 +9,10 @@ import {
   Phone,
   CalendarDays,
   UserRound,
+  Banknote,
+  Loader2,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { genderLabel } from "@/lib/person";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -36,6 +39,11 @@ import { toast } from "sonner";
 import { BookingIdBadge } from "@/components/booking-id-badge";
 import { NotesTimeline } from "@/components/notes-timeline";
 import { buildNotesTimeline } from "@/lib/notes-timeline";
+import { CodBlacklistedTag } from "@/components/cod-blacklisted-tag";
+import { setCustomerCodBlock } from "@/actions/customers/set-cod-block";
+import { invalidateAppointmentAndEnquiryQueries } from "@/data/appointment/appointment";
+import { useAuthStore } from "@/providers/permission-provider";
+import { OFFICE_ROLES } from "@/components/InboundBookingNotifier";
 
 interface CustomerDetailDrawerProps {
   customer: Customer | null;
@@ -225,6 +233,29 @@ export function CustomerDetailDrawer({
 }: CustomerDetailDrawerProps) {
   const open = customer !== null;
   const [localNotes, setLocalNotes] = useState<CustomerNote[]>(customer?.notes ?? []);
+  // COD blacklist: the office blocks or allows cash (the server checks the role).
+  const queryClient = useQueryClient();
+  const canBlockCod = OFFICE_ROLES.has(useAuthStore((s) => s.user?.role) ?? "");
+  const [codBlocked, setCodBlocked] = useState(!!customer?.codBlocked);
+  const [codSaving, setCodSaving] = useState(false);
+  useEffect(() => {
+    setCodBlocked(!!customer?.codBlocked);
+  }, [customer?.codBlocked, customer?.customer_id]);
+
+  async function toggleCod(customerId: string) {
+    setCodSaving(true);
+    const result = await setCustomerCodBlock(customerId, !codBlocked);
+    setCodSaving(false);
+    if (!result.success || !result.data) {
+      toast.error(result.message);
+      return;
+    }
+    setCodBlocked(!!result.data.codBlocked);
+    toast.success(result.data.codBlocked ? "COD blacklisted: cash won't be accepted" : "Cash accepted again");
+    // Their bookings show or drop the tag, and Cash is disabled or enabled.
+    invalidateAppointmentAndEnquiryQueries(queryClient);
+    queryClient.invalidateQueries({ queryKey: ["customers"] });
+  }
 
   async function addNote(customerId: string, text: string): Promise<boolean> {
     const result = await addCustomerNote(customerId, { note: text });
@@ -289,6 +320,7 @@ export function CustomerDetailDrawer({
             >
               {SEGMENT_LABEL[customer.segment]}
             </Badge>
+            <CodBlacklistedTag record={{ codBlocked }} />
           </SheetTitle>
           <SheetDescription>
             {customer.customer_id ? (
@@ -337,6 +369,25 @@ export function CustomerDetailDrawer({
               <CalendarDays className="h-4 w-4" />
               <span>Customer since {firstSeen}</span>
             </div>
+            {canBlockCod && customer.customer_id && (
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-sm">
+                <Banknote className="h-4 w-4 text-muted-foreground" />
+                <span className="flex-1">
+                  {codBlocked ? "Cash not accepted (COD blacklisted)" : "Cash accepted"}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={codSaving}
+                  onClick={() => toggleCod(customer.customer_id!)}
+                  className={codBlocked ? undefined : "border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/60"}
+                >
+                  {codSaving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                  {codBlocked ? "Allow cash (COD)" : "Block cash (COD)"}
+                </Button>
+              </div>
+            )}
           </section>
 
           <Separator />

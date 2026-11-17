@@ -440,6 +440,7 @@ export function VisitTab({
                 due={bookingRemaining}
                 suggested={bookingDue}
                 companyPayee
+                cashBlocked={appointment.codBlocked}
               />
             )}
             {/* One way to actually collect: a quick QR popup the customer scans

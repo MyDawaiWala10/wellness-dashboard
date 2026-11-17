@@ -262,7 +262,7 @@ export function BillingTab({ appointment }: { appointment: slotBookingZodType })
             <p className="text-[11px] font-medium">
               Record a payment for {bookingLabel(appointment)}
             </p>
-            <RecordPaymentForm appointmentId={appointment._id} due={bookingDue} />
+            <RecordPaymentForm appointmentId={appointment._id} due={bookingDue} cashBlocked={appointment.codBlocked} />
           </div>
         )}
 

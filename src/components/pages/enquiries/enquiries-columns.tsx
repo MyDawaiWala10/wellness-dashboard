@@ -16,6 +16,7 @@ import type { EnquiryType } from "@/type/schema";
 import { EnquiryStatusBadge } from "./enquiry-status-badge";
 import { bookingTypeLabel, toDayKey } from "./booking";
 import { BookingIdBadge } from "@/components/booking-id-badge";
+import { CodBlacklistedTag } from "@/components/cod-blacklisted-tag";
 import { referralColumn } from "@/components/referral-column";
 
 /**
@@ -153,7 +154,12 @@ export function makeEnquiryColumns({
       id: "enquiryId",
       accessorFn: (r) => r.enquiryId ?? "",
       header: "ID",
-      cell: ({ row }) => <BookingIdBadge record={row.original} />,
+      cell: ({ row }) => (
+        <div className="flex flex-wrap items-center gap-1">
+          <BookingIdBadge record={row.original} />
+          <CodBlacklistedTag record={row.original} />
+        </div>
+      ),
     },
     ...(showReferral ? [referralColumn] : []),
     {

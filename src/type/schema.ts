@@ -278,6 +278,8 @@ export const enquirySchema = z.object({
   // What this row earns, per therapist, worked out by the server (backend
   // lib/payouts.ts). Display only: the dashboard never recomputes a cut.
   payout: z.array(payoutPartSchema).optional(),
+  // The customer is COD blacklisted: no cash (backend lib/codBlock.ts). Display only.
+  codBlocked: z.boolean().optional(),
   // Ad-hoc multi-session tracking + per-session report log.
   totalSessions: z.number().optional(),
   sessionIntervalDays: z.number().optional(),

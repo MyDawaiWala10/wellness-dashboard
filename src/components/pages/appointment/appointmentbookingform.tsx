@@ -76,6 +76,8 @@ const OFFICE_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "STAFF", "CUSTOMER_CARE"])
 export default function AppointmentBookingForm() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  // The picked customer is COD blacklisted: no cash at booking.
+  const [cashBlocked, setCashBlocked] = useState(false);
   // Session-only by default; flip on to attach (stack) services.
   const [attachServices, setAttachServices] = useState(false);
   const [stacked, setStacked] = useState<StackedService[]>([]);
@@ -783,6 +785,11 @@ export default function AppointmentBookingForm() {
                     shouldValidate: true,
                   });
                   form.setValue("customer_id", sel.customer_id ?? "");
+                  // A COD blacklisted customer can't pay cash at booking (the server refuses it too).
+                  setCashBlocked(!!sel.codBlocked);
+                  if (sel.codBlocked && form.getValues("paymentMethod") === "cash") {
+                    form.setValue("paymentMethod", undefined);
+                  }
                   // Only prefill the rest when an existing customer is picked,
                   // so typing a brand-new name never wipes entered details.
                   if (sel.customer_id) {
@@ -1130,7 +1137,9 @@ export default function AppointmentBookingForm() {
                         <SelectValue placeholder="Method" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="cash" disabled={cashBlocked}>
+                          {cashBlocked ? "Cash (COD blacklisted)" : "Cash"}
+                        </SelectItem>
                         <SelectItem value="upi">UPI</SelectItem>
                         <SelectItem value="card">Card</SelectItem>
                         <SelectItem value="bank">Bank</SelectItem>

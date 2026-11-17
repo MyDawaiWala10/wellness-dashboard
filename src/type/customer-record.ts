@@ -20,6 +20,8 @@ export interface PersistedCustomer {
   birthYear?: number;
   dob?: string;
   notes?: CustomerNote[];
+  /** COD blacklisted: no cash is taken from them (the office sets it). */
+  codBlocked?: boolean;
 
   createdAt?: string;
   updatedAt?: string;

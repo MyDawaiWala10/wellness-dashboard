@@ -63,7 +63,7 @@ export function useGetAllAppointments(user: UserType) {
 // Invoices are also invalidated because confirming/paying an add-on,
 // completing a session, or editing an appointment all re-sync its invoice
 // on the backend - the invoices list must refresh to show it.
-function invalidateAppointmentAndEnquiryQueries(queryClient: ReturnType<typeof useQueryClient>) {
+export function invalidateAppointmentAndEnquiryQueries(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ["appointments"] });
   queryClient.invalidateQueries({ queryKey: ["enquiries"] });
   queryClient.invalidateQueries({ queryKey: ["invoices"] });

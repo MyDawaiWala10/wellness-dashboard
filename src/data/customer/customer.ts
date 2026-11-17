@@ -29,6 +29,7 @@ export interface Customer {
   lastBookingAt?: string;      // ISO from latest createdAt
   segment: CustomerSegment;
   notes?: CustomerNote[];      // therapist notes about this customer
+  codBlocked: boolean;         // COD blacklisted (no cash)
 }
 
 function readTimestamp(r: EnquiryType, key: "createdAt" | "updatedAt"): number {
@@ -104,6 +105,7 @@ export function deriveCustomers(
         : undefined,
       segment: segmentFor(totalBookings),
       notes: persisted?.notes,
+      codBlocked: !!persisted?.codBlocked,
     });
   }
 

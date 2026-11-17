@@ -49,6 +49,7 @@ import {
 import { cn, tidyActivityText } from "@/lib/utils";
 import { RecordIds } from "@/components/pages/appointment/record-ids";
 import { BookingIdBadge } from "@/components/booking-id-badge";
+import { CodBlacklistedTag } from "@/components/cod-blacklisted-tag";
 import { BookingSourceEditor } from "@/components/booking-source-editor";
 import { RecordPaymentForm } from "@/components/record-payment-form";
 import { SendVisitOtpButton, visitCodeStatus } from "@/components/send-visit-otp";
@@ -670,6 +671,7 @@ export function EnquiryDetailDrawer({
           <SheetTitle className="flex items-center gap-2">
             {draft.enquiryId && <BookingIdBadge record={draft} />}
             {draft.name || "Unnamed"} <EnquiryStatusBadge record={draft} />
+            <CodBlacklistedTag record={draft} />
           </SheetTitle>
           <SheetDescription>
             Advance the lead through the funnel. All changes save on click.
@@ -997,7 +999,7 @@ export function EnquiryDetailDrawer({
                   </div>
                 </div>
 
-                {record._id && <RecordPaymentForm appointmentId={record._id} due={bookingDue} />}
+                {record._id && <RecordPaymentForm appointmentId={record._id} due={bookingDue} cashBlocked={record.codBlocked} />}
 
                 {(record.payments?.length ?? 0) > 0 && (
                   <ul className="space-y-0.5 text-xs text-muted-foreground">

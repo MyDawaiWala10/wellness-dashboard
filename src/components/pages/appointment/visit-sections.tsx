@@ -345,6 +345,7 @@ export function AddonsVisitSection({
                         appointmentId={appointment._id}
                         addon={`${rec.serviceId}|${rec.recommendedAt}`}
                         due={Math.max(0, rec.quotedPrice - addonPaid(rec))}
+                        cashBlocked={appointment.codBlocked}
                       />
                     </div>
                   )}

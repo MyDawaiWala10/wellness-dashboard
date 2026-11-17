@@ -25,6 +25,8 @@ export type CustomerSelection = {
   address?: string;
   /** From the customer record (birth year / date of birth); unset when unknown. */
   age?: number;
+  /** The picked customer is COD blacklisted (no cash). */
+  codBlocked?: boolean;
 };
 
 interface CustomerSearchFieldProps {
@@ -75,6 +77,7 @@ export function CustomerSearchField({
       email: c.email ?? "",
       address: c.address ?? "",
       age: personAge(c),
+      codBlocked: !!c.codBlocked,
     });
     setQuery(c.name);
     setOpen(false);

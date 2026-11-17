@@ -26,6 +26,7 @@ export function RecordPaymentForm({
   onRecorded,
   addon,
   companyPayee,
+  cashBlocked,
 }: {
   appointmentId: string;
   /** Pay one add-on ("serviceId|recommendedAt") instead of the booking. */
@@ -37,6 +38,8 @@ export function RecordPaymentForm({
   onRecorded?: () => void;
   /** Spell out that a UPI payment settles to the company, not the therapist. */
   companyPayee?: boolean;
+  /** The customer is COD blacklisted: Cash can't be picked (the server refuses it too). */
+  cashBlocked?: boolean;
 }) {
   const [amount, setAmount] = useState(String(suggested > 0 ? suggested : ""));
   const [method, setMethod] = useState("");
@@ -67,12 +70,14 @@ export function RecordPaymentForm({
           </SelectTrigger>
           <SelectContent>
             {METHODS.map((m) => (
-              <SelectItem key={m} value={m} className="capitalize">
+              <SelectItem key={m} value={m} className="capitalize" disabled={m === "cash" && cashBlocked}>
                 {m === "upi"
                   ? companyPayee
                     ? "UPI (to company)"
                     : "UPI"
-                  : m[0].toUpperCase() + m.slice(1)}
+                  : m === "cash" && cashBlocked
+                    ? "Cash (COD blacklisted)"
+                    : m[0].toUpperCase() + m.slice(1)}
               </SelectItem>
             ))}
           </SelectContent>

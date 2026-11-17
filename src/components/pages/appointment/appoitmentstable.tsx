@@ -11,6 +11,7 @@ import { getConfirmedAddonNames } from "@/lib/package-progress";
 import { bookingKindOf, bookingLabel } from "@/components/pages/enquiries/booking";
 import { AppointmentStatusBadge, shownStatus } from "@/components/status-badge";
 import { BookingIdBadge } from "@/components/booking-id-badge";
+import { CodBlacklistedTag } from "@/components/cod-blacklisted-tag";
 import { referralColumn } from "@/components/referral-column";
 import { format } from "date-fns";
 
@@ -67,7 +68,12 @@ export function makeAppointmentColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Booking ID" />
       ),
-      cell: ({ row }) => <BookingIdBadge record={row.original} />,
+      cell: ({ row }) => (
+        <div className="flex flex-wrap items-center gap-1">
+          <BookingIdBadge record={row.original} />
+          <CodBlacklistedTag record={row.original} />
+        </div>
+      ),
     },
     ...(showReferral ? [referralColumn] : []),
     {
