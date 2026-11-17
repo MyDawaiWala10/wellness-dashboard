@@ -24,6 +24,7 @@ import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
 import type { EnquiryType } from "@/type/schema";
 
 import { deriveAnalytics, deriveMoM } from "./analytics-metrics";
+import { useGetPayoutBalances } from "@/data/payouts/payouts";
 import { MoMGrowthChart } from "./MoMGrowthChart";
 import { DailyPacingChart } from "./DailyPacingChart";
 
@@ -115,6 +116,11 @@ const AnalyticsPage = () => {
   );
   const a = React.useMemo(() => deriveAnalytics(records), [records]);
   const mom = React.useMemo(() => deriveMoM(records), [records]);
+  // What's left to pay therapists after the cash they hold: the server's
+  // balance, the same as the Earnings page (Admin / Super Admin only).
+  const canSeePayouts = role === "SUPER_ADMIN" || role === "ADMIN";
+  const { data: balances = [] } = useGetPayoutBalances(canSeePayouts);
+  const leftToPay = balances.reduce((t, b) => t + Math.max(0, b.remaining), 0);
 
   // Analytics is a back-office view; therapists get their own dashboard.
   // ponytail: nav/role visibility only - real enforcement is server-side when
@@ -304,18 +310,20 @@ const AnalyticsPage = () => {
                 <MetricCard
                   label="Therapist Payouts"
                   value={formatINR(a.therapistPayoutTotal)}
-                  hint={`Paid: ${formatINR(a.therapistPayoutPaid)}`}
+                  hint="Their cut of done, paid sessions"
                 />
                 <MetricCard
                   label="Company Earnings"
                   value={formatINR(a.companyEarningsTotal)}
                   hint="Margin after therapist split"
                 />
-                <MetricCard
-                  label="Payout Owed"
-                  value={formatINR(a.therapistPayoutOwed)}
-                  hint="Unpaid payouts to therapists"
-                />
+                {canSeePayouts && (
+                  <MetricCard
+                    label="Company has to pay therapists"
+                    value={formatINR(leftToPay)}
+                    hint="All time, after the cash they collected"
+                  />
+                )}
               </MetricCardsRow>
 
               <Panel title="Earnings breakdown by therapist" hint="Sessions done and paid for, split between therapist and company">
@@ -339,14 +347,6 @@ const AnalyticsPage = () => {
                           <div className="text-right">
                             <p className="text-muted-foreground font-medium">Company Cut</p>
                             <p className="font-bold text-indigo-700 dark:text-indigo-300 text-sm">{formatINR(t.companyCut)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-muted-foreground font-medium">Paid / Owed</p>
-                            <p className="font-bold text-sm">
-                              <span className="text-emerald-700 dark:text-emerald-400">{formatINR(t.paidCut)}</span>
-                              {" / "}
-                              <span className="text-rose-700 dark:text-rose-400">{formatINR(t.owedCut)}</span>
-                            </p>
                           </div>
                         </div>
                       </div>

@@ -32,7 +32,6 @@ export type EarningRow = {
   /** null: no split set, or not shown to this viewer (non-admins). */
   splitPercent: number | null;
   /** Something was paid out and nothing is owed now. */
-  therapistPaid: boolean;
   /** Booking status for display: completed, ongoing, scheduled, etc. */
   status: string;
   /** The server's figures for this part; the summary reads its buckets. */
@@ -50,8 +49,6 @@ export type EarningsSummary = {
   totalPending: number;
   completedSessions: number;
   avgPerSession: number;
-  therapistPaidPayout: number;
-  therapistUnpaidPayout: number;
   /** Rows with sessions still to come, and what those are worth: kept out of every total above. */
   upcomingSessions: number;
   upcomingRevenue: number;
@@ -102,7 +99,6 @@ export function buildEarningRows(appointments: slotBookingZodType[]): EarningRow
         therapistCut: total("therapistCut"),
         companyCut: total("companyCut"),
         splitPercent: p.splitPercent ?? null,
-        therapistPaid: p.paidOut > 0 && p.owed <= 0,
         status: a.status ?? "scheduled",
         payout: p,
         rawAppointment: a,
@@ -133,8 +129,6 @@ export function computeEarningsSummary(rows: EarningRow[]): EarningsSummary {
       completedSessions > 0
         ? Math.round(sum((p) => p.earned.revenue + p.pending.revenue) / completedSessions)
         : 0,
-    therapistPaidPayout: sum((p) => p.paidOut),
-    therapistUnpaidPayout: sum((p) => Math.max(0, p.owed)),
     upcomingSessions: rows.filter((r) => r.payout.upcoming.revenue > 0).length,
     upcomingRevenue: sum((p) => p.upcoming.revenue),
     upcomingTherapistCut: sum((p) => p.upcoming.therapistCut),

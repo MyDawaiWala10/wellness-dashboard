@@ -75,17 +75,6 @@ describe("buildEarningRows", () => {
     expect(row.splitPercent).toBeNull();
   });
 
-  it("paid when something was paid out and nothing is owed", () => {
-    const paid = (over: Partial<PayoutPart>) =>
-      buildEarningRows([booking({ payout: [part(over)] })])[0].therapistPaid;
-
-    expect(paid({ paidOut: 0, owed: 700 })).toBe(false);
-    expect(paid({ paidOut: 300, owed: 400 })).toBe(false); // part-paid
-    expect(paid({ paidOut: 700, owed: 0 })).toBe(true);
-    expect(paid({ paidOut: 900, owed: -200 })).toBe(true); // overpaid
-    expect(paid({ earned: bucket(), paidOut: 0, owed: 0 })).toBe(false); // nothing earned yet
-  });
-
   it("customer payment: nothing due on the part's sessions, done or to come (the server's due)", () => {
     const received = (p: PayoutPart) => buildEarningRows([booking({ payout: [p] })])[0].paymentReceived;
 
@@ -159,9 +148,6 @@ describe("computeEarningsSummary", () => {
     expect(s.completedSessions).toBe(4);
     // Done revenue (2500 earned + 500 pending) over 4 done sessions.
     expect(s.avgPerSession).toBe(750);
-    expect(s.therapistPaidPayout).toBe(1600);
-    // Overpaid (-300) never cancels out what another therapist is owed.
-    expect(s.therapistUnpaidPayout).toBe(350);
     expect(s.upcomingSessions).toBe(2);
     expect(s.upcomingRevenue).toBe(1800);
     expect(s.upcomingTherapistCut).toBe(1260);

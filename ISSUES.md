@@ -1432,6 +1432,25 @@ The button stays clickable. With no name, it doesn't open the file picker: it pu
 
 ---
 
+### 65. A Blank Row in Therapist Payouts
+
+**Severity:** Low (display only; no money was wrong)
+**Status:** Fixed 2026-11-12, not shipped (found before shipping, on localhost)
+**Category:** Backend / payouts
+**Affected Pages:** Earnings (Therapist payouts)
+
+#### Description
+Therapist payouts showed a row with no name, ₹0 earned, ₹0 cash and "All settled", with a Record payment button.
+
+#### Cause
+A booking with a price but no therapist assigned yet (7 at the time) still gets a payout part with an empty `doctorId` for its upcoming money. `balancesOf` turned every part into a row, including the one for "no therapist".
+
+#### Fix and guard
+- **Backend:** `balancesOf` (lib/payouts.ts) skips parts with no therapist. There's nobody to pay, and settlements already require a real therapist.
+- **Test:** `payouts.test.ts` "a booking with no therapist yet makes no blank row".
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -1500,3 +1519,4 @@ The button stays clickable. With no name, it doesn't open the file picker: it pu
 | 62 | Therapists added with "Add Therapist" show blank names and can't be saved | High | Fixed (not shipped) |
 | 63 | Certificate "Upload file" does nothing when the name is empty, with no hint | Low | Fixed (not shipped) |
 | 64 | A therapist ID could be typed in, or changed | High | Fixed (not shipped) |
+| 65 | A blank row in Therapist payouts | Low | Fixed (not shipped) |

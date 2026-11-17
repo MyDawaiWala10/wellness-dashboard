@@ -164,7 +164,6 @@ describe("deriveAnalytics - therapist payouts", () => {
       ],
       NOW,
     );
-    expect(a.therapistPayoutOwed).toBe(0);
     expect(a.therapistPayoutTotal).toBe(0);
     expect(a.companyEarningsTotal).toBe(0);
     expect(a.therapistEarningsBreakdown).toEqual([]);
@@ -191,12 +190,10 @@ describe("deriveAnalytics - therapist payouts", () => {
     );
     expect(a.therapistPayoutTotal).toBe(600 + 1000 + 300);
     expect(a.companyEarningsTotal).toBe(400 + 1000 + 200 + 700);
-    expect(a.therapistPayoutPaid).toBe(600 + 400);
-    expect(a.therapistPayoutOwed).toBe(1000);
     expect(a.therapistEarningsBreakdown).toEqual([
-      { name: "Ravi", revenue: 2000, therapistCut: 1000, companyCut: 1000, paidCut: 0, owedCut: 1000 },
-      { name: "Asha", revenue: 1500, therapistCut: 900, companyCut: 600, paidCut: 1000, owedCut: 0 },
-      { name: "Unassigned", revenue: 700, therapistCut: 0, companyCut: 700, paidCut: 0, owedCut: 0 },
+      { name: "Ravi", revenue: 2000, therapistCut: 1000, companyCut: 1000 },
+      { name: "Asha", revenue: 1500, therapistCut: 900, companyCut: 600 },
+      { name: "Unassigned", revenue: 700, therapistCut: 0, companyCut: 700 },
     ]);
   });
 });

@@ -67,16 +67,12 @@ export interface AnalyticsResult {
   therapistLoad: { name: string; bookings: number }[]; // desc, this week
   // Zone C - earnings breakdown
   therapistPayoutTotal: number;
-  therapistPayoutPaid: number;
-  therapistPayoutOwed: number;
   companyEarningsTotal: number;
   therapistEarningsBreakdown: {
     name: string;
     revenue: number;
     therapistCut: number;
     companyCut: number;
-    paidCut: number;
-    owedCut: number;
   }[];
   hasData: boolean;
 }
@@ -174,33 +170,26 @@ export function deriveAnalytics(
   // sessions done AND paid for are earned, the same figures as the Earnings
   // page. Never split money here.
   let therapistPayoutTotal = 0;
-  let therapistPayoutPaid = 0;
-  let therapistPayoutOwed = 0;
   let companyEarningsTotal = 0;
-  const breakdownByName = new Map<string, { revenue: number; therapistCut: number; companyCut: number; paidCut: number; owedCut: number }>();
+  const breakdownByName = new Map<string, { revenue: number; therapistCut: number; companyCut: number }>();
 
   for (const p of live.flatMap((r) => r.payout ?? [])) {
-    const owed = Math.max(0, p.owed); // overpaid shows as nothing owed, not a credit
     therapistPayoutTotal += p.earned.therapistCut;
     companyEarningsTotal += p.earned.companyCut;
-    therapistPayoutPaid += p.paidOut;
-    therapistPayoutOwed += owed;
 
     const tName = p.doctorId ? p.doctor.trim() || p.doctorId : "Unassigned";
-    const existing = breakdownByName.get(tName) ?? { revenue: 0, therapistCut: 0, companyCut: 0, paidCut: 0, owedCut: 0 };
+    const existing = breakdownByName.get(tName) ?? { revenue: 0, therapistCut: 0, companyCut: 0 };
     breakdownByName.set(tName, {
       revenue: existing.revenue + p.earned.revenue,
       therapistCut: existing.therapistCut + p.earned.therapistCut,
       companyCut: existing.companyCut + p.earned.companyCut,
-      paidCut: existing.paidCut + p.paidOut,
-      owedCut: existing.owedCut + owed,
     });
   }
 
   const therapistEarningsBreakdown = [...breakdownByName.entries()]
     .map(([name, data]) => ({ name, ...data }))
     // A therapist with only upcoming or pending sessions has nothing to show yet.
-    .filter((t) => t.revenue || t.paidCut || t.owedCut)
+    .filter((t) => t.revenue)
     .sort((a, b) => b.revenue - a.revenue);
 
   return {
@@ -217,8 +206,6 @@ export function deriveAnalytics(
     needsFirstContact,
     therapistLoad,
     therapistPayoutTotal,
-    therapistPayoutPaid,
-    therapistPayoutOwed,
     companyEarningsTotal,
     therapistEarningsBreakdown,
     hasData: records.length > 0,

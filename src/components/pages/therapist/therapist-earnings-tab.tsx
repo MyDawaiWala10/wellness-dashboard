@@ -11,6 +11,8 @@ import {
   useUpdateTherapist,
 } from "@/data/therapist/therapist";
 import { useAuthStore } from "@/providers/permission-provider";
+import { useGetPayoutBalances } from "@/data/payouts/payouts";
+import { payDirection } from "@/components/pages/earnings/payout-balances";
 import {
   buildEarningRows,
   canManageSplit,
@@ -34,6 +36,11 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
   const therapist = (therapists as TherapistformType[]).find(
     (t) => t.doctorId === doctorId,
   );
+  // Cash in hand and what's left to settle, all time, from the server
+  // (the same balance as the Earnings page). Admins and the therapist only.
+  const isTherapist = user?.role === "THERAPIST";
+  const { data: balances = [] } = useGetPayoutBalances(showSplit || isTherapist);
+  const balance = balances.find((b) => b.doctorId === doctorId);
 
   // Only this therapist's share: a package that changed hands has another
   // therapist's part on the same booking.
@@ -97,16 +104,19 @@ export function TherapistEarningsTab({ doctorId }: TherapistEarningsTabProps) {
           label="Therapist earned"
           value={`₹${summary.totalTherapistPayout.toLocaleString()}`}
         />
-        <StatCard
-          label="Paid out"
-          value={`₹${summary.therapistPaidPayout.toLocaleString()}`}
-          accent="emerald"
-        />
-        <StatCard
-          label="Pending payout"
-          value={`₹${summary.therapistUnpaidPayout.toLocaleString()}`}
-          accent="amber"
-        />
+        {balance && (
+          <>
+            <StatCard
+              label={isTherapist ? "Cash you collected" : "Cash collected"}
+              value={`₹${balance.cashTotal.toLocaleString()}`}
+            />
+            <StatCard
+              label={payDirection(balance.remaining, isTherapist)}
+              value={`₹${Math.abs(balance.remaining).toLocaleString()}`}
+              accent={balance.remaining < 0 ? "amber" : "emerald"}
+            />
+          </>
+        )}
         <StatCard
           label="Avg / session"
           value={`₹${summary.avgPerSession.toLocaleString()}`}

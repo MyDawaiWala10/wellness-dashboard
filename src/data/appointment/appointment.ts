@@ -7,7 +7,6 @@ import addAppointmentRecommendation, {
 import confirmAppointmentRecommendation from "@/actions/appointments/confirm-appointment-recommendation";
 import completeSession from "@/actions/appointments/complete-session";
 import recordPayment from "@/actions/appointments/record-payment";
-import recordPayout from "@/actions/appointments/record-payout";
 import deleteAppointment from "@/actions/appointments/delete-appointments";
 import getAllAppointments from "@/actions/appointments/get-all-appointments";
 import updateAppointment from "@/actions/appointments/update-appointment";
@@ -71,6 +70,8 @@ function invalidateAppointmentAndEnquiryQueries(queryClient: ReturnType<typeof u
   // Therapist detail drawer shows earnings via useGetPersonalAppointments;
   // keep that in sync whenever an appointment is mutated from any view.
   queryClient.invalidateQueries({ queryKey: ["getPersonalAppointments"] });
+  // A payment (cash especially) or a completed session moves therapist balances.
+  queryClient.invalidateQueries({ queryKey: ["payout-balances"] });
 }
 
 export function useBookAppointment() {
@@ -280,25 +281,6 @@ export function useRecordPayment() {
   });
 }
 
-/** Mark a therapist's payout paid, or undo it. The server works out the amount. */
-export function useRecordPayout() {
-  const queryClient = useQueryClient();
-  const router = useRouter();
-
-  return useMutation({
-    mutationFn: async (v: { appointmentId: string; doctorId: string; paid: boolean }) => {
-      const result = await recordPayout(v.appointmentId, v.doctorId, v.paid);
-      if (!result.success) throw new Error(result.message);
-      return result;
-    },
-    onError: (err: Error) => {
-      if (handleAuthError(err, router)) return;
-      toast.error(err.message);
-    },
-    onSuccess: (result) => toast.success(result.message),
-    onSettled: () => invalidateAppointmentAndEnquiryQueries(queryClient),
-  });
-}
 
 export function useDeleteAppointment() {
   const queryClient = useQueryClient();

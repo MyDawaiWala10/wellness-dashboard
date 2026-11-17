@@ -6,14 +6,11 @@ import {
   TrendingUp,
   Wallet,
   Building2,
-  Clock,
   BarChart3,
   CheckCircle2,
   ChevronUp,
   ChevronDown,
   Download,
-  Check,
-  XCircle,
   Sparkles,
   CalendarClock,
 } from "lucide-react";
@@ -41,7 +38,6 @@ import {
 import { QueryWrapper } from "@/components/query-wrapper";
 import { useAuthStore } from "@/providers/permission-provider";
 import { useGetAllTherapist } from "@/data/therapist/therapist";
-import { useRecordPayout } from "@/data/appointment/appointment";
 import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
 import {
   buildEarningRows,
@@ -52,6 +48,7 @@ import {
 } from "@/lib/earnings";
 import type { slotBookingZodType } from "@/type/schema";
 import { BookingIdBadge } from "@/components/booking-id-badge";
+import { PayoutBalances } from "./payout-balances";
 import {
   ColumnCell,
   ColumnHead,
@@ -105,20 +102,13 @@ function KpiCard({
 function EarningsTableRow({
   row,
   isAdmin,
-  canPay,
-  onPayout,
-  isUpdating,
   showDiscount,
   cols,
 }: {
   row: EarningRow;
   isAdmin: boolean;
-  /** Admin / Super Admin: may mark a payout paid or undo it. */
-  canPay: boolean;
   showDiscount: boolean;
   cols: ColumnWidths;
-  onPayout?: (row: EarningRow, paid: boolean) => void;
-  isUpdating?: boolean;
 }) {
   const dateStr = row.date
     ? (() => {
@@ -129,7 +119,6 @@ function EarningsTableRow({
         }
       })()
     : "-";
-  const owed = row.payout.owed;
 
   return (
     <TableRow>
@@ -163,39 +152,6 @@ function EarningsTableRow({
           <Badge variant="outline" className="text-amber-800 bg-amber-50 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 text-[11px] font-semibold px-2 py-0.5">
             Customer Pending
           </Badge>
-        )}
-      </ColumnCell>
-      <ColumnCell columnId="therapistPayout" cols={cols} className="text-center">
-        {/* The server works out the amount; the button only says pay what's owed, or undo what was paid. */}
-        {canPay && (owed > 0 || row.therapistPaid) ? (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isUpdating}
-            onClick={() => onPayout?.(row, owed > 0)}
-            title={owed > 0 ? undefined : "Undo this payout"}
-            className="h-8 px-2.5 text-xs font-semibold shadow-2xs transition-all hover:scale-105"
-          >
-            {owed > 0 ? (
-              <span className="flex items-center gap-1.5 text-rose-700 dark:text-rose-300 font-bold">
-                <XCircle className="h-3.5 w-3.5 text-rose-600 stroke-[2.5]" /> Mark Paid {fmt(owed)}
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-bold">
-                <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[3]" /> Paid
-              </span>
-            )}
-          </Button>
-        ) : owed > 0 ? (
-          <Badge variant="outline" className="text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-950 dark:text-rose-300 text-[11px] font-bold px-2 py-0.5">
-            Owed {fmt(owed)}
-          </Badge>
-        ) : row.therapistPaid ? (
-          <Badge variant="outline" className="text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 text-[11px] font-bold px-2 py-0.5 gap-1">
-            <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[3]" /> Paid
-          </Badge>
-        ) : (
-          <span className="text-muted-foreground">-</span>
         )}
       </ColumnCell>
       <ColumnCell columnId="service" cols={cols} className="max-w-[180px] truncate text-muted-foreground font-medium">
@@ -257,7 +213,7 @@ function sortRows(rows: EarningRow[], key: SortKey, asc: boolean): EarningRow[] 
 function exportCsv(rows: EarningRow[], isAdmin: boolean) {
   const headers = [
     "Date", "Booking ID", "Customer", isAdmin ? "Therapist" : null, "Service",
-    "Sessions", "Original Price", "Discount", "Revenue", "Therapist Cut", isAdmin ? "Company Cut" : null, "Customer Payment", "Paid Out", "Owed",
+    "Sessions", "Original Price", "Discount", "Revenue", "Therapist Cut", isAdmin ? "Company Cut" : null, "Customer Payment",
   ].filter(Boolean) as string[];
 
   const csvRows = rows.map((r) =>
@@ -276,8 +232,6 @@ function exportCsv(rows: EarningRow[], isAdmin: boolean) {
       r.therapistCut,
       isAdmin ? r.companyCut : null,
       r.paymentReceived ? "Paid" : "Pending",
-      r.payout.paidOut,
-      r.payout.owed,
     ]
       .filter((v) => v !== null)
       .join(","),
@@ -306,7 +260,6 @@ export default function EarningsPage() {
     useGetAllEnquiries(user as any);
   // Names for the therapist filter.
   const { data: therapists = [] } = useGetAllTherapist();
-  const recordPayout = useRecordPayout();
 
   // ── Filters ──────────────────────────────────────────────────────────────
   const [dateFrom, setDateFrom] = useState("");
@@ -314,7 +267,6 @@ export default function EarningsPage() {
   const [therapistFilter, setTherapistFilter] = useState("all");
   const [serviceFilter, setServiceFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState<"all" | "paid" | "pending">("all");
-  const [payoutFilter, setPayoutFilter] = useState<"all" | "paid" | "unpaid">("all");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortAsc, setSortAsc] = useState(false);
 
@@ -352,18 +304,16 @@ export default function EarningsPage() {
     if (paymentFilter === "paid") rows = rows.filter((r) => r.paymentReceived);
     if (paymentFilter === "pending") rows = rows.filter((r) => !r.paymentReceived);
 
-    if (payoutFilter === "paid") rows = rows.filter((r) => r.therapistPaid);
-    if (payoutFilter === "unpaid") rows = rows.filter((r) => r.payout.owed > 0);
 
     return sortRows(rows, sortKey, sortAsc);
-  }, [allRows, dateFrom, dateTo, therapistFilter, serviceFilter, paymentFilter, payoutFilter, sortKey, sortAsc, isAdmin]);
+  }, [allRows, dateFrom, dateTo, therapistFilter, serviceFilter, paymentFilter, sortKey, sortAsc, isAdmin]);
 
   const summary = useMemo(() => computeEarningsSummary(filtered), [filtered]);
   // Drag a header edge to resize; remembered per table in this browser.
   const cols = useColumnWidths("earnings");
   // Discount is "-" on almost every row; drop the column when nothing in view has one.
   const showDiscount = filtered.some((r) => r.discountAmount > 0);
-  const columnCount = (isAdmin ? 12 : 10) - (showDiscount ? 0 : 1);
+  const columnCount = (isAdmin ? 11 : 9) - (showDiscount ? 0 : 1);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortAsc((v) => !v);
@@ -375,10 +325,6 @@ export default function EarningsPage() {
     return sortAsc ? <ChevronUp className="h-3 w-3 inline stroke-[3]" /> : <ChevronDown className="h-3 w-3 inline stroke-[3]" />;
   }
 
-  // paid: true pays what's owed, false undoes what was paid. The hook toasts and refetches.
-  const handlePayout = (row: EarningRow, paid: boolean) =>
-    recordPayout.mutate({ appointmentId: row.appointmentId, doctorId: row.therapistId, paid });
-  const pending = recordPayout.isPending ? recordPayout.variables : undefined;
 
   return (
     <div className="w-full min-h-screen px-4 sm:px-6 py-8 space-y-6">
@@ -406,6 +352,12 @@ export default function EarningsPage() {
         </Button>
       </div>
 
+      {/* What's left to settle with each therapist, after the cash they hold.
+          Admins see everyone; a therapist themself; other roles nothing. */}
+      {(canPay || user?.role === "THERAPIST") && (
+        <PayoutBalances isAdmin={canPay} from={dateFrom || undefined} to={dateTo || undefined} />
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
         <KpiCard
@@ -429,7 +381,7 @@ export default function EarningsPage() {
           value={fmt(summary.totalTherapistPayout)}
           icon={<Wallet className="h-4 w-4 text-sky-600 dark:text-sky-400 stroke-[2.5]" />}
           accent="bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800"
-          sub={`Paid: ${fmt(summary.therapistPaidPayout)}`}
+          sub="Cut of done, paid sessions"
         />
         {isAdmin && (
           <KpiCard
@@ -446,13 +398,6 @@ export default function EarningsPage() {
           icon={<CalendarClock className="h-4 w-4 text-sky-600 dark:text-sky-400 stroke-[2.5]" />}
           accent="bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800"
           sub={`${summary.upcomingSessions} booking${summary.upcomingSessions === 1 ? "" : "s"} with sessions to come`}
-        />
-        <KpiCard
-          title="Payout Owed"
-          value={fmt(summary.therapistUnpaidPayout)}
-          icon={<Clock className="h-4 w-4 text-rose-600 dark:text-rose-400 stroke-[2.5]" />}
-          accent="bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800"
-          sub="Therapist unpaid total"
         />
         <KpiCard
           title="Sessions"
@@ -540,30 +485,14 @@ export default function EarningsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
-              <Label className="text-muted-foreground">Therapist Payout</Label>
-              <Select
-                value={payoutFilter}
-                onValueChange={(v) => setPayoutFilter(v as typeof payoutFilter)}
-              >
-                <SelectTrigger className="h-9 w-40 text-xs font-medium">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="paid">Paid to Therapist</SelectItem>
-                  <SelectItem value="unpaid">Owed to Therapist</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {(dateFrom || dateTo || therapistFilter !== "all" || serviceFilter !== "all" || paymentFilter !== "all" || payoutFilter !== "all") && (
+            {(dateFrom || dateTo || therapistFilter !== "all" || serviceFilter !== "all" || paymentFilter !== "all") && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-9 text-xs font-semibold mt-5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950"
                 onClick={() => {
                   setDateFrom(""); setDateTo(""); setTherapistFilter("all");
-                  setServiceFilter("all"); setPaymentFilter("all"); setPayoutFilter("all");
+                  setServiceFilter("all"); setPaymentFilter("all");
                 }}
               >
                 Clear filters
@@ -598,7 +527,6 @@ export default function EarningsPage() {
                   <ColumnHead columnId="customer" cols={cols} className="text-left">Customer</ColumnHead>
                   {isAdmin && <ColumnHead columnId="therapist" cols={cols} className="text-left">Therapist</ColumnHead>}
                   <ColumnHead columnId="custPayment" cols={cols} className="text-center">Cust. Payment</ColumnHead>
-                  <ColumnHead columnId="therapistPayout" cols={cols} className="text-center">Therapist Payout</ColumnHead>
                   <ColumnHead columnId="service" cols={cols} className="text-left">Service</ColumnHead>
                   <ColumnHead columnId="sessions" cols={cols}
                     className="text-center cursor-pointer select-none hover:text-foreground"
@@ -645,9 +573,6 @@ export default function EarningsPage() {
                       key={`${row.appointmentId}-${row.therapistId}`}
                       row={row}
                       isAdmin={isAdmin}
-                      canPay={canPay}
-                      onPayout={handlePayout}
-                      isUpdating={pending?.appointmentId === row.appointmentId && pending?.doctorId === row.therapistId}
                       showDiscount={showDiscount}
                       cols={cols}
                     />
@@ -657,7 +582,7 @@ export default function EarningsPage() {
               {filtered.length > 0 && (
                 <TableFooter>
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 8 : 7} className="text-muted-foreground">
+                    <TableCell colSpan={isAdmin ? 7 : 6} className="text-muted-foreground">
                       Earned totals (sessions done and paid for)
                     </TableCell>
                     <ColumnCell columnId="revenue" cols={cols} className="text-right tabular-nums text-foreground font-semibold">
