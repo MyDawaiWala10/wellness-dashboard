@@ -11,6 +11,19 @@ import type { EnquiryType, ServiceType } from "@/type/schema";
 export type BookingType = NonNullable<EnquiryType["typeOfappointment"]>;
 
 /**
+ * Why a confirmed booking moves to another therapist or time. Non-admins must
+ * pick one (the server refuses the move without it); Enquiries and Book Slot
+ * both use this list.
+ */
+export const REASSIGN_REASONS = [
+  "Therapist unavailable / on leave",
+  "Customer requested a different therapist",
+  "Gender preference",
+  "Load / schedule balancing",
+  "Other",
+];
+
+/**
  * What a lead asks for, as the patient site offers it. The server derives the
  * booking type from it. KEEP IN SYNC with WellnessBackend lib/offerings.ts.
  */

@@ -87,6 +87,7 @@ import {
   bookingTypeLabel,
   bookingTypeFromService,
   catalogueFee,
+  REASSIGN_REASONS,
   toDayKey,
   type BookingType,
 } from "./booking";
@@ -100,15 +101,6 @@ const STATUS_LABELS: Record<string, string> = {
   completed: "Completed",
   cancelled: "Cancelled",
 };
-
-// Reason options when reassigning an already-assigned therapist (T4).
-const REASSIGN_REASONS = [
-  "Therapist unavailable / on leave",
-  "Customer requested a different therapist",
-  "Gender preference",
-  "Load / schedule balancing",
-  "Other",
-];
 
 interface EnquiryDetailDrawerProps {
   record: EnquiryType | null;

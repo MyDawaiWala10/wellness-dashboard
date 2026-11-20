@@ -7,13 +7,20 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useUpdateAppointment } from "@/data/appointment/appointment";
 import { useGetClinicSettings } from "@/data/clinic-settings/clinic-settings";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { slotBookingZodType } from "@/type/schema";
 import { TherapistAvailabilityGrid } from "@/components/pages/enquiries/therapist-availability-grid";
 import { checkConflict, conflictMessage, firstBookableDay, toMinutes } from "@/lib/booking-conflicts";
-import { toDayKey } from "@/components/pages/enquiries/booking";
+import { REASSIGN_REASONS, toDayKey } from "@/components/pages/enquiries/booking";
 
 /**
  * Who is doing this visit, and when - assign, or change it when they can't make it.
@@ -48,6 +55,11 @@ export function AssignTherapistCard({
     toDayKey(appointment.slot?.date) || format(new Date(), "yyyy-MM-dd"),
   );
   const [durationMin, setDurationMin] = useState(60);
+  // Moving a confirmed booking: non-admins say why (same rule and list as
+  // Enquiries). The server refuses the move without it.
+  const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
+  const needsReason = assigned && !isAdmin;
+  const [reason, setReason] = useState("");
 
   // Assigned and not being changed: show who and when, with a way out.
   if (assigned && !changing) {
@@ -82,6 +94,10 @@ export function AssignTherapistCard({
   }
 
   function assign(pick: { doctorId: string; doctor: string; startTime: string }) {
+    if (needsReason && !reason) {
+      toast.error("Pick a reason for the reassignment");
+      return;
+    }
     const startMin = toMinutes(pick.startTime);
     const endMin = startMin + durationMin;
     const end = `${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(
@@ -109,6 +125,7 @@ export function AssignTherapistCard({
         slot: { date, time: pick.startTime },
         therapyStartTime: pick.startTime,
         therapyEndTime: end,
+        ...(reason ? { reassignReason: reason } : {}),
         activityLog: [
           ...(appointment.activityLog ?? []),
           {
@@ -126,6 +143,7 @@ export function AssignTherapistCard({
       {
         onSuccess: () => {
           setChanging(false);
+          setReason("");
           toast.success(`${pick.doctor} - ${date} at ${pick.startTime}`);
         },
       },
@@ -157,6 +175,20 @@ export function AssignTherapistCard({
           </Button>
         )}
       </div>
+      {needsReason && (
+        <Select value={reason} onValueChange={setReason}>
+          <SelectTrigger className="h-8 w-full" aria-label="Reason for the change">
+            <SelectValue placeholder="Pick a reason" />
+          </SelectTrigger>
+          <SelectContent>
+            {REASSIGN_REASONS.map((r) => (
+              <SelectItem key={r} value={r}>
+                {r}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
       <div className="flex items-center gap-1.5">
         <Button
           type="button"

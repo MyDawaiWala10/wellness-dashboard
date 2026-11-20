@@ -1554,6 +1554,32 @@ The uploader now reads and writes the form's `profileImage`, so "Update Details"
 
 ---
 
+### 71. Office Role Rules: the Screen and the Server Disagree
+
+**Severity:** Medium overall (two are security gaps, one blocks Staff from a daily task)
+**Status:** Open, found 2026-11-20 by reading the code while mapping office tasks for the SOP. Items marked *checked* were confirmed line by line; the rest come from the code map and haven't been seen in a browser yet.
+
+#### Description
+Office roles (Admin, Staff, Customer Care) hold every permission on the server, so the real limits come from `requireRole` and checks inside handlers. In several places the screen and the server don't match:
+
+1. **Staff can't move a booking to another therapist from Book Slot.** The Visit tab's "Change" (`assign-therapist-card.tsx`) sends no reason. The server requires one from non-admins and replies "Reassigning the therapist needs a reason." (`appointmentController.ts:1016`). *checked* **Fixed in code 2026-11-20 (not deployed):** the card now shows a "Pick a reason" list to non-admins (the same list as Enquiries, now shared from `enquiries/booking.ts`) and sends it as `reassignReason`. That also covers a non-owner moving another executive's booking to a new date. Needs a check as Staff once live.
+2. **Book Slot doesn't check leave or days off on the server.** Only the booking screen's grid does; `lib/bookingService.ts` checks clashes and the gap only. Assigning from Enquiries is checked. *checked*
+3. **Any office role can delete a therapist through the API.** The button shows for Super Admin only, but the route uses `checkPermission(THERAPIST_DELETE)`, which every office role holds (`DoctorsRoute.ts:48`). *checked*
+4. **An Admin can create or promote a Super Admin.** `createUser` and `updateUser` accept `SUPER_ADMIN` from any admin (`userController.ts:245`, `:350`). *checked (create)*
+5. **Customer Care sees "Record payment" but the server refuses it** with "Forbidden: insufficient role" (`appointmentBookingRoutes.ts:42`).
+6. **Staff and Customer Care see a lead's status as read-only** unless they own it, while the server lets any office user change it with a reason. The cancellation reason is required by the screen only.
+7. **Setting a therapist "Not Active" doesn't stop their login** unless a Super Admin saves it (`DoctorController.ts:367`).
+8. **Booking gap:** the Settings card says a booking inside the gap "warns but can be overridden" (`settings.tsx:69`), but it is a hard block. The screen shows the card to admins only, while the server lets every office role change it.
+9. **Deleting an enquiry says "Appointment cancelled".**
+10. **History tab customer name, phone and email look editable,** but the server ignores changes once they're set (`lib/lockedFields.ts:101`).
+11. **Small things:** "Support" in the avatar menu does nothing; the first menu item reads "Dasboard". `docs/team/owner-guide.md` has an out-of-date role table.
+12. **Lead drawer wording (seen live 2026-11-20):** times show as "10/31/2026, 7:01:45 PM" while tables use "2026-10-27 18:52". Data-fix entries in Activity read like developer notes, for example "Status reset scheduled: > enquiry: an old Reached: out tick ... (ISSUES #30)".
+
+#### Fix and guard
+Not fixed. Each needs a decision on what the rule should be, then the server enforces it and the screen mirrors it (CLAUDE.md rule 4). **Guard:** when a screen hides an action by role, grep the matching route for `requireRole`; `checkPermission` alone lets every office role through.
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -1627,4 +1653,5 @@ The uploader now reads and writes the form's `profileImage`, so "Update Details"
 | 67 | A course session's drawer hides the payment just recorded on it | Medium | Open |
 | 68 | The Bookings table says "No results." while still loading | Low | Open |
 | 69 | On a phone, the Visit tab's payment box hides the amount | Medium | Fixed |
-| 70 | A therapist's photo can't be changed after the therapist is created | Medium | Fixed (not deployed) |
+| 70 | A therapist's photo can't be changed after the therapist is created | Medium | Fixed (2e95f8c, check live) |
+| 71 | Office role rules: the screen and the server disagree (11 items) | Medium | Open |
