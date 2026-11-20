@@ -11,6 +11,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateAppointmentAndEnquiryQueries } from "@/data/appointment/appointment";
 import { toast } from "sonner";
 import type { Offer } from "@/type/schema";
 import { getAllOffers } from "@/actions/offer/get-all-offers";
@@ -99,7 +100,7 @@ export function useApplyOffer() {
     onSuccess: (data) => {
       if (data) toast.success(`Offer applied −₹${data.off}`);
       queryClient.invalidateQueries({ queryKey: ["offers"] });
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      invalidateAppointmentAndEnquiryQueries(queryClient);
     },
     // The offer box asks "apply again?" itself for OFFER_REPEAT_CONFIRM.
     onError: (e: Error) => {
@@ -120,7 +121,7 @@ export function useRemoveOffer() {
     onSuccess: () => {
       toast.success("Offer removed");
       queryClient.invalidateQueries({ queryKey: ["offers"] });
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      invalidateAppointmentAndEnquiryQueries(queryClient);
     },
     onError: (e: Error) => toast.error(e.message),
   });

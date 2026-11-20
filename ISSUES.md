@@ -1451,6 +1451,46 @@ A booking with a price but no therapist assigned yet (7 at the time) still gets 
 
 ---
 
+### 66. The Live Dashboard Takes 3-9 Seconds per Screen (Target: Under 2)
+
+**Severity:** High (every user, every day)
+**Status:** Open, measured 2026-11-19 on dashboard.wellness.mydawaiwala.com as Super Admin
+**Category:** Hosting + backend + dashboard data loading
+
+#### Measured
+- Bookings page: list visible after 9.0 s. Enquiries: 5.1 s. Earnings: 5.9 s. Customer search in New booking: 3.1 s after typing. A 1 KB request (rate card): 0.85 s.
+- First request after the backend sat idle: 38.3 s.
+- An idle Bookings tab reloads the full 240 KB booking list 6 times in 44 s (about 3.3 s each); the request line is busy 43% of the time.
+
+#### Causes
+1. **Three continents per request.** The dashboard's server code runs in Washington (Vercel `iad1`), the backend (`wellness-backend-1-wya5`) in the US, the database in Mumbai. Each database query adds about 230 ms (measured: 550 ms vs 310 ms with no query).
+2. **The backend sleeps.** A 38 s first response after idle matches Render's free plan (it stops after 15 min idle; it also has very little CPU).
+3. **Requests go one at a time.** Every read is a Next.js Server Action, and the browser sends those one after another: the Bookings page's 4 requests ran in series, and a click waits behind any background reload in flight.
+4. **Heavy, repeated list.** `GET /api/appointments` returns every booking with every field (240 KB) after about 6 database queries in a row; the Enquiries and Bookings hooks fetch it separately, every 8 s and 15 s, even in hidden tabs.
+5. **Recording a payment** makes about 10-14 database queries in a row (invoice sync included), then reloads 5 lists.
+
+#### Fix and guard
+Not fixed yet (plan in the 2026-11-19 report). Guard to add: a timing check that fails when a key screen goes over 2 s.
+
+---
+
+### 67. A Course Session's Drawer Hides the Payment Just Recorded on It
+
+**Severity:** Medium (invites recording the same money twice)
+**Status:** Open, found 2026-11-19 during the live payment timing test
+**Category:** Dashboard / enquiry drawer, courses
+
+#### Description
+Recording ₹1 (UPI) from ENQ-0183's drawer said "Payment recorded". But the drawer kept showing "Up to ₹1,500 can be recorded" with no payment line, even after it was closed and reopened. ENQ-0183 is session 2 of a 6-session course (ENQ-0182 to ENQ-0187).
+
+#### Cause
+The server records money for any session of a course on session 1 (`moneyRowFor`), so the ₹1 landed on ENQ-0182. The drawer works out "due" and lists payments from the row that is open, so a later session never shows the course's money.
+
+#### Fix and guard
+Not fixed yet. The drawer should show the course's money row (what's due and what's been paid), the same row the server writes to. The guard: a test that records on session 2 and expects the drawer to show it.
+
+---
+
 ## Summary
 
 | # | Issue | Severity | Status |
@@ -1519,4 +1559,6 @@ A booking with a price but no therapist assigned yet (7 at the time) still gets 
 | 62 | Therapists added with "Add Therapist" show blank names and can't be saved | High | Fixed (not shipped) |
 | 63 | Certificate "Upload file" does nothing when the name is empty, with no hint | Low | Fixed (not shipped) |
 | 64 | A therapist ID could be typed in, or changed | High | Fixed (not shipped) |
-| 65 | A blank row in Therapist payouts | Low | Fixed (not shipped) |
+| 65 | A blank row in Therapist payouts | Low | Fixed |
+| 66 | The live dashboard takes 3-9 s per screen | High | Open |
+| 67 | A course session's drawer hides the payment just recorded on it | Medium | Open |

@@ -4,12 +4,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  getPayoutBalances,
-  recordSettlement,
-  type PayoutBalance,
-  type SettlementInput,
-} from "@/actions/payouts/payouts";
+import { recordSettlement, type PayoutBalance, type SettlementInput } from "@/actions/payouts/payouts";
+import { getPayoutBalances } from "@/actions/payouts/get-payout-balances";
 
 export function useGetPayoutBalances(enabled = true) {
   return useQuery({

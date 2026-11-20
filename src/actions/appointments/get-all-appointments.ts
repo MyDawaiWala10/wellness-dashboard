@@ -1,34 +1,9 @@
-"use server";
+// A read: runs in the browser through the dashboard's GET route (lib/api-get.ts),
+// so it never queues behind other requests the way a Server Action does.
+import { apiGet } from "@/lib/api-get";
+import type { ApiResponse } from "@/type/api";
 
-import { base_url } from "@/constant";
-import { fetchWithAuth } from "@/lib/fetchwithauth";
-import { withAuthErrorHandling } from "@/lib/server-action-error";
-import { ApiResponse } from "@/type/api";
-import { UserType } from "@/type/schema";
-
-export default async function getAllAppointments(user: UserType): Promise<ApiResponse<any>> {
-  return withAuthErrorHandling(async () => {
-    const response = await fetchWithAuth(
-      `${base_url}/api/appointments?role=${user?.role}&id=${user?.id}&email=${user?.userEmail}`,
-      {
-        method: "GET",
-        headers: { accept: "application/json" },
-      },
-    );
-    if (!response.ok) {
-      const result = await response.json().catch(() => ({}));
-      console.error("[getAllAppointments] API error:", response.status, result.message ?? "No message");
-      return {
-        success: false,
-        message: result.message ?? `Request failed with status ${response.status}`,
-      };
-    }
-
-    const result = await response.json();
-    return {
-      success: true,
-      message: result.message || "Appointments fetched successfully",
-      data: result.data,
-    };
-  });
+/** Every booking this login may see; the server decides from the login, not the caller. */
+export default async function getAllAppointments(): Promise<ApiResponse<any>> {
+  return apiGet("appointments");
 }

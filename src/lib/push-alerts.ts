@@ -2,7 +2,8 @@
 // logout. The service worker that shows them is public/sw.js; who gets which
 // alert is decided by the backend (lib/push.ts).
 
-import { getPushKey, removePushSubscription, savePushSubscription } from "@/actions/push/push";
+import { removePushSubscription, savePushSubscription } from "@/actions/push/push";
+import { getPushKey } from "@/actions/push/get-push-key";
 
 export const pushSupported = () =>
   typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;

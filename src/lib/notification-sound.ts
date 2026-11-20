@@ -43,3 +43,26 @@ export function playEnquiryBeep(): void {
     /* Audio unavailable - stay silent */
   }
 }
+
+const CLAIM_KEY = "mdw:alerted-bookings";
+const CLAIM_MS = 10 * 60 * 1000;
+
+/**
+ * The beep for these new bookings, once across every open tab: the first tab to
+ * see them claims them. ponytail: two tabs reading at the same instant can still
+ * both beep; a Web Lock would close that if it ever matters.
+ */
+export function playEnquiryBeepOnce(keys: string[]): void {
+  try {
+    const now = Date.now();
+    const claimed: Record<string, number> = JSON.parse(window.localStorage.getItem(CLAIM_KEY) || "{}");
+    for (const k of Object.keys(claimed)) if (claimed[k] < now - CLAIM_MS) delete claimed[k];
+    const fresh = keys.filter((k) => !claimed[k]);
+    if (!fresh.length) return;
+    for (const k of fresh) claimed[k] = now;
+    window.localStorage.setItem(CLAIM_KEY, JSON.stringify(claimed));
+  } catch {
+    /* storage blocked: each tab beeps */
+  }
+  playEnquiryBeep();
+}

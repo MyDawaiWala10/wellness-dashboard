@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { OFFICE_ROLES } from "@/components/InboundBookingNotifier";
-import { getPushKey } from "@/actions/push/push";
+import { getPushKey } from "@/actions/push/get-push-key";
 import { useAuthStore } from "@/providers/permission-provider";
 import { enablePushAlerts, pushSupported, syncPushAlerts } from "@/lib/push-alerts";
 

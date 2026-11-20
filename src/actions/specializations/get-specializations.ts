@@ -1,8 +1,7 @@
-"use server";
-
-import { base_url } from "@/constant";
-import { fetchWithAuth } from "@/lib/fetchwithauth";
-import { ApiResponse } from "@/type/api";
+// A read: runs in the browser through the dashboard's GET route (lib/api-get.ts),
+// so it never queues behind other requests the way a Server Action does.
+import { apiGet } from "@/lib/api-get";
+import type { ApiResponse } from "@/type/api";
 
 export type Specialization = {
   _id?: string;
@@ -10,31 +9,6 @@ export type Specialization = {
   label: string;
 };
 
-export async function getSpecializations(): Promise<
-  ApiResponse<Specialization[]>
-> {
-  try {
-    const response = await fetchWithAuth(`${base_url}/api/specializations`, {
-      method: "GET",
-      cache: "no-cache",
-    });
-
-    if (!response.ok) {
-      const result = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        message: result.message ?? "Failed to fetch specializations",
-      };
-    }
-
-    const result = await response.json();
-    return {
-      success: true,
-      message: "Specializations fetched successfully",
-      data: result.data,
-    };
-  } catch (error) {
-    console.error("[getSpecializations]", error);
-    return { success: false, message: "Network error, please try again" };
-  }
+export async function getSpecializations(): Promise<ApiResponse<Specialization[]>> {
+  return apiGet("specializations");
 }

@@ -1,7 +1,6 @@
-"use server";
-
-import { base_url } from "@/constant";
-import { fetchWithAuth } from "@/lib/fetchwithauth";
+// A read: runs in the browser through the dashboard's GET route (lib/api-get.ts),
+// so it never queues behind other requests the way a Server Action does.
+import { apiGet } from "@/lib/api-get";
 import type { ApiResponse } from "@/type/api";
 import type { InvoicePaymentStatus, InvoiceType, PersistedInvoice } from "@/type/invoice";
 
@@ -12,34 +11,12 @@ export async function getAllInvoices(args?: {
   /** Mongo _id of a booking, to fetch just that booking's invoice. */
   appointmentId?: string;
 }): Promise<ApiResponse<PersistedInvoice[]>> {
-  try {
-    const params = new URLSearchParams();
-    if (args?.q) params.set("q", args.q);
-    if (args?.type) params.set("type", args.type);
-    if (args?.paymentStatus) params.set("paymentStatus", args.paymentStatus);
-    if (args?.appointmentId) params.set("appointment_id", args.appointmentId);
-
-    const qs = params.toString();
-    const url = `${base_url}/api/invoices${qs ? `?${qs}` : ""}`;
-
-    const response = await fetchWithAuth(url, { method: "GET", cache: "no-store" });
-
-    if (!response.ok) {
-      const result = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        message: (result as any).message ?? `Request failed with status ${response.status}`,
-      };
-    }
-
-    const result = await response.json();
-    return {
-      success: true,
-      message: result.message ?? "Invoices fetched successfully",
-      data: (result.data ?? []) as PersistedInvoice[],
-    };
-  } catch {
-    return { success: false, message: "Network error, please try again" };
-  }
+  const params = new URLSearchParams();
+  if (args?.q) params.set("q", args.q);
+  if (args?.type) params.set("type", args.type);
+  if (args?.paymentStatus) params.set("paymentStatus", args.paymentStatus);
+  if (args?.appointmentId) params.set("appointment_id", args.appointmentId);
+  const qs = params.toString();
+  const res = await apiGet<PersistedInvoice[]>(`invoices${qs ? `?${qs}` : ""}`);
+  return res.success ? { ...res, data: res.data ?? [] } : res;
 }
-

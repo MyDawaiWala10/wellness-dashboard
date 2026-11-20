@@ -1,7 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import getAllAppointments from "@/actions/appointments/get-all-appointments";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { enquiriesQueryOptions } from "@/data/enquiry/enquiry";
 import { getCustomers } from "@/actions/customers/get-customers";
 import type { EnquiryType, UserType } from "@/type/schema";
 import type { CustomerNote, PersistedCustomer } from "@/type/customer-record";
@@ -182,15 +182,15 @@ export function useGetCustomers(
   user: UserType,
   options?: { enabled?: boolean },
 ) {
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ["customers", user?.id, user?.role, user?.userEmail] as const,
     queryFn: async (): Promise<Customer[]> => {
-      const [apptResult, custResult] = await Promise.all([
-        getAllAppointments(user),
+      // The shared bookings list (already loaded on most pages), not a third download.
+      const [records, custResult] = await Promise.all([
+        queryClient.fetchQuery(enquiriesQueryOptions(user)),
         getCustomers(),
       ]);
-
-      if (!apptResult.success) throw new Error(apptResult.message);
 
       const persistedByKey = new Map<string, PersistedCustomer>();
       if (custResult.success && custResult.data) {
@@ -199,7 +199,6 @@ export function useGetCustomers(
         }
       }
 
-      const records = (apptResult.data ?? []) as EnquiryType[];
       return deriveCustomers(records, persistedByKey);
     },
     refetchOnWindowFocus: false,

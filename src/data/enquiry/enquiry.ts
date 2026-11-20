@@ -18,16 +18,17 @@ const OPEN_STATUSES = new Set<NonNullable<EnquiryType["status"]>>([
 export const enquiriesQueryOptions = (user: UserType) => ({
   queryKey: ["enquiries", user?.id, user?.role, user?.userEmail] as const,
   queryFn: async (): Promise<EnquiryType[]> => {
-    const result = await getAllAppointments(user);
+    const result = await getAllAppointments();
     if (!result.success) throw new Error(result.message);
     return (result.data ?? []) as EnquiryType[];
   },
-  refetchOnWindowFocus: true,
-  staleTime: 5 * 1000, // 5 seconds
-  refetchInterval: 8 * 1000, // Poll every 8s for new inbound web bookings
-  // Keep polling in a hidden tab so the new-enquiry sound still plays there.
-  refetchIntervalInBackground: true,
-  // Ride out short network drops before calling the poll failed.
+  // The one bookings list, shared by Enquiries, Bookings (appointmentsQueryOptions),
+  // Customers and the new-booking alert. No timer: useBookingsVersionWatch checks
+  // a tiny version every 10 s and reloads this only when a booking changed;
+  // saves invalidate it directly (ISSUES #66).
+  refetchOnWindowFocus: false,
+  staleTime: 60 * 1000,
+  // Ride out short network drops before calling the load failed.
   retry: 3,
 });
 

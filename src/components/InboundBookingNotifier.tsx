@@ -4,10 +4,10 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
-import { useGetAllAppointments } from "@/data/appointment/appointment";
+import { useBookingsVersionWatch, useGetAllAppointments } from "@/data/appointment/appointment";
 import { useAuthStore } from "@/providers/permission-provider";
 import type { EnquiryType, slotBookingZodType } from "@/type/schema";
-import { playEnquiryBeep } from "@/lib/notification-sound";
+import { playEnquiryBeepOnce } from "@/lib/notification-sound";
 import { parentIdOf, visitWhen } from "@/lib/visit-groups";
 import { newBookingsOf } from "@/lib/own-bookings";
 
@@ -18,6 +18,8 @@ export const OFFICE_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "STAFF", "CUSTOMER_
 
 export default function InboundBookingNotifier() {
   const { user } = useAuthStore();
+  // Keeps this tab's bookings current (cheap version check, ISSUES #66).
+  useBookingsVersionWatch(user, OFFICE_ROLES.has(user?.role ?? "") || user?.role === "THERAPIST");
   if (OFFICE_ROLES.has(user?.role ?? "")) return <OfficeBookingNotifier />;
   if (user?.role === "THERAPIST") return <TherapistBookingNotifier />;
   return null;
@@ -63,7 +65,7 @@ function OfficeBookingNotifier() {
   );
 
   useNewBookings<EnquiryType>(enquiries, (bookings) => {
-    playEnquiryBeep();
+    playEnquiryBeepOnce(bookings.map(({ rec }) => keyOf(rec)));
 
     for (const { rec, visits } of bookings) {
       const name = rec.name || "Customer";
@@ -101,7 +103,7 @@ function TherapistBookingNotifier() {
   );
 
   useNewBookings<slotBookingZodType>(appointments, (bookings) => {
-    playEnquiryBeep();
+    playEnquiryBeepOnce(bookings.map(({ rec }) => keyOf(rec)));
     for (const { rec, visits } of bookings) {
       toast("🔔 New booking assigned to you", {
         description: `${rec.name || "Customer"} · ${visitWhen(rec)}${visits ? ` (+${visits} visits)` : ""}`,

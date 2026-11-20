@@ -11,64 +11,6 @@ export interface TherapistLeave {
   reason: string;
 }
 
-export async function getTherapistLeaves(
-  doctorId: string,
-): Promise<{ success: boolean; data: TherapistLeave[]; message?: string }> {
-  try {
-    const response = await fetchWithAuth(
-      `${base_url}/api/therapist-leaves/${doctorId}`,
-      { method: "GET", headers: { accept: "application/json" }, cache: "no-cache" },
-    );
-    if (!response.ok) {
-      const result = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        data: [],
-        message: result.message ?? `Failed to load leaves (HTTP ${response.status})`,
-      };
-    }
-    const result = await response.json();
-    return { success: true, data: result.data ?? [] };
-  } catch (e) {
-    return {
-      success: false,
-      data: [],
-      message: `Network error loading leaves: ${e instanceof Error ? e.message : "Unknown error"}`,
-    };
-  }
-}
-
-export async function getAllTherapistLeaves(
-  date?: string,
-): Promise<{ success: boolean; data: TherapistLeave[]; message?: string }> {
-  try {
-    const params = new URLSearchParams();
-    if (date) params.set("date", date);
-    const url = `${base_url}/api/therapist-leaves${params.toString() ? "?" + params : ""}`;
-    const response = await fetchWithAuth(url, {
-      method: "GET",
-      headers: { accept: "application/json" },
-      cache: "no-cache",
-    });
-    if (!response.ok) {
-      const result = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        data: [],
-        message: result.message ?? `Failed to load leaves (HTTP ${response.status})`,
-      };
-    }
-    const result = await response.json();
-    return { success: true, data: result.data ?? [] };
-  } catch (e) {
-    return {
-      success: false,
-      data: [],
-      message: `Network error loading leaves: ${e instanceof Error ? e.message : "Unknown error"}`,
-    };
-  }
-}
-
 export async function createTherapistLeave(data: {
   doctorId: string;
   startDate: string;

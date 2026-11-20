@@ -8,49 +8,40 @@ import confirmAppointmentRecommendation from "@/actions/appointments/confirm-app
 import completeSession from "@/actions/appointments/complete-session";
 import recordPayment from "@/actions/appointments/record-payment";
 import deleteAppointment from "@/actions/appointments/delete-appointments";
-import getAllAppointments from "@/actions/appointments/get-all-appointments";
 import updateAppointment from "@/actions/appointments/update-appointment";
 import { slotBookingZodType, UserType } from "@/type/schema";
 import { dedupePackageAppointments } from "@/lib/package-progress";
+import { enquiriesQueryOptions } from "@/data/enquiry/enquiry";
+import { apiGet } from "@/lib/api-get";
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { handleAuthError } from "@/lib/auth-error-handler";
 import { markOwnBooking } from "@/lib/own-bookings";
 
+/**
+ * The Bookings view: records with a service, a slot or a therapist (bare leads
+ * stay on Enquiries), without recommended add-on stubs, packages folded.
+ */
+function appointmentRows(records: slotBookingZodType[]): slotBookingZodType[] {
+  const filtered = records.filter(
+    (r) =>
+      (r.status !== "enquiry" ||
+        Boolean(r.typeOfappointment) ||
+        Boolean(r.service) ||
+        Boolean(r.physioSlot?.date && r.physioSlot?.time) ||
+        Boolean(r.slot?.date && r.slot?.time) ||
+        Boolean(r.consultationSlot?.date && r.consultationSlot?.time)) &&
+      r.appointmentKind !== "recommended",
+  );
+  return dedupePackageAppointments(filtered);
+}
+
+/** Bookings read the shared bookings list (one download for every view), shown as appointmentRows. */
 export const appointmentsQueryOptions = (user: UserType) => ({
-  queryKey: ["appointments", user?.id, user?.role, user?.userEmail] as const,
-  queryFn: async () => {
-    const result = await getAllAppointments(user);
-    if (!result.success) throw new Error(result.message);
-    // Hide enquiry-stage records that have NO physio slot assigned yet.
-    // Bookings with a physioSlot (even if status is still "enquiry") should
-    // appear on the calendar/appointments views because a therapist is assigned.
-    const records = (result.data ?? []) as slotBookingZodType[];
-    const filtered = records.filter(
-      (r) =>
-        (r.status !== "enquiry" ||
-          Boolean(r.typeOfappointment) ||
-          Boolean(r.service) ||
-          Boolean(r.physioSlot?.date && r.physioSlot?.time) ||
-          Boolean(r.slot?.date && r.slot?.time) ||
-          Boolean(r.consultationSlot?.date && r.consultationSlot?.time)) &&
-        r.appointmentKind !== "recommended",
-    );
-    return dedupePackageAppointments(filtered);
-  },
-  // Auto-refresh like the enquiries list so a booking another user (e.g. an
-  // admin) assigns to a therapist shows up on an already-open tab without a
-  // manual reload. refetchInterval fires on the timer regardless of staleness,
-  // so it isn't masked by the 30s staleTime below (which still keeps the
-  // drawer's write-ack `updateAppointment` refetch from re-hitting the network
-  // on every drawer open).
-  refetchOnWindowFocus: true,
-  refetchInterval: 15 * 1000, // 15 seconds
-  // Keep polling in a hidden tab so a therapist still hears a new assignment.
-  refetchIntervalInBackground: true,
-  staleTime: 30 * 1000, // 30 seconds
-  retry: 3,
+  ...enquiriesQueryOptions(user),
+  select: appointmentRows,
 });
 
 export function useGetAllAppointments(user: UserType) {
@@ -72,6 +63,36 @@ export function invalidateAppointmentAndEnquiryQueries(queryClient: ReturnType<t
   queryClient.invalidateQueries({ queryKey: ["getPersonalAppointments"] });
   // A payment (cash especially) or a completed session moves therapist balances.
   queryClient.invalidateQueries({ queryKey: ["payout-balances"] });
+}
+
+/**
+ * Keeps each open tab's bookings current without re-downloading the whole list
+ * on a timer: checks a tiny version (how many bookings, newest change) every
+ * 10 s and reloads the lists only when it moves. It keeps running in hidden
+ * tabs (a few bytes each time) so the new-booking sound still plays there.
+ */
+export function useBookingsVersionWatch(user: { id?: string; role?: string } | null | undefined, enabled: boolean) {
+  const queryClient = useQueryClient();
+  const { data: version } = useQuery({
+    queryKey: ["bookings-version", user?.id, user?.role] as const,
+    queryFn: async ({ signal }) => {
+      const res = await apiGet<{ version: string }>("appointments/version", { signal });
+      if (!res.success) throw new Error(res.message);
+      return res.data?.version ?? "";
+    },
+    enabled: enabled && !!user?.id,
+    refetchInterval: 10 * 1000,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
+  });
+  const seen = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!version) return;
+    // ponytail: this tab's own saves move the version too, so the list reloads
+    // once more after them. Worth skipping once the list is slimmed (#5) if it shows.
+    if (seen.current !== undefined && seen.current !== version) invalidateAppointmentAndEnquiryQueries(queryClient);
+    seen.current = version;
+  }, [version, queryClient]);
 }
 
 export function useBookAppointment() {

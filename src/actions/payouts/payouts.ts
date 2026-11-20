@@ -22,10 +22,6 @@ export type PayoutBalance = {
 
 export type SettlementInput = { doctorId: string; amount: number; direction: "paid" | "received"; note?: string };
 
-export async function getPayoutBalances(): Promise<ApiResponse<PayoutBalance[]>> {
-  return backendCall("/api/payouts", { method: "GET" }, "getPayoutBalances");
-}
-
 export async function recordSettlement(input: SettlementInput): Promise<ApiResponse<unknown>> {
   return backendCall("/api/payouts/settlements", { method: "POST", body: JSON.stringify(input) }, "recordSettlement");
 }

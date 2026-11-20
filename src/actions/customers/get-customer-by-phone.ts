@@ -1,32 +1,10 @@
-"use server";
-
-import { base_url } from "@/constant";
-import { fetchWithAuth } from "@/lib/fetchwithauth";
-import { ApiResponse } from "@/type/api";
+// A read: runs in the browser through the dashboard's GET route (lib/api-get.ts),
+// so it never queues behind other requests the way a Server Action does.
+import { apiGet } from "@/lib/api-get";
+import type { ApiResponse } from "@/type/api";
 import type { PersistedCustomer } from "@/type/customer-record";
 
-export async function getCustomerByPhone(
-  phone: number,
-): Promise<ApiResponse<PersistedCustomer[]>> {
-  try {
-    const url = `${base_url}/api/customers?q=${phone}`;
-    const response = await fetchWithAuth(url, { method: "GET", cache: "no-store" });
-
-    if (!response.ok) {
-      const result = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        message: result.message ?? `Request failed with status ${response.status}`,
-      };
-    }
-
-    const result = await response.json();
-    return {
-      success: true,
-      message: result.message ?? "Customers fetched",
-      data: (result.data ?? []) as PersistedCustomer[],
-    };
-  } catch (err) {
-    return { success: false, message: "Network error, please try again" };
-  }
+export async function getCustomerByPhone(phone: number): Promise<ApiResponse<PersistedCustomer[]>> {
+  const res = await apiGet<PersistedCustomer[]>(`customers?q=${encodeURIComponent(String(phone))}`);
+  return res.success ? { ...res, data: res.data ?? [] } : res;
 }

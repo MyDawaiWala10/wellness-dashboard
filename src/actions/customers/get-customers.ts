@@ -1,34 +1,10 @@
-"use server";
-
-import { base_url } from "@/constant";
-import { fetchWithAuth } from "@/lib/fetchwithauth";
-import { ApiResponse } from "@/type/api";
+// A read: runs in the browser through the dashboard's GET route (lib/api-get.ts),
+// so it never queues behind other requests the way a Server Action does.
+import { apiGet } from "@/lib/api-get";
+import type { ApiResponse } from "@/type/api";
 import type { PersistedCustomer } from "@/type/customer-record";
 
 export async function getCustomers(q?: string): Promise<ApiResponse<PersistedCustomer[]>> {
-  const params = new URLSearchParams();
-  if (q) params.set("q", q);
-
-  try {
-    const url = `${base_url}/api/customers${params.toString() ? `?${params.toString()}` : ""}`;
-    const response = await fetchWithAuth(url, { method: "GET", cache: "no-store" });
-
-    if (!response.ok) {
-      const result = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        message: result.message ?? `Request failed with status ${response.status}`,
-      };
-    }
-
-    const result = await response.json();
-    return {
-      success: true,
-      message: result.message ?? "Customers fetched successfully",
-      data: (result.data ?? []) as PersistedCustomer[],
-    };
-  } catch (err) {
-    return { success: false, message: "Network error, please try again" };
-  }
+  const res = await apiGet<PersistedCustomer[]>(q ? `customers?q=${encodeURIComponent(q)}` : "customers");
+  return res.success ? { ...res, data: res.data ?? [] } : res;
 }
-

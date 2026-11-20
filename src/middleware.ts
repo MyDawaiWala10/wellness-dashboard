@@ -21,6 +21,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
     pathname.startsWith('/api/uploadthing') ||
+    // Data reads check the login themselves (fetchWithAuth) and must answer
+    // JSON, never a redirect to the login page.
+    pathname.startsWith('/api/backend') ||
     // Customer-facing payment page - the whole point is that the customer,
     // who has no dashboard login, can open it. Guarded by an unguessable
     // token instead (see /pay/[token]).

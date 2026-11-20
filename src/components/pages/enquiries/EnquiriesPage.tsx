@@ -1,8 +1,7 @@
 "use client";
 
 import { ResizableCell, ResizableHead, useColumnWidths } from "@/components/tables/resizable-columns";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { RefreshButton } from "@/components/refresh-button";
 import {
@@ -51,7 +50,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/providers/permission-provider";
 import { useGetAllEnquiries } from "@/data/enquiry/enquiry";
-import getAllAppointments from "@/actions/appointments/get-all-appointments";
 import type { EnquiryType, slotBookingZodType } from "@/type/schema";
 import { parentIdOf } from "@/lib/visit-groups";
 import { matchesSearch } from "@/lib/search";
@@ -298,39 +296,9 @@ export default function EnquiriesPage() {
     FunnelStage | "all"
   >("all");
 
-  // ── New-enquiry notification + manual reload (pull-based) ──
-  // We don't auto-refresh the table. On window-focus we do a light peek; if the
-  // server has MORE records than we're showing, a minimal toast offers a Reload.
-  // Keeps backend/compute use low while still flagging fresh bookings.
-  // The peek is throttled to at most one per minute so repeatedly clicking back
-  // into the tab can't fire a flood of API calls (which hung the page before).
-  const [newCount, setNewCount] = useState(0);
-  const knownCountRef = useRef(0);
-  const lastPeekAtRef = useRef(0);
-  const FOCUS_PEEK_THROTTLE_MS = 60 * 1000;
-
-  useEffect(() => {
-    knownCountRef.current = allRecords?.length ?? knownCountRef.current;
-  }, [allRecords]);
-
-  useEffect(() => {
-    function peek() {
-      const now = Date.now();
-      if (now - lastPeekAtRef.current < FOCUS_PEEK_THROTTLE_MS) return;
-      lastPeekAtRef.current = now;
-      getAllAppointments({ role, id, userEmail }).then((res) => {
-        if (!res?.success) return;
-        const diff = (res.data ?? []).length - knownCountRef.current;
-        if (diff > 0) setNewCount(diff);
-      });
-    }
-    window.addEventListener("focus", peek);
-    return () => window.removeEventListener("focus", peek);
-  }, [role, id, userEmail]);
-
+  // The list keeps itself current (useBookingsVersionWatch); Refresh forces it.
   const handleReload = useCallback(() => {
     refetch();
-    setNewCount(0);
   }, [refetch]);
 
   // Sound-on-new-enquiry, with a persisted mute toggle. Read the stored pref on
@@ -349,20 +317,6 @@ export default function EnquiriesPage() {
       return next;
     });
   }, []);
-
-  // Surface the new-enquiry count as a colored, top-right toast (see the root
-  // <Toaster position="top-right" richColors /> in layout.tsx). A stable id
-  // means repeat focus-peeks UPDATE this one toast instead of stacking copies.
-  useEffect(() => {
-    if (newCount <= 0) return;
-    playEnquiryBeep(); // no-ops when muted or audio is blocked
-    toast.info(`${newCount} new ${newCount === 1 ? "enquiry" : "enquiries"}`, {
-      id: "new-enquiries",
-      description: "The server has newer records than shown here.",
-      duration: 10000,
-      action: { label: "Reload", onClick: handleReload },
-    });
-  }, [newCount, handleReload]);
 
   // Frontend-side scoping: surface records that participate in the enquiry funnel.
   // A record counts as "enquiry-funnel" if its status is "enquiry" OR it has

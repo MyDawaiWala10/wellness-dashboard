@@ -1,40 +1,19 @@
-"use server";
-
-import { base_url } from "@/constant";
-import { fetchWithAuth } from "@/lib/fetchwithauth";
+// A read: runs in the browser through the dashboard's GET route (lib/api-get.ts),
+// so it never queues behind other requests the way a Server Action does.
+import { apiGet } from "@/lib/api-get";
 import type { ApiResponse } from "@/type/api";
 
 export type StaffUser = {
-    _id: string;
-    userfName: string;
-    userlName: string;
-    userEmail: string;
-    role: string;
-    isActive: boolean;
+  _id: string;
+  userfName: string;
+  userlName: string;
+  userEmail: string;
+  role: string;
+  isActive: boolean;
 };
 
 export default async function getAllUsers(): Promise<ApiResponse<StaffUser[]>> {
-    try {
-        const response = await fetchWithAuth(`${base_url}/api/users/getallusers`, {
-            method: "GET",
-            headers: { accept: "application/json" },
-        });
-        if (!response.ok) {
-            const result = await response.json().catch(() => ({}));
-            return {
-                success: false,
-                message: result.message ?? `Request failed with status ${response.status}`,
-            };
-        }
-        const result = await response.json();
-        // Backend shape: { success, data: { users: [...] } } - flatten to data: [...]
-        return {
-            success: true,
-            message: result.message ?? "Users fetched successfully",
-            data: result.data?.users ?? [],
-        };
-    } catch (err) {
-        console.error("[getAllUsers]", err);
-        return { success: false, message: "Network error, please try again" };
-    }
+  // Backend shape: { data: { users: [...] } }, flattened to data: [...]
+  const res = await apiGet<{ users?: StaffUser[] }>("users/getallusers");
+  return res.success ? { ...res, data: res.data?.users ?? [] } : { ...res, data: undefined };
 }

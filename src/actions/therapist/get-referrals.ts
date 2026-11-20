@@ -1,8 +1,7 @@
-"use server";
-
-import { base_url } from "@/constant";
-import { fetchWithAuth } from "@/lib/fetchwithauth";
-import { ApiResponse } from "@/type/api";
+// A read: runs in the browser through the dashboard's GET route (lib/api-get.ts),
+// so it never queues behind other requests the way a Server Action does.
+import { apiGet } from "@/lib/api-get";
+import type { ApiResponse } from "@/type/api";
 
 export type ReferredBooking = {
   _id: string;
@@ -16,19 +15,6 @@ export type ReferredBooking = {
 
 /** Bookings that came in through this therapist's referral code. */
 export default async function getReferrals(doctorId: string): Promise<ApiResponse<ReferredBooking[]>> {
-  try {
-    const response = await fetchWithAuth(`${base_url}/api/therapist/${doctorId}/referrals`, {
-      method: "GET",
-      headers: { accept: "application/json" },
-      cache: "no-cache",
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      return { success: false, message: result.message ?? `Request failed with status ${response.status}` };
-    }
-    return { success: true, message: "ok", data: result.data ?? [] };
-  } catch (error) {
-    console.error("[get-referrals]", error);
-    return { success: false, message: "Network error, please try again" };
-  }
+  const res = await apiGet<ReferredBooking[]>(`therapist/${encodeURIComponent(doctorId)}/referrals`);
+  return res.success ? { ...res, data: res.data ?? [] } : res;
 }
