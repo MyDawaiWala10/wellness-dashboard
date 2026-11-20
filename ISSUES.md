@@ -1474,6 +1474,8 @@ Causes 3 and 4 fixed (`fb0d3fe`, backend `8acaaee`): reads go through one GET ro
 
 Live re-measure 2026-11-20: Bookings 5.0 s (was 9.0), Enquiries 4.3 s (was 5.1), Customers 4.5 s, Earnings 3.5 s (was 5.9). An idle Bookings tab: 4 checks of 361 B in 45 s, no list reloads (was 6 x 240 KB). Still over 2 s: the list request alone takes 3.6 to 4.2 s (causes 1, 2 and the heavy list in 4 remain).
 
+#5 (backend `8f0e83d`): the list reads plain rows in one batch, the COD check alongside, the office's visit statuses from its own rows. Live 2026-11-20: list request alone 2.25 to 2.7 s (106 bookings), on page load 2.2 to 2.9 s. Bookings shows its list at 2.4 to 3.2 s, Customers 3.3 s, Earnings 3.6 s (it waits on the list and payouts). Every request carries about 0.9 s of distance (the 361 B version check takes 0.85 to 0.92 s), so under 2 s now needs the hosting move (causes 1 and 2).
+
 Found while re-measuring: the list sometimes downloaded twice on page load. zustand 5 gives the login store's empty starting state for the first render, so the list query ran once with no user and again with the user. Fixed by waiting for the login (`enabled: !!user?.id` on the shared list and on Customers, whose `fetchQuery` skips that guard).
 
 ---
@@ -1492,6 +1494,43 @@ The server records money for any session of a course on session 1 (`moneyRowFor`
 
 #### Fix and guard
 Not fixed yet. The drawer should show the course's money row (what's due and what's been paid), the same row the server writes to. The guard: a test that records on session 2 and expects the drawer to show it.
+
+---
+
+### 68. The Bookings Table Says "No results." While It Is Still Loading
+
+**Severity:** Low (misleading for 2-3 s, longer when the backend wakes up)
+**Status:** Open, found 2026-11-20 while taking SOP screenshots
+**Category:** Dashboard / Bookings list
+
+#### Description
+On opening Bookings, the table shows "No results." and "Page 1 of 0" until the list arrives (seen on the live site as Super Admin and as a therapist; after the backend slept, for over 20 s). Staff can read that as "there are no bookings".
+
+#### Cause
+`Appoinmentsdatatable.tsx:191` renders "No results." whenever there are zero rows; it doesn't know the list is still loading.
+
+#### Fix and guard
+Not fixed yet. Show a loading state while the query is loading; "No results." only after it has loaded. Check the other tables using the same text (`user-data-table.tsx`, `Doctorsdatatable.tsx`).
+
+---
+
+### 69. On a Phone, the Visit Tab's Payment Box Hides the Amount and Pushes "Record payment" Off the Card
+
+**Severity:** Medium (therapists record payments on their phones and can't see the amount they are recording)
+**Status:** Fixed in code 2026-11-20 (not deployed yet), found the same day while taking SOP screenshots (live site, therapist login, 390 px wide)
+
+#### Description
+In a booking's Visit tab, step "4 Payment", the amount field shrinks to an empty sliver and the "Record payment" button sticks out past the right edge of the card. The same form in the Billing tab (wider) shows "600" and fits.
+
+#### Cause
+`record-payment-form.tsx:55` lays the amount, method and button in one row (`flex gap-1.5`) that never wraps; inside the indented Visit tab step at phone width there is not enough room.
+
+#### Fix and guard
+The row now wraps (`flex-wrap`), and the amount box keeps at least 6rem (`min-w-24 grow basis-24`). When the three don't fit, "Record payment" drops to its own line. The fix is in the shared form, so it reaches all four places that use it: the Visit tab, the visit sections, the Billing tab and the enquiry drawer. On wide screens all three still sit on one line.
+
+Checked on the live page at 390 px, with the same styles applied: the Visit tab amount went from 26 px to 118 px wide and shows "600"; the Billing tab shows 192 px. In both tabs the button wraps and stays inside the card.
+
+**Guard:** check any new form row at 390 px. A one-line `flex` row with fixed-width neighbours will squeeze the stretchy field to nothing.
 
 ---
 
@@ -1566,3 +1605,5 @@ Not fixed yet. The drawer should show the course's money row (what's due and wha
 | 65 | A blank row in Therapist payouts | Low | Fixed |
 | 66 | The live dashboard takes 3-9 s per screen | High | Open |
 | 67 | A course session's drawer hides the payment just recorded on it | Medium | Open |
+| 68 | The Bookings table says "No results." while still loading | Low | Open |
+| 69 | On a phone, the Visit tab's payment box hides the amount | Medium | Fixed (not deployed) |

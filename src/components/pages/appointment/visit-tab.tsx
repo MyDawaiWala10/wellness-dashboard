@@ -296,7 +296,9 @@ export function VisitTab({
           verified
             ? undefined
             : isTherapist
-              ? "Ask the office to send the customer a code, then type what they read out. The session starts once it checks out."
+              ? draft.visitOtpSentAt
+                ? "Type the 4-digit code the customer got on WhatsApp."
+                : "Ask the office to send the customer a code."
               : "Send the customer a code. The therapist types what the customer reads out to start the session."
         }
       >
@@ -392,7 +394,7 @@ export function VisitTab({
         }
         sub={
           isTherapist
-            ? `Findings, diagnosis, what you did. Saved automatically, filed under ${actor}.`
+            ? "Saves by itself as you type."
             : "Written by the therapist. Past session notes are in History."
         }
       >
@@ -412,11 +414,9 @@ export function VisitTab({
         n={4}
         title="Payment"
         sub={
-          paymentCleared
+          paymentCleared || isTherapist
             ? undefined
-            : isTherapist
-              ? "Collect this visit's payment to finish. The customer can scan the QR, or record what they paid."
-              : "This visit's payment must be cleared before it can be completed."
+            : "This visit's payment must be cleared before it can be completed."
         }
       >
         {paymentCleared ? (
@@ -426,7 +426,7 @@ export function VisitTab({
         ) : (
           <div className="space-y-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
             <p className="text-[12px] font-medium text-amber-800 dark:text-amber-300">
-              {bookingDue > 0 && <>{formatINR(bookingDue)} due for this session before completing.</>}
+              {bookingDue > 0 && <>{formatINR(bookingDue)} to collect.</>}
               {addonDue > 0 && (
                 <>
                   {bookingDue > 0 ? " " : ""}
@@ -434,32 +434,29 @@ export function VisitTab({
                 </>
               )}
             </p>
-            {bookingDue > 0 && appointment._id && (
-              <RecordPaymentForm
-                appointmentId={appointment._id}
-                due={bookingRemaining}
-                suggested={bookingDue}
-                companyPayee
-                cashBlocked={appointment.codBlocked}
-              />
-            )}
-            {/* One way to actually collect: a quick QR popup the customer scans
-                with any UPI app - it pays the company, amount baked in. */}
+            {/* Collect first, then record: the QR (any UPI app, pays the company,
+                amount and payee shown on it) comes before the record form. */}
             {bookingDue > 0 && (
-              <div className="flex flex-wrap items-center gap-2 border-t border-amber-500/30 pt-1.5">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8 shrink-0 gap-1.5"
-                  onClick={() => setPayQrOpen(true)}
-                >
-                  <QrCode className="h-3.5 w-3.5" />
-                  Show payment QR
-                </Button>
-                <span className="text-[11px] text-muted-foreground">
-                  Customer scans to pay the company - amount is baked in.
-                </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1.5"
+                onClick={() => setPayQrOpen(true)}
+              >
+                <QrCode className="h-3.5 w-3.5" />
+                Show payment QR
+              </Button>
+            )}
+            {bookingDue > 0 && appointment._id && (
+              <div className="border-t border-amber-500/30 pt-1.5">
+                <RecordPaymentForm
+                  appointmentId={appointment._id}
+                  due={bookingRemaining}
+                  suggested={bookingDue}
+                  companyPayee
+                  cashBlocked={appointment.codBlocked}
+                />
               </div>
             )}
             <PaymentQrDialog

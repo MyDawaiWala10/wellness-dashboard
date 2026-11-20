@@ -9,7 +9,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRecordPayment } from "@/data/appointment/appointment";
-import { formatINR } from "@/components/pages/services/services-columns";
 
 const METHODS = ["cash", "upi", "card", "bank", "other"] as const;
 
@@ -52,12 +51,13 @@ export function RecordPaymentForm({
 
   return (
     <div className="space-y-1.5">
-      <div className="flex gap-1.5">
+      {/* Wraps on narrow screens (phone Visit tab) so the amount stays readable. */}
+      <div className="flex flex-wrap gap-1.5">
         <Input
           type="number"
           min={1}
           max={due}
-          className="h-8"
+          className="h-8 min-w-24 grow basis-24"
           aria-label="Amount received"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
@@ -98,7 +98,7 @@ export function RecordPaymentForm({
         </Button>
       </div>
       <p className="text-[11px] text-muted-foreground">
-        {`Up to ${formatINR(due)} can be recorded. A recorded payment can't be undone.`}
+        Check the amount. This can&apos;t be undone.
       </p>
     </div>
   );
