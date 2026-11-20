@@ -1574,6 +1574,7 @@ Office roles (Admin, Staff, Customer Care) hold every permission on the server, 
 10. **History tab customer name, phone and email look editable,** but the server ignores changes once they're set (`lib/lockedFields.ts:101`).
 11. **Small things:** "Support" in the avatar menu does nothing; the first menu item reads "Dasboard". `docs/team/owner-guide.md` has an out-of-date role table.
 12. **Lead drawer wording (seen live 2026-11-20):** times show as "10/31/2026, 7:01:45 PM" while tables use "2026-10-27 18:52". Data-fix entries in Activity read like developer notes, for example "Status reset scheduled: > enquiry: an old Reached: out tick ... (ISSUES #30)".
+13. **Book Slot booking drawer (seen live 2026-11-20):** "Change" on the Visit tab moves a confirmed booking on one click, with no "Move this booking?" check like Enquiries has. The History tab's Date/Time "Save changes" has no reason box, so an Executive editing another person's booking there gets "This lead is owned by X. Add a reason to edit it." "Cancel appointment" asks for no reason. The SOP sends Executives to "Change" for moves.
 
 #### Fix and guard
 Not fixed. Each needs a decision on what the rule should be, then the server enforces it and the screen mirrors it (CLAUDE.md rule 4). **Guard:** when a screen hides an action by role, grep the matching route for `requireRole`; `checkPermission` alone lets every office role through.
