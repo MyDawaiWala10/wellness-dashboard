@@ -1470,7 +1470,11 @@ A booking with a price but no therapist assigned yet (7 at the time) still gets 
 5. **Recording a payment** makes about 10-14 database queries in a row (invoice sync included), then reloads 5 lists.
 
 #### Fix and guard
-Not fixed yet (plan in the 2026-11-19 report). Guard to add: a timing check that fails when a key screen goes over 2 s.
+Causes 3 and 4 fixed (`fb0d3fe`, backend `8acaaee`): reads go through one GET route (`/api/backend/*`) so they run side by side; Bookings, Enquiries, Customers and the alert share one list; a 10 s version check (`GET /api/appointments/version`) reloads it only on change. Guards: `api-get.test.ts`, `bookingsVersion.test.ts`.
+
+Live re-measure 2026-11-20: Bookings 5.0 s (was 9.0), Enquiries 4.3 s (was 5.1), Customers 4.5 s, Earnings 3.5 s (was 5.9). An idle Bookings tab: 4 checks of 361 B in 45 s, no list reloads (was 6 x 240 KB). Still over 2 s: the list request alone takes 3.6 to 4.2 s (causes 1, 2 and the heavy list in 4 remain).
+
+Found while re-measuring: the list sometimes downloaded twice on page load. zustand 5 gives the login store's empty starting state for the first render, so the list query ran once with no user and again with the user. Fixed by waiting for the login (`enabled: !!user?.id` on the shared list and on Customers, whose `fetchQuery` skips that guard).
 
 ---
 

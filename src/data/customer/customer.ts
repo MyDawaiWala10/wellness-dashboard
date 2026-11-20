@@ -203,8 +203,8 @@ export function useGetCustomers(
     },
     refetchOnWindowFocus: false,
     staleTime: 5 * 1000, // 5 seconds - short so session notes written during a visit appear promptly
-    // undefined leaves React Query's default (enabled) - existing callers keep
-    // fetching; the intake modal passes `false` until it's actually open.
-    enabled: options?.enabled,
+    // The intake modal passes `false` until it's actually open. Wait for the
+    // login too: fetchQuery above ignores the shared list's own guard.
+    enabled: (options?.enabled ?? true) && !!user?.id,
   });
 }

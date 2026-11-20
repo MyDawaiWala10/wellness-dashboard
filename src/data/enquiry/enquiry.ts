@@ -28,6 +28,9 @@ export const enquiriesQueryOptions = (user: UserType) => ({
   // saves invalidate it directly (ISSUES #66).
   refetchOnWindowFocus: false,
   staleTime: 60 * 1000,
+  // On page load the login store reads empty for one render (zustand hydration);
+  // without this the list downloads twice, once per key (ISSUES #66).
+  enabled: !!user?.id,
   // Ride out short network drops before calling the load failed.
   retry: 3,
 });
