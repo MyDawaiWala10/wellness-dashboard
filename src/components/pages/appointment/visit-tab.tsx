@@ -307,7 +307,7 @@ export function VisitTab({
         )}
         {verified ? (
           <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
-            Verified by the customer - the session is under way.
+            The session is under way.
           </p>
         ) : (
           // The office sends, the therapist verifies - never the same person,

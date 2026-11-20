@@ -190,8 +190,9 @@ export default function TherapistDetailsPage({
       <div className="px-5 sm:px-6 pt-6 pb-5 border-b">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-5 pr-8">
           <ProfilePicUploader
-            value={data.profileImage ?? ""}
-            onChange={() => {}}
+            value={form.watch("profileImage")}
+            // Saved with the rest of the form on "Update Details".
+            onChange={(url) => form.setValue("profileImage", url, { shouldDirty: true })}
             name={watchedName}
             size="lg"
           />

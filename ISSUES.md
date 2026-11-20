@@ -1512,12 +1512,14 @@ On opening Bookings, the table shows "No results." and "Page 1 of 0" until the l
 #### Fix and guard
 Not fixed yet. Show a loading state while the query is loading; "No results." only after it has loaded. Check the other tables using the same text (`user-data-table.tsx`, `Doctorsdatatable.tsx`).
 
+Also on **Earnings** (seen 2026-11-20 as a therapist): while the bookings load, the cards read ₹0 Earned, 0 Sessions and "Showing 0 records", right under the payout box that already shows the real total (₹11,986). A therapist can read that as "I earned nothing". `earnings-page.tsx:503` and the KPI cards don't check `apptLoading`; only the table below does.
+
 ---
 
 ### 69. On a Phone, the Visit Tab's Payment Box Hides the Amount and Pushes "Record payment" Off the Card
 
 **Severity:** Medium (therapists record payments on their phones and can't see the amount they are recording)
-**Status:** Fixed in code 2026-11-20 (not deployed yet), found the same day while taking SOP screenshots (live site, therapist login, 390 px wide)
+**Status:** Fixed and live 2026-11-20 (8b03707), found the same day while taking SOP screenshots (live site, therapist login, 390 px wide)
 
 #### Description
 In a booking's Visit tab, step "4 Payment", the amount field shrinks to an empty sliver and the "Record payment" button sticks out past the right edge of the card. The same form in the Billing tab (wider) shows "600" and fits.
@@ -1531,6 +1533,24 @@ The row now wraps (`flex-wrap`), and the amount box keeps at least 6rem (`min-w-
 Checked on the live page at 390 px, with the same styles applied: the Visit tab amount went from 26 px to 118 px wide and shows "600"; the Billing tab shows 192 px. In both tabs the button wraps and stays inside the card.
 
 **Guard:** check any new form row at 390 px. A one-line `flex` row with fixed-width neighbours will squeeze the stretchy field to nothing.
+
+---
+
+### 70. A Therapist's Photo Can't Be Changed After the Therapist Is Created
+
+**Severity:** Medium (the screen says "Profile picture uploaded", but nothing is saved)
+**Status:** Fixed in code 2026-11-20 (not deployed yet), found the same day while reading the profile screen for the therapist SOP
+
+#### Description
+On an existing therapist's profile (Therapist List, then the therapist's row), tapping the photo uploads the file and shows "Profile picture uploaded". But the photo on screen stays the same, and "Update Details" saves the old one. The red X that should remove the photo does nothing either. This affects therapists editing their own profile and office users editing any therapist.
+
+#### Cause
+`therapist-details-page.tsx` passed `onChange={() => {}}` to `ProfilePicUploader`, so the uploaded link was thrown away. The uploader showed the stored photo (`data.profileImage`), not the form's value. The add-therapist form was wired correctly, which is why new therapists got photos.
+
+#### Fix and guard
+The uploader now reads and writes the form's `profileImage`, so "Update Details" saves it (the backend already accepts `profileImage` on update). Not checked in a browser yet: needs a deploy, then upload a photo on a test therapist and reopen the profile.
+
+**Guard:** a picker or uploader passed `() => {}` as its change handler is a silent no-op. Grep for `onChange={() => {}}` when wiring one.
 
 ---
 
@@ -1606,4 +1626,5 @@ Checked on the live page at 390 px, with the same styles applied: the Visit tab 
 | 66 | The live dashboard takes 3-9 s per screen | High | Open |
 | 67 | A course session's drawer hides the payment just recorded on it | Medium | Open |
 | 68 | The Bookings table says "No results." while still loading | Low | Open |
-| 69 | On a phone, the Visit tab's payment box hides the amount | Medium | Fixed (not deployed) |
+| 69 | On a phone, the Visit tab's payment box hides the amount | Medium | Fixed |
+| 70 | A therapist's photo can't be changed after the therapist is created | Medium | Fixed (not deployed) |
